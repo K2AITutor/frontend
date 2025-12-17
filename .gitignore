@@ -1,0 +1,27 @@
+# Ignore dist directory (compiled code)
+dist/
+
+# Node.js
+node_modules/
+
+# Frontend build output
+frontend/dist/
+
+# Backend build output (e.g., dist or build folder)
+backend/dist/
+
+# Environment variable files (you might want these to be local)
+.env
+
+# IDE/editor folders
+.idea/
+.vscode/
+
+# Docker-related files (volumes, etc.)
+docker-compose.override.yml
+
+# Logs
+*.log
+*.onetoc2
+
+

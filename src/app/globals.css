@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================
+   Global text helpers
+   ========================= */
+
+.subtitle {
+    color: #94a3b8;
+    /* slate-400 */
+    margin-bottom: 24px;
+}
+
+/* =========================
+   Layout helpers
+   ========================= */
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+/* =========================
+   Card UI
+   ========================= */
+
+.card {
+    background: #0b1535;
+    /* dark navy */
+    padding: 20px;
+    border-radius: 12px;
+}
+
+/* =========================
+   Progress bars
+   ========================= */
+
+.progress {
+    margin-top: 16px;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+.progress-track {
+    background: #1e293b;
+    /* slate-800 */
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    background: #3b82f6;
+    /* blue-500 */
+    height: 100%;
+}
+
+/* =========================
+   Topic list
+   ========================= */
+
+.topic-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 12px;
+}
+
+.topic-list li {
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+/* Status colors */
+
+.topic-list .warn {
+    background: rgba(251, 146, 60, 0.15);
+    /* orange */
+}
+
+.topic-list .alert {
+    background: rgba(239, 68, 68, 0.15);
+    /* red */
+}
+
+.topic-list .good {
+    background: rgba(34, 197, 94, 0.15);
+    /* green */
+}
