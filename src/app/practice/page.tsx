@@ -1,73 +1,39 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import { apiGet, apiPost } from "../../lib/api";
-import { getToken } from "../../lib/storage";
+import AppLayout from "@/components/AppLayout";
 
 export default function PracticePage() {
-    const token = getToken();
-
-    const [topics, setTopics] = useState([]);
-    const [topicId, setTopicId] = useState(null);
-    const [question, setQuestion] = useState(null);
-    const [result, setResult] = useState(null);
-
-    useEffect(() => {
-        apiGet("/topics").then(setTopics);
-    }, []);
-
-    async function loadQuestion() {
-        setResult(null);
-        const q = await apiPost("/engine/question", { topicId }, token);
-        setQuestion(q);
-    }
-
-    async function submit(index) {
-        const r = await apiPost("/engine/submit", {
-            questionId: question.id,
-            answerIndex: index
-        }, token);
-        setResult(r);
-    }
-
     return (
-        <div>
-            <h1 className="text-3xl">Practice</h1>
+        <AppLayout>
+            <h1 className="text-3xl font-bold mb-6">VCE Practice</h1>
 
-            <select
-                className="mt-4 p-2 bg-slate-800"
-                onChange={e => setTopicId(Number(e.target.value))}
-            >
-                <option>Select a topic</option>
-                {topics.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-            </select>
+            <div className="bg-white/5 backdrop-blur-xl rounded-xl p-6 space-y-6">
+                <select className="w-full p-3 bg-black/30 rounded border border-white/10">
+                    <option>-- Choose a Topic --</option>
+                    <option>Quadratics</option>
+                    <option>Linear Equations</option>
+                    <option>Probability</option>
+                    <option>Geometry</option>
+                </select>
 
-            <button className="btn mt-4" onClick={loadQuestion}>Load Question</button>
+                <input
+                    placeholder="Your answer"
+                    className="w-full p-3 bg-black/30 rounded border border-white/10"
+                />
 
-            {question && (
-                <div className="mt-6 bg-slate-800 p-4 rounded">
-                    <h2>{question.question}</h2>
+                <button className="px-6 py-3 bg-blue-600 rounded hover:bg-blue-500">
+                    Submit Answer
+                </button>
 
-                    {question.options.map((opt, i) => (
-                        <button key={i} className="btn mt-2 block" onClick={() => submit(i)}>
-                            {opt}
-                        </button>
-                    ))}
-
-                    {result && (
-                        <div className="mt-4">
-                            <p className={result.correct ? "text-green-400" : "text-red-400"}>
-                                {result.correct ? "Correct!" : "Incorrect"}
-                            </p>
-                            <p className="text-slate-300 mt-2">
-                                Explanation: {result.explanation}
-                            </p>
-                        </div>
-                    )}
+                {/* Result */}
+                <div className="bg-black/30 p-4 rounded text-red-400">
+                    <p className="font-semibold">Incorrect</p>
+                    <p className="text-slate-300">
+                        Correct answer: <b>1/6</b>
+                    </p>
+                    <p className="text-slate-400 text-sm">
+                        Explanation: 6 outcomes → P = 1/6
+                    </p>
                 </div>
-            )}
-        </div>
+            </div>
+        </AppLayout>
     );
 }

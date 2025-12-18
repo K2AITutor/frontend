@@ -18,7 +18,8 @@
         "pg": "^8.16.3",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
-        "typeorm": "^0.3.28"
+        "typeorm": "^0.3.28",
+        "axios": "^1.6.0"
     },
     "devDependencies": {
         "@types/axios": "^0.9.36",
