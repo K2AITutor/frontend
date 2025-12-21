@@ -1,37 +1,33 @@
-import AppLayout from "@/components/AppLayout";
+// frontend/src/app/practice/page.tsx
 
-export default function PracticePage() {
+import AppLayout from "@/components/AppLayout";
+import PracticeClient from "./PracticeClient";
+import { fetchPracticeQuestions } from "@/lib/api";
+import { PracticeQuestion } from "@/types/question";
+
+export default async function PracticePage() {
+    const data = await fetchPracticeQuestions("differentiation");
+
+    const questions: PracticeQuestion[] = (data.questions ?? []).map((q: any) => ({
+        id: q.id,
+        prompt: q.prompt,
+        answer: q.answer,
+        explanation: q.explanation,
+    }));
+
     return (
         <AppLayout>
-            <h1 className="text-3xl font-bold mb-6">VCE Practice</h1>
+            <div className="max-w-3xl mx-auto mt-10">
+                <h1 className="text-4xl font-bold mb-2">
+                    VCE Practice — <span className="text-blue-400">Quadratics</span>
+                </h1>
 
-            <div className="bg-white/5 backdrop-blur-xl rounded-xl p-6 space-y-6">
-                <select className="w-full p-3 bg-black/30 rounded border border-white/10">
-                    <option>-- Choose a Topic --</option>
-                    <option>Quadratics</option>
-                    <option>Linear Equations</option>
-                    <option>Probability</option>
-                    <option>Geometry</option>
-                </select>
+                <p className="text-slate-400 mb-6">
+                    Practice real VCE-style questions with instant feedback and AI explanations.
+                </p>
 
-                <input
-                    placeholder="Your answer"
-                    className="w-full p-3 bg-black/30 rounded border border-white/10"
-                />
-
-                <button className="px-6 py-3 bg-blue-600 rounded hover:bg-blue-500">
-                    Submit Answer
-                </button>
-
-                {/* Result */}
-                <div className="bg-black/30 p-4 rounded text-red-400">
-                    <p className="font-semibold">Incorrect</p>
-                    <p className="text-slate-300">
-                        Correct answer: <b>1/6</b>
-                    </p>
-                    <p className="text-slate-400 text-sm">
-                        Explanation: 6 outcomes → P = 1/6
-                    </p>
+                <div className="glass p-6">
+                    <PracticeClient initialQuestions={questions} />
                 </div>
             </div>
         </AppLayout>
