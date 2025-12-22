@@ -1,28 +1,25 @@
 // frontend/src/app/layout.tsx
+import './globals.css'; // ✅ IMPORT CSS
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 
-import React from 'react';
+const inter = Inter({ subsets: ['latin'] });
 
-const Layout: React.FC = ({ children }) => {
-    return (
-        <html lang="en">
-            <head>
-                <title>Dashboard</title>
-                {/* Add any meta tags, link tags, etc. */}
-            </head>
-            <body>
-                <header>
-                    {/* Add your navigation links, logo, etc. */}
-                </header>
-
-                <main>{children}</main> {/* This is where your page content will be rendered */}
-
-                <footer>
-                    {/* Footer content */}
-                    <p>&copy; 2025 Dashboard App. All rights reserved.</p>
-                </footer>
-            </body>
-        </html>
-    );
+export const metadata: Metadata = {
+  title: 'VCE AI Tutor',
+  description: 'AI-Powered VCE Tutoring Platform',
 };
 
-export default Layout;
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body className={inter.className}>
+        {children}
+      </body>
+    </html>
+  );
+}
