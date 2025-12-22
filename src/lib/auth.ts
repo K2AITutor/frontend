@@ -1,4 +1,4 @@
-import { apiPost } from "./api";
+import { apiPost } from "./apiClient";
 import { saveToken, clearToken } from "./storage";
 
 export async function login(email: string, password: string) {

@@ -1,5 +1,6 @@
 // frontend/src/components/practice/QuestionCard.tsx
 "use client";
+import { submitAnswer } from "@/lib/apiClient";
 
 import { PracticeQuestion } from "@/types/question";
 

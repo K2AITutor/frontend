@@ -1,6 +1,6 @@
-export type PracticeQuestion = {
-    id: number;
+export interface PracticeQuestion {
+    id: string;
     prompt: string;
     answer: string;
-    explanation?: string;
-};
+    skillCode: string; 
+}

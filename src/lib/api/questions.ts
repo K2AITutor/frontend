@@ -24,16 +24,13 @@ export async function fetchPracticeQuestions(topic: string) {
  * Day 2: Submit answer for auto-marking
  * POST /api/questions/submit
  */
-export async function submitAnswer(questionId: number, answer: string) {
-    const res = await fetch(`${API_BASE}/api/questions/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questionId, answer }),
+export async function submitAnswer(questionId: string, answer: string) {
+    const res = await fetch(`${API_BASE}/questions/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionId, answer }),  // Correct structure
     });
 
-    if (!res.ok) {
-        throw new Error('Failed to submit answer');
-    }
-
+    if (!res.ok) throw new Error("Submit failed");
     return res.json();
 }
