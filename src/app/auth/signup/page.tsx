@@ -18,7 +18,7 @@ export default function RegisterPage() {
 
         try {
             const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4001';
-            const res = await fetch(`${apiBase}/api/auth/register`, {
+            const res = await fetch(`${apiBase}/api/auth/signup`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
@@ -30,7 +30,7 @@ export default function RegisterPage() {
             }
 
             // Success! Redirect to login
-            router.push('/auth/login?registered=true');
+            router.push('/auth/signin?registered=true');
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -109,7 +109,7 @@ export default function RegisterPage() {
 
                 <div className="text-center text-sm text-gray-400">
                     Already have an account?{' '}
-                    <Link href="/auth/login" className="font-medium text-indigo-400 hover:text-indigo-300">
+                    <Link href="/auth/signin" className="font-medium text-indigo-400 hover:text-indigo-300">
                         Sign in
                     </Link>
                 </div>

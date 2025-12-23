@@ -33,7 +33,7 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx",
-    "../backend/src/auth/login.dto.ts",
+    "../backend/src/auth/signin.dto.ts",
     "../backend/src/auth/auth.controller.ts",
     "../backend/src/auth/auth.service.ts"
   ],

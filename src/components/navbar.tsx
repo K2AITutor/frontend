@@ -16,7 +16,7 @@ export default function Navbar() {
 
             <div>
                 {!loggedIn ? (
-                    <Link href="/auth/login">Login</Link>
+                    <Link href="/auth/signin">Login</Link>
                 ) : (
                     <button onClick={() => { clearToken(); location.reload(); }}>
                         Logout

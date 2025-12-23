@@ -32,7 +32,7 @@ export default function DashboardPage() {
             const userId = localStorage.getItem('userId');
 
             if (!token || !userId) {
-                router.push('/auth/login');
+                router.push('/auth/signin');
                 return;
             }
 

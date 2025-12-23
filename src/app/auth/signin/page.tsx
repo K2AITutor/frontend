@@ -26,7 +26,7 @@ export default function LoginPage() {
 
         try {
             const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4001';
-            const res = await fetch(`${apiBase}/api/auth/login`, {
+            const res = await fetch(`${apiBase}/api/auth/signin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
@@ -129,7 +129,7 @@ export default function LoginPage() {
 
                 <div className="text-center text-sm text-gray-400">
                     Don't have an account?{' '}
-                    <Link href="/auth/register" className="font-medium text-indigo-400 hover:text-indigo-300">
+                    <Link href="/auth/signup" className="font-medium text-indigo-400 hover:text-indigo-300">
                         Sign up
                     </Link>
                 </div>
