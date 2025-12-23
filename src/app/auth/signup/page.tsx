@@ -17,7 +17,7 @@ export default function RegisterPage() {
         setError('');
 
         try {
-            const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4001';
+            const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
             const res = await fetch(`${apiBase}/api/auth/signup`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
