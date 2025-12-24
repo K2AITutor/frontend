@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import QuestionCard from "@/components/practice/QuestionCard";
+import { MATH_METHODS_TOPICS } from "@/constants/mathMethodsTopics";
 import {
     submitAnswer,
     aiExplain,
     aiSimilarQuestion,
     aiHint,
+    fetchPracticeQuestions,
 } from "@/lib/apiClient";
+
 import { PracticeQuestion } from "@/types/question";
 
 export default function PracticeClient({
@@ -16,7 +19,7 @@ export default function PracticeClient({
     initialQuestions: PracticeQuestion[];
 }) {
     /* ===================== QUESTION FLOW ===================== */
-    const [questions] = useState<PracticeQuestion[]>(initialQuestions);
+    const [questions, setQuestions] = useState<PracticeQuestion[]>(initialQuestions);
     const [currentIndex, setCurrentIndex] = useState(0);
 
     const question = questions[currentIndex] ?? null;
@@ -51,13 +54,12 @@ export default function PracticeClient({
     const aiAvailable = Boolean(question.skillCode);
 
     /* ===================== HANDLERS ===================== */
-
     const handleSubmit = async () => {
-        if (isSubmitting) return;
+        if (!question || isSubmitting) return;
 
         try {
             setIsSubmitting(true);
-            const res = await submitAnswer(question.id, answer);
+            const res = await submitAnswer(String(question.id), answer);
             setResult(res);
             setExplanation(null);
             resetHints();
@@ -148,6 +150,24 @@ export default function PracticeClient({
         resetHints();
     };
 
+    const startPractice = async (topicCode: string) => {
+        try {
+            const res = await fetchPracticeQuestions(
+                "MATH_METHODS",
+                topicCode
+            );
+
+            setQuestions(res);
+            setCurrentIndex(0);
+            setAnswer("");
+            setResult(null);
+            setExplanation(null);
+            resetHints();
+        } catch (err) {
+            console.error("Failed to start practice:", err);
+        }
+    };
+
     /* ===================== UI ===================== */
 
     return (
@@ -155,6 +175,19 @@ export default function PracticeClient({
             <div className="text-sm text-slate-400">
                 Question {currentIndex + 1} of {questions.length}
             </div>
+
+            <div className="flex flex-wrap gap-2 mb-6">
+                {MATH_METHODS_TOPICS.map((t) => (
+                    <button
+                        key={t.code}
+                        onClick={() => startPractice(t.code)}
+                        className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm"
+                    >
+                        {t.name}
+                    </button>
+                ))}
+            </div>
+
 
             <QuestionCard question={question} />
 
