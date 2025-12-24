@@ -3,26 +3,24 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'react-toastify';
 
 export default function LoginPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [successMessage, setSuccessMessage] = useState('');
 
     useEffect(() => {
         if (searchParams.get('registered') === 'true') {
-            setSuccessMessage('Registration successful! Please sign in.');
+            toast.success('Registration successful! Please sign in.');
         }
     }, [searchParams]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setError('');
 
         try {
             const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
@@ -43,10 +41,11 @@ export default function LoginPage() {
             // Save user info if available
             if (data.userId) localStorage.setItem('userId', data.userId);
 
+            toast.success('Login successful!');
             // Redirect to dashboard
             router.push('/dashboard');
         } catch (err: any) {
-            setError(err.message);
+            toast.error(err.message || 'Login failed');
         } finally {
             setLoading(false);
         }
@@ -59,18 +58,6 @@ export default function LoginPage() {
                     <h2 className="text-3xl font-bold text-white">Welcome Back</h2>
                     <p className="mt-2 text-sm text-gray-400">Sign in to your account</p>
                 </div>
-
-                {successMessage && (
-                    <div className="rounded bg-green-500/10 p-3 text-sm text-green-500 border border-green-500/20">
-                        {successMessage}
-                    </div>
-                )}
-
-                {error && (
-                    <div className="rounded bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20">
-                        {error}
-                    </div>
-                )}
 
                 <form className="mt-8 space-y-6" onSubmit={handleLogin}>
                     <div className="space-y-4">

@@ -137,3 +137,37 @@ export async function aiSimilarQuestion(payload: {
 
     return res.json();
 }
+
+/* ---------------- Generic POST (Auth & Others) ---------------- */
+export async function apiPost(endpoint: string, body: any) {
+    const API_BASE = getApiBase();
+    const url = `${API_BASE}${endpoint}`;
+    
+    // Debug logging to help identify "Failed to fetch" causes
+    console.log(`[apiPost] Requesting: ${url}`); 
+
+    try {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+            const text = await res.text();
+            console.error(`[apiPost] Error ${res.status} from ${url}:`, text);
+            // Try to parse JSON error if possible
+            try {
+                 const json = JSON.parse(text);
+                 return json; // Return error object to caller
+            } catch {
+                 throw new Error(text || `Request failed with status ${res.status}`);
+            }
+        }
+
+        return res.json();
+    } catch (error) {
+        console.error(`[apiPost] Network error requesting ${url}:`, error);
+        throw error;
+    }
+}
