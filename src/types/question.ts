@@ -1,6 +1,8 @@
 export interface PracticeQuestion {
-    id: string;
+    id: number;
     prompt: string;
     answer: string;
-    skillCode: string; 
+    difficulty?: string;
+    skillCode: string;
+    topicCode: string;
 }

@@ -19,6 +19,7 @@ function getApiBase() {
 
 /* ---------------- Submit Answer ---------------- */
 export async function submitAnswer(questionId: string, answer: string) {
+    
     const API_BASE = getApiBase();
     const res = await fetch(`${API_BASE}/questions/submit`, {
         method: "POST",
@@ -38,11 +39,16 @@ export async function submitAnswer(questionId: string, answer: string) {
 }
 
 /* ---------------- Fetch Practice Questions (Server Component) ---------------- */
-export async function fetchPracticeQuestions(topic: string) {
+import { PracticeQuestion } from "@/types/question";
+
+export async function fetchPracticeQuestions(
+    subject: string,
+    topicCode: string
+): Promise<PracticeQuestion[]> {
     const API_BASE = getApiBase();
 
     const res = await fetch(
-        `${API_BASE}/questions/practice?topic=${topic}`,
+        `${API_BASE}/questions/practice?subject=${subject}&topicCode=${topicCode}`,
         { cache: "no-store" }
     );
 
@@ -52,17 +58,7 @@ export async function fetchPracticeQuestions(topic: string) {
         throw new Error("Failed to fetch practice questions");
     }
 
-    const data = await res.json();
-
-    // Backend returns ARRAY → normalize for frontend
-    return {
-        questions: data.map((q: any) => ({
-            id: String(q.id),
-            prompt: q.prompt,
-            answer: q.answer,
-            skillCode: q.skillCode || "METHODS_DIFF_POWER",  // Ensure that the correct skillCode is passed
-        })),
-    };
+    return res.json();
 }
 
 /* ---------------- AI Explain (B2) ---------------- */
