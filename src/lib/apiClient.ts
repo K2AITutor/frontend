@@ -167,3 +167,32 @@ export async function apiPost(endpoint: string, body: any) {
         throw error;
     }
 }
+
+/* ---------------- Recommendations ---------------- */
+export async function fetchRecommendations(userId: number) {
+    const API_BASE = getApiBase();
+
+    const res = await fetch(
+        `${API_BASE}/recommendation/next?userId=${userId}`,
+        { cache: "no-store" }
+    );
+
+    if (!res.ok) {
+        throw new Error("Failed to fetch recommendations");
+    }
+
+    return res.json() as Promise<PracticeQuestion[]>;
+}
+
+/* ---------------- Adaptive Recommendation ---------------- */
+export async function getAdaptiveRecommendation() {
+    const API_BASE = getApiBase();
+    
+    const res = await fetch(`${API_BASE}/recommendations/adaptive`);
+
+    if (!res.ok) {
+        throw new Error("Failed to fetch adaptive recommendation");
+    }
+
+    return res.json();
+}
