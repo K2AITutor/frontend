@@ -9,14 +9,22 @@ import {
     aiSimilarQuestion,
     aiHint,
     fetchPracticeQuestions,
+    getAdaptiveRecommendation,
 } from "@/lib/apiClient";
 
 import { PracticeQuestion } from "@/types/question";
 
+type AdaptiveRecommendation = {
+    reason: string;
+    questions: PracticeQuestion[];
+};
+
 export default function PracticeClient({
     initialQuestions,
+    subject,
 }: {
     initialQuestions: PracticeQuestion[];
+    subject: string;
 }) {
     /* ===================== QUESTION FLOW ===================== */
     const [questions, setQuestions] = useState<PracticeQuestion[]>(initialQuestions);
@@ -38,9 +46,21 @@ export default function PracticeClient({
     const [hintLevel, setHintLevel] = useState<1 | 2 | 3>(1);
     const [hints, setHints] = useState<string[]>([]);
 
+    /* ===================== ADAPTIVE RECOMMENDATION ===================== */
+    const [recommendation, setRecommendation] =
+        useState<AdaptiveRecommendation | null>(null);
+    const [isRecLoading, setIsRecLoading] = useState(false);
+
     const resetHints = () => {
         setHintLevel(1);
         setHints([]);
+    };
+
+    const resetQuestionState = () => {
+        setAnswer("");
+        setResult(null);
+        setExplanation(null);
+        resetHints();
     };
 
     if (!question) {
@@ -59,10 +79,22 @@ export default function PracticeClient({
 
         try {
             setIsSubmitting(true);
+
             const res = await submitAnswer(String(question.id), answer);
             setResult(res);
             setExplanation(null);
             resetHints();
+
+            // 🔁 Fetch adaptive recommendation AFTER marking
+            try {
+                setIsRecLoading(true);
+                const rec = await getAdaptiveRecommendation();
+                setRecommendation(rec);
+            } catch (e) {
+                console.warn("Recommendation unavailable");
+            } finally {
+                setIsRecLoading(false);
+            }
         } catch (err) {
             console.error("Submit failed:", err);
         } finally {
@@ -77,7 +109,7 @@ export default function PracticeClient({
             setIsExplaining(true);
 
             const ai = await aiExplain({
-                subject: "MATH_METHODS",
+                subject: subject,
                 skillCode: question.skillCode!,
                 question: question.prompt,
                 studentAnswer: answer,
@@ -99,7 +131,7 @@ export default function PracticeClient({
             setIsHinting(true);
 
             const res = await aiHint({
-                subject: "MATH_METHODS",
+                subject: subject,
                 skillCode: question.skillCode!,
                 question: question.prompt,
                 studentAnswer: answer,
@@ -122,7 +154,7 @@ export default function PracticeClient({
 
         try {
             const next = await aiSimilarQuestion({
-                subject: "MATH_METHODS",
+                subject: subject,
                 skillCode: question.skillCode!,
                 question: question.prompt,
             });
@@ -132,9 +164,7 @@ export default function PracticeClient({
                 finalAdvice: next.question,
             });
 
-            setAnswer("");
-            setResult(null);
-            resetHints();
+            resetQuestionState();
         } catch (err) {
             console.error("AI similar failed:", err);
         }
@@ -144,28 +174,31 @@ export default function PracticeClient({
         if (currentIndex >= questions.length - 1) return;
 
         setCurrentIndex((i) => i + 1);
-        setAnswer("");
-        setResult(null);
-        setExplanation(null);
-        resetHints();
+        resetQuestionState();
     };
 
     const startPractice = async (topicCode: string) => {
         try {
             const res = await fetchPracticeQuestions(
-                "MATH_METHODS",
+                subject,
                 topicCode
             );
 
             setQuestions(res);
             setCurrentIndex(0);
-            setAnswer("");
-            setResult(null);
-            setExplanation(null);
-            resetHints();
+            setRecommendation(null);
+            resetQuestionState();
         } catch (err) {
             console.error("Failed to start practice:", err);
         }
+    };
+
+    const loadRecommendedSet = () => {
+        if (!recommendation?.questions?.length) return;
+
+        setQuestions(recommendation.questions);
+        setCurrentIndex(0);
+        resetQuestionState();
     };
 
     /* ===================== UI ===================== */
@@ -188,7 +221,6 @@ export default function PracticeClient({
                 ))}
             </div>
 
-
             <QuestionCard question={question} />
 
             <input
@@ -206,6 +238,32 @@ export default function PracticeClient({
                 {isSubmitting ? "Checking..." : "Submit Answer"}
             </button>
 
+            {/* ✅ ADAPTIVE RECOMMENDATION PANEL */}
+            {recommendation && (
+                <div className="glass p-4 text-slate-300">
+                    <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-semibold">Recommended Next</h3>
+                        <button
+                            onClick={loadRecommendedSet}
+                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm"
+                        >
+                            Load set
+                        </button>
+                    </div>
+
+                    <p className="text-sm text-slate-400 mb-2">
+                        Reason: {recommendation.reason}
+                    </p>
+
+                    <ul className="list-disc ml-6 text-sm">
+                        {recommendation.questions.slice(0, 5).map((q) => (
+                            <li key={q.id}>{q.prompt}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {/* EXISTING RESULT / AI UI BELOW — unchanged */}
             {result && (
                 <div className={`glass p-4 ${result.correct ? "text-green-400" : "text-red-400"}`}>
                     <p className="font-semibold">

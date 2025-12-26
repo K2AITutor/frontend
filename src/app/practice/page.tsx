@@ -1,33 +1,52 @@
-import PracticeClient from "./PracticeClient";
-import { fetchPracticeQuestions } from "@/lib/apiClient";
-import { PracticeQuestion } from "@/types/question";
+import Link from "next/link";
 
-export default async function PracticePage() {
-    // ✅ Default topic on first load (VCAA Unit 1 → Functions)
-    const DEFAULT_TOPIC_CODE = "MM_T1";
+const SUBJECTS = [
+    { name: "Mathematical Methods", slug: "math-methods", status: "active" },
+    { name: "English", slug: "english", status: "coming" },
+    { name: "Specialist Mathematics", slug: "specialist-maths", status: "coming" },
+    { name: "Chemistry", slug: "chemistry", status: "coming" },
+    { name: "Physics", slug: "physics", status: "coming" },
+    { name: "Biology", slug: "biology", status: "coming" },
+    { name: "General Mathematics", slug: "general-maths", status: "coming" },
+    { name: "Business Management", slug: "business-management", status: "coming" },
+    { name: "Accounting", slug: "accounting", status: "coming" },
+    { name: "Economics", slug: "economics", status: "coming" },
+    { name: "Psychology", slug: "psychology", status: "coming" },
+    { name: "Algorithmics", slug: "algorithmics", status: "coming" },
+    { name: "Computing", slug: "computing", status: "coming" },
+];
 
-    let questions: PracticeQuestion[] = [];
+export default function PracticeDashboardPage() {
+    return (
+        <div className="p-8 space-y-6">
+            <h1 className="text-2xl font-bold">VCE Practice Dashboard</h1>
+            <p className="text-slate-400">
+                Choose a VCE subject to start practicing.
+            </p>
 
-    try {
-        questions = await fetchPracticeQuestions(
-            "MATH_METHODS",
-            DEFAULT_TOPIC_CODE
-        );
-    } catch (err) {
-        console.error("Failed to load practice questions:", err);
-    }
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {SUBJECTS.map((s) => (
+                    <div
+                        key={s.slug}
+                        className="rounded-xl border border-slate-700 p-4 bg-slate-900"
+                    >
+                        <h2 className="font-semibold">{s.name}</h2>
 
-    // ✅ Safety guard (prevents white screen)
-    if (questions.length === 0) {
-        return (
-            <div className="p-8 text-center text-slate-300">
-                <h2 className="text-xl font-semibold mb-2">
-                    No practice questions available
-                </h2>
-                <p>Please check backend seed data.</p>
+                        {s.status === "active" ? (
+                            <Link
+                                href={`/practice/${s.slug}`}
+                                className="inline-block mt-3 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
+                            >
+                                Start Practice →
+                            </Link>
+                        ) : (
+                            <span className="inline-block mt-3 px-4 py-2 rounded-lg bg-slate-700 text-sm text-slate-400">
+                                Coming soon
+                            </span>
+                        )}
+                    </div>
+                ))}
             </div>
-        );
-    }
-
-    return <PracticeClient initialQuestions={questions} />;
+        </div>
+    );
 }
