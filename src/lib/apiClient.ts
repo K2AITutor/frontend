@@ -133,3 +133,34 @@ export async function aiSimilarQuestion(payload: {
 
     return res.json();
 }
+/* ---------------- Recommendations ---------------- */
+export async function fetchRecommendations(userId: number) {
+    const API_BASE =
+        typeof window === "undefined"
+            ? process.env.INTERNAL_API_BASE || "http://backend:4000/api"
+            : process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
+
+    const res = await fetch(
+        `${API_BASE}/recommendation/next?userId=${userId}`,
+        { cache: "no-store" }
+    );
+
+    if (!res.ok) {
+        throw new Error("Failed to fetch recommendations");
+    }
+
+    return res.json() as Promise<PracticeQuestion[]>;
+}
+/* ----------------  ---------------- */
+export async function getAdaptiveRecommendation() {
+    const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/recommendations/adaptive`
+    );
+
+    if (!res.ok) {
+        throw new Error("Failed to fetch adaptive recommendation");
+    }
+
+    return res.json();
+}
+
