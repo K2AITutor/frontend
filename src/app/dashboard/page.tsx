@@ -2,7 +2,6 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import SubscriptionManager from '@/components/dashboard/SubscriptionManager';
 
 interface Notification {
     id: number;
@@ -23,7 +22,6 @@ export default function DashboardPage() {
 
 function DashboardContent() {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [authData, setAuthData] = useState<{ userId: string; token: string } | null>(null);
@@ -165,12 +163,17 @@ function DashboardContent() {
                         View your mastery levels and identify weak areas.
                     </p>
                 </div>
-            </div>
 
-            {/* Subscription Section */}
-            {authData && (
-                <SubscriptionManager userId={authData.userId} token={authData.token} />
-            )}
+                <div className="bg-slate-900 p-6 rounded border border-gray-800 hover:border-indigo-500/30 transition-colors cursor-pointer" onClick={() => router.push('/dashboard/subscription')}>
+                    <h3 className="font-semibold mb-2 text-lg text-indigo-400">Subscription</h3>
+                    <p className="text-slate-400 text-sm">
+                        Manage your plan, billing history, and payment methods.
+                    </p>
+                    <button className="mt-4 w-full bg-indigo-600/50 hover:bg-indigo-600 text-white py-2 rounded text-sm font-medium transition-colors">
+                        Manage Plan
+                    </button>
+                </div>
+            </div>
         </main>
     );
 }
