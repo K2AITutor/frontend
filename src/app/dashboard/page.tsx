@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import SubscriptionManager from '@/components/dashboard/SubscriptionManager';
 
 interface Notification {
     id: number;
@@ -12,29 +13,42 @@ interface Notification {
     createdAt: string;
 }
 
-interface Plan {
-    id: number;
-    name: string;
-    price: number;
-    stripePriceId: string;
+export default function DashboardPage() {
+    return (
+        <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+            <DashboardContent />
+        </Suspense>
+    );
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
-    const [checkoutLoading, setCheckoutLoading] = useState<number | null>(null);
+    const [authData, setAuthData] = useState<{ userId: string; token: string } | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
-            const token = localStorage.getItem('token');
-            const userId = localStorage.getItem('userId');
+            let token = localStorage.getItem('token');
+            let userId = localStorage.getItem('userId');
 
             if (!token || !userId) {
-                router.push('/auth/signin');
-                return;
+                if (process.env.NEXT_PUBLIC_ENABLE_AUTH_BYPASS === 'true') {
+                    // BYPASS: Use mock credentials for testing/demo (Dev only)
+                    console.warn('Authentication bypassed: Using mock user (ID: 1)');
+                    token = 'mock_token_bypass';
+                    userId = '1';
+                    
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('userId', userId);
+                } else {
+                    router.push('/auth/signin');
+                    return;
+                }
             }
+
+            setAuthData({ userId, token });
 
             const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4001';
 
@@ -44,11 +58,6 @@ export default function DashboardPage() {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (notifRes.ok) setNotifications(await notifRes.json());
-
-                // Fetch Plans
-                const plansRes = await fetch(`${apiBase}/api/billing/plans`);
-                if (plansRes.ok) setPlans(await plansRes.json());
-
             } catch (error) {
                 console.error('Failed to fetch dashboard data', error);
             } finally {
@@ -62,34 +71,13 @@ export default function DashboardPage() {
     const markAsRead = async (id: number) => {
         try {
             const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4001';
-            await fetch(`${apiBase}/api/internal/notifications/${id}/read`, { method: 'POST' });
+            await fetch(`${apiBase}/api/internal/notifications/${id}/read`, { 
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${authData?.token}` }
+            });
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
         } catch (error) {
             console.error('Failed to mark as read', error);
-        }
-    };
-
-    const handleCheckout = async (planId: number) => {
-        setCheckoutLoading(planId);
-        try {
-            const userId = localStorage.getItem('userId');
-            const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4001';
-            
-            const res = await fetch(`${apiBase}/api/billing/checkout`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: Number(userId), planId }),
-            });
-
-            if (!res.ok) throw new Error('Checkout failed');
-
-            const { checkoutUrl } = await res.json();
-            // Redirect to Stripe (or mock URL)
-            window.location.href = checkoutUrl;
-        } catch (error) {
-            console.error('Checkout error:', error);
-            alert('Failed to start checkout. Please try again.');
-            setCheckoutLoading(null);
         }
     };
 
@@ -179,62 +167,10 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Billing Section */}
-            <div className="mb-8">
-                <h2 className="text-2xl font-bold mb-6">Subscription & Billing</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Free Tier Card */}
-                    <div className="bg-slate-800 p-6 rounded-lg border border-gray-700">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 className="font-bold text-xl text-white">Free Plan</h3>
-                                <p className="text-gray-400 text-sm">Limited Access</p>
-                            </div>
-                            <span className="text-2xl font-bold text-white">$0</span>
-                        </div>
-                        <ul className="space-y-2 mb-6 text-sm text-gray-300">
-                            <li className="flex items-center">✓ 5 Practice Questions/day</li>
-                            <li className="flex items-center">✓ Basic Progress Tracking</li>
-                        </ul>
-                        <button disabled className="w-full bg-gray-700 text-gray-400 py-2 rounded text-sm font-medium cursor-default">
-                            Current Plan
-                        </button>
-                    </div>
-
-                    {/* Paid Plans from API */}
-                    {plans.map((plan) => (
-                        <div key={plan.id} className="bg-slate-800 p-6 rounded-lg border border-indigo-500/30 relative overflow-hidden">
-                            {plan.name.includes('Pro') && (
-                                <div className="absolute top-0 right-0 bg-indigo-600 text-white text-xs px-2 py-1 rounded-bl">
-                                    RECOMMENDED
-                                </div>
-                            )}
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h3 className="font-bold text-xl text-white">{plan.name}</h3>
-                                    <p className="text-gray-400 text-sm">Full Access</p>
-                                </div>
-                                <div className="text-right">
-                                    <span className="text-2xl font-bold text-white">${(plan.price / 100).toFixed(2)}</span>
-                                    <span className="text-xs text-gray-400 block">/month</span>
-                                </div>
-                            </div>
-                            <ul className="space-y-2 mb-6 text-sm text-gray-300">
-                                <li className="flex items-center">✓ Unlimited Practice</li>
-                                <li className="flex items-center">✓ AI Tutor Access</li>
-                                <li className="flex items-center">✓ Detailed Analytics</li>
-                            </ul>
-                            <button 
-                                onClick={() => handleCheckout(plan.id)}
-                                disabled={checkoutLoading === plan.id}
-                                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white py-2 rounded text-sm font-medium transition-all"
-                            >
-                                {checkoutLoading === plan.id ? 'Processing...' : `Upgrade to ${plan.name}`}
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            </div>
+            {/* Subscription Section */}
+            {authData && (
+                <SubscriptionManager userId={authData.userId} token={authData.token} />
+            )}
         </main>
     );
 }

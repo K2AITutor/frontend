@@ -38,6 +38,7 @@
     "../backend/src/auth/auth.service.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "my-app"
   ]
 }
