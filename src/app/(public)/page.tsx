@@ -53,13 +53,18 @@ function Navbar() {
             </Link>
           </li>
           <li>
-            <Link href="/student/practice" className="nav-link">
-              Practice
+            <Link href="/pricing" className="nav-link">
+              Pricing
             </Link>
           </li>
           <li>
-            <Link href="/student" className="nav-link">
-              Progress
+            <Link href="/about" className="nav-link">
+              About
+            </Link>
+          </li>
+          <li>
+            <Link href="/contact" className="nav-link">
+              Contact
             </Link>
           </li>
           <li>
