@@ -79,7 +79,7 @@ function SubjectCard({
       <CardFooter>
         {isActive ? (
           <Button asChild className="w-full">
-            <Link href={`/practice/${subject.slug}`}>
+            <Link href={`/student/practice/${subject.slug}`}>
               <BookOpen className="mr-2 h-4 w-4" />
               Start Practice
               <ArrowRight className="ml-2 h-4 w-4" />
