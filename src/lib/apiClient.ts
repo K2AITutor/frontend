@@ -19,7 +19,7 @@ function getApiBase() {
 
 /* ---------------- Submit Answer ---------------- */
 export async function submitAnswer(questionId: string, answer: string) {
-    
+
     const API_BASE = getApiBase();
     const res = await fetch(`${API_BASE}/questions/submit`, {
         method: "POST",

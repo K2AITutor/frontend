@@ -1,52 +1,96 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { ArrowRight, Clock, BookOpen } from "lucide-react";
 
 const SUBJECTS = [
-    { name: "Mathematical Methods", slug: "math-methods", status: "active" },
-    { name: "English", slug: "english", status: "coming" },
-    { name: "Specialist Mathematics", slug: "specialist-maths", status: "coming" },
-    { name: "Chemistry", slug: "chemistry", status: "coming" },
-    { name: "Physics", slug: "physics", status: "coming" },
-    { name: "Biology", slug: "biology", status: "coming" },
-    { name: "General Mathematics", slug: "general-maths", status: "coming" },
-    { name: "Business Management", slug: "business-management", status: "coming" },
-    { name: "Accounting", slug: "accounting", status: "coming" },
-    { name: "Economics", slug: "economics", status: "coming" },
-    { name: "Psychology", slug: "psychology", status: "coming" },
-    { name: "Algorithmics", slug: "algorithmics", status: "coming" },
-    { name: "Computing", slug: "computing", status: "coming" },
+  { name: "Mathematical Methods", slug: "math-methods", status: "active" },
+  { name: "English", slug: "english", status: "coming" },
+  { name: "Specialist Mathematics", slug: "specialist-maths", status: "coming" },
+  { name: "Chemistry", slug: "chemistry", status: "coming" },
+  { name: "Physics", slug: "physics", status: "coming" },
+  { name: "Biology", slug: "biology", status: "coming" },
+  { name: "General Mathematics", slug: "general-maths", status: "coming" },
+  { name: "Business Management", slug: "business-management", status: "coming" },
+  { name: "Accounting", slug: "accounting", status: "coming" },
+  { name: "Economics", slug: "economics", status: "coming" },
+  { name: "Psychology", slug: "psychology", status: "coming" },
+  { name: "Algorithmics", slug: "algorithmics", status: "coming" },
+  { name: "Computing", slug: "computing", status: "coming" },
 ];
 
 export default function PracticeDashboardPage() {
-    return (
-        <div className="p-8 space-y-6">
-            <h1 className="text-2xl font-bold">VCE Practice Dashboard</h1>
-            <p className="text-slate-400">
-                Choose a VCE subject to start practicing.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {SUBJECTS.map((s) => (
-                    <div
-                        key={s.slug}
-                        className="rounded-xl border border-slate-700 p-4 bg-slate-900"
-                    >
-                        <h2 className="font-semibold">{s.name}</h2>
-
-                        {s.status === "active" ? (
-                            <Link
-                                href={`/practice/${s.slug}`}
-                                className="inline-block mt-3 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
-                            >
-                                Start Practice →
-                            </Link>
-                        ) : (
-                            <span className="inline-block mt-3 px-4 py-2 rounded-lg bg-slate-700 text-sm text-slate-400">
-                                Coming soon
-                            </span>
-                        )}
-                    </div>
-                ))}
-            </div>
+  return (
+    <div className="min-h-screen p-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">VCE Practice Dashboard</h1>
+          <p className="text-muted-foreground">
+            Choose a VCE subject to start practicing. AI-powered feedback helps you learn faster.
+          </p>
         </div>
-    );
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {SUBJECTS.map((subject) => (
+            <SubjectCard key={subject.slug} subject={subject} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SubjectCard({
+  subject,
+}: {
+  subject: { name: string; slug: string; status: string };
+}) {
+  const isActive = subject.status === "active";
+
+  return (
+    <Card className={!isActive ? "opacity-60" : ""}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">{subject.name}</CardTitle>
+          {isActive ? (
+            <Badge>Available</Badge>
+          ) : (
+            <Badge variant="secondary">
+              <Clock className="mr-1 h-3 w-3" />
+              Coming Soon
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="pb-3">
+        <p className="text-sm text-muted-foreground">
+          {isActive
+            ? "Practice with AI-powered hints and explanations"
+            : "This subject will be available soon"}
+        </p>
+      </CardContent>
+      <CardFooter>
+        {isActive ? (
+          <Button asChild className="w-full">
+            <Link href={`/practice/${subject.slug}`}>
+              <BookOpen className="mr-2 h-4 w-4" />
+              Start Practice
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        ) : (
+          <Button variant="secondary" disabled className="w-full">
+            Coming Soon
+          </Button>
+        )}
+      </CardFooter>
+    </Card>
+  );
 }
