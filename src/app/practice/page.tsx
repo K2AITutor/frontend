@@ -20,9 +20,7 @@ export default function PracticeDashboardPage() {
     return (
         <div className="p-8 space-y-6">
             <h1 className="text-2xl font-bold">VCE Practice Dashboard</h1>
-            <p className="text-slate-400">
-                Choose a VCE subject to start practicing.
-            </p>
+            <p className="text-slate-400">Choose a VCE subject to start practicing.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {SUBJECTS.map((s) => (
@@ -33,12 +31,45 @@ export default function PracticeDashboardPage() {
                         <h2 className="font-semibold">{s.name}</h2>
 
                         {s.status === "active" ? (
-                            <Link
-                                href={`/practice/${s.slug}`}
-                                className="inline-block mt-3 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
-                            >
-                                Start Practice →
-                            </Link>
+                            s.slug === "math-methods" ? (
+                                <div className="mt-3 space-y-2">
+                                    {/* Topic practice (existing) */}
+                                    <Link
+                                        href={`/practice/${s.slug}`}
+                                        className="inline-block w-full text-center px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
+                                    >
+                                        Topic Practice →
+                                    </Link>
+
+                                    {/* Exam shortcuts (new routes) */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Link
+                                            href={`/practice/${s.slug}/exam-1`}
+                                            className="inline-block text-center px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm"
+                                        >
+                                            Exam 1 (No CAS)
+                                        </Link>
+
+                                        <Link
+                                            href={`/practice/${s.slug}/exam-2`}
+                                            className="inline-block text-center px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm"
+                                        >
+                                            Exam 2 (CAS)
+                                        </Link>
+                                    </div>
+
+                                    <p className="text-xs text-slate-400">
+                                        Exam pages are routed; we’ll plug real exam question fetching next.
+                                    </p>
+                                </div>
+                            ) : (
+                                <Link
+                                    href={`/practice/${s.slug}`}
+                                    className="inline-block mt-3 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
+                                >
+                                    Start Practice →
+                                </Link>
+                            )
                         ) : (
                             <span className="inline-block mt-3 px-4 py-2 rounded-lg bg-slate-700 text-sm text-slate-400">
                                 Coming soon
