@@ -10,6 +10,7 @@ import {
     aiHint,
     fetchPracticeQuestions,
     getAdaptiveRecommendation,
+    fetchSimilarQuestions,
 } from "@/lib/apiClient";
 
 import { PracticeQuestion } from "@/types/question";
@@ -23,6 +24,7 @@ type AdaptiveRecommendation = {
 type MarkingResult = {
     correct: boolean;
     explanation?: string | null;
+    skillGaps?: string[] | null;
 
     // marking-engine fields
     score?: number | null;
@@ -57,9 +59,8 @@ const ERROR_TAG_MESSAGES: Record<string, string> = {
     "ALG_ERR.SIGN": "There is a sign error in your working.",
     "ALG_ERR.SIMPLIFY": "Your final expression is not equivalent to the correct answer.",
     "ALG_ERR.ARITHMETIC": "There is an arithmetic error.",
-    "FORMAT.NOT_EXACT": "An exact value is required. Do not use decimals unless the question allows it.",
-    
-
+    "FORMAT.NOT_EXACT":
+        "An exact value is required. Do not use decimals unless the question allows it.",
 };
 
 // ✅ Tag → next-step tip (short + actionable)
@@ -98,6 +99,9 @@ export default function PracticeClient({
     // ✅ show submit errors instead of “nothing happens”
     const [submitError, setSubmitError] = useState<string | null>(null);
 
+    // ✅ Debug panel toggle (for testing)
+    const [showDebug, setShowDebug] = useState(false);
+
     /* ===================== LOADING STATES ===================== */
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isExplaining, setIsExplaining] = useState(false);
@@ -124,6 +128,7 @@ export default function PracticeClient({
         setExplanation(null);
         setSubmitError(null);
         resetHints();
+        // keep showDebug as-is so you don't have to re-toggle every question
     };
 
     if (!question) {
@@ -172,16 +177,39 @@ export default function PracticeClient({
         try {
             setIsSubmitting(true);
             const res = (await submitAnswer(String(question.id), answer, examKey)) as MarkingResult;
-
             setResult(res);
             setExplanation(null);
             resetHints();
 
-            // 🔁 Fetch adaptive recommendation AFTER marking
+            // ✅ If incorrect and skill gaps exist, fetch deterministic similar questions
             try {
-                setIsRecLoading(true);
-                const rec = await getAdaptiveRecommendation(subject);
-                setRecommendation(rec);
+                const gaps = Array.isArray(res.skillGaps) ? res.skillGaps.filter(Boolean) : [];
+                if (!res.correct && gaps.length > 0) {
+                    setIsRecLoading(true);
+
+                    const similar = (await fetchSimilarQuestions({
+                        subject,
+                        questionId: String(question.id),
+                        skillGaps: gaps,
+                        limit: 5,
+                    })) as PracticeQuestion[];
+
+                    if (Array.isArray(similar) && similar.length > 0) {
+                        setRecommendation({
+                            reason: `Targeting skill gaps: ${gaps.join(", ")}`,
+                            questions: similar,
+                        });
+                    } else {
+                        // fallback to existing adaptive recommendation if similar set is empty
+                        const rec = await getAdaptiveRecommendation(subject);
+                        setRecommendation(rec);
+                    }
+                } else {
+                    // ✅ If correct OR no skill gaps returned, keep your existing adaptive rec logic
+                    setIsRecLoading(true);
+                    const rec = await getAdaptiveRecommendation(subject);
+                    setRecommendation(rec);
+                }
             } catch (e) {
                 console.warn("Recommendation unavailable");
             } finally {
@@ -384,6 +412,67 @@ export default function PracticeClient({
                         )}
                     </div>
 
+                    {/* ✅ Debug details (for testing) */}
+                    <div className="mt-3 border-t border-slate-700 pt-3">
+                        <button
+                            className="text-xs text-slate-300 underline"
+                            onClick={() => setShowDebug((v) => !v)}
+                        >
+                            {showDebug ? "Hide debug details" : "Show debug details"}
+                        </button>
+
+                        {showDebug && (
+                            <div className="mt-2 text-xs text-slate-200 space-y-2">
+                                <div>
+                                    <div className="text-slate-400">correct / score</div>
+                                    <div>
+                                        correct:{" "}
+                                        <span className="font-semibold">{String(result.correct)}</span>,{" "}
+                                        score:{" "}
+                                        <span className="font-semibold">
+                                            {String(result.score ?? displayedScore)}
+                                        </span>
+                                        , maxScore:{" "}
+                                        <span className="font-semibold">
+                                            {String(result.maxScore ?? displayedMaxScore)}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div className="text-slate-400">errorTags</div>
+                                    <pre className="whitespace-pre-wrap break-words bg-slate-900/50 p-2 rounded">
+                                        {JSON.stringify(result.errorTags ?? [], null, 2)}
+                                    </pre>
+                                </div>
+
+                                <div>
+                                    <div className="text-slate-400">skillGaps</div>
+                                    <pre className="whitespace-pre-wrap break-words bg-slate-900/50 p-2 rounded">
+                                        {JSON.stringify(result.skillGaps ?? [], null, 2)}
+                                    </pre>
+                                </div>
+
+                                <div>
+                                    <div className="text-slate-400">diagnostics</div>
+                                    <div className="text-slate-300">
+                                        sameLeft:{" "}
+                                        <span className="font-semibold">
+                                            {String(result.diagnostics?.sameLeft)}
+                                        </span>
+                                        , sameRight:{" "}
+                                        <span className="font-semibold">
+                                            {String(result.diagnostics?.sameRight)}
+                                        </span>
+                                    </div>
+                                    <pre className="whitespace-pre-wrap break-words bg-slate-900/50 p-2 rounded">
+                                        {JSON.stringify(result.diagnostics ?? {}, null, 2)}
+                                    </pre>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* ✅ Examiner-style feedback */}
                     {!result.correct && (
                         <div className="mt-3 text-slate-200">
@@ -393,7 +482,9 @@ export default function PracticeClient({
                                 <ul className="list-disc ml-6 space-y-1">
                                     {errorTags.map((tag) => (
                                         <li key={tag}>
-                                            <span className="text-slate-200">{ERROR_TAG_MESSAGES[tag] ?? tag}</span>
+                                            <span className="text-slate-200">
+                                                {ERROR_TAG_MESSAGES[tag] ?? tag}
+                                            </span>
                                             {ERROR_TAG_TUTOR_TIPS[tag] && (
                                                 <div className="text-slate-400 text-sm mt-1">
                                                     {ERROR_TAG_TUTOR_TIPS[tag]}
@@ -406,12 +497,12 @@ export default function PracticeClient({
                                 <div className="text-slate-300">
                                     <p>
                                         No specific examiner tag was returned for this answer.
-                                        This usually means the submission was invalid/unparseable, or the question
-                                        doesn’t have tagged common wrong answers yet.
+                                        This usually means the submission was invalid/unparseable, or the
+                                        question doesn’t have tagged common wrong answers yet.
                                     </p>
                                     <p className="text-slate-400 text-sm mt-2">
-                                        Tip: Try rewriting your answer in standard notation (e.g. use * for multiply,
-                                        brackets for intervals, etc.).
+                                        Tip: Try rewriting your answer in standard notation (e.g. use *
+                                        for multiply, brackets for intervals, etc.).
                                     </p>
                                 </div>
                             )}

@@ -19,6 +19,7 @@ export type QuestionDTO = {
     marks: number;
     // ...whatever else your UI expects
 };
+
 function getApiBase() {
     const base =
         typeof window === "undefined"
@@ -42,6 +43,107 @@ async function safeFetch<T>(url: string, init?: RequestInit): Promise<T> {
 
     return (await res.json()) as T;
 }
+
+// ✅ more useful error body (does NOT change behavior)
+async function safeText(res: Response): Promise<string> {
+    try {
+        return await res.text();
+    } catch {
+        return "";
+    }
+}
+
+/* ============================
+ * Option B: Exam APIs (NEW)
+ * ============================ */
+
+export type ExamDocumentDTO = {
+    url?: string | null;
+    filePath?: string | null;
+};
+
+export type ExamDTO = {
+    examKey: string;
+    title?: string | null;
+    readingMins?: number | null;
+    writingMins?: number | null;
+    allowCAS?: boolean | null;
+    showHints?: boolean | null;
+    exactRequired?: boolean | null;
+    workingRequired?: boolean | null;
+    instructions?: string | null;
+    pdf?: ExamDocumentDTO | null;
+};
+
+export type ExamQuestionDTO = {
+    id: number;
+    examKey: string;
+    questionNumber: string; // e.g. "1a"
+    marks: number;
+    answerType: string;
+    prompt: string; // minimal prompt, student reads PDF
+    skillCode?: string | null;
+    pdfPage?: number | null;
+    groupId?: number | null;
+    partLabel?: string | null;
+};
+
+// GET /api/exams/:examKey
+export async function fetchExam(examKey: string): Promise<ExamDTO> {
+    const base = getApiBase();
+    const url = `${base}/exams/${encodeURIComponent(examKey)}`;
+
+    // optional debug
+    // console.debug("[apiClient] fetchExam:", url);
+
+    return safeFetch<ExamDTO>(url, { cache: "no-store" });
+}
+
+// GET /api/exams/:examKey/questions
+export async function fetchExamQuestionsByExamKey(
+    examKey: string
+): Promise<ExamQuestionDTO[]> {
+    const base = getApiBase();
+    const url = `${base}/exams/${encodeURIComponent(examKey)}/questions`;
+
+    // optional debug
+    // console.debug("[apiClient] fetchExamQuestionsByExamKey:", url);
+
+    return safeFetch<ExamQuestionDTO[]>(url, { cache: "no-store" });
+}
+
+// POST /api/exams/:examKey/submit
+export async function submitExamAnswer(args: {
+    examKey: string;
+    questionId: number | string;
+    answer: string;
+    userId?: number;
+}) {
+    const { examKey, questionId, answer, userId } = args;
+
+    const res = await fetch(`${getApiBase()}/exams/${encodeURIComponent(examKey)}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            questionId: Number(questionId),
+            answer,
+            ...(typeof userId === "number" ? { userId } : {}),
+        }),
+    });
+
+    if (!res.ok) {
+        const text = await safeText(res);
+        throw new Error(text || `Submit failed (status ${res.status})`);
+    }
+
+    return res.json();
+}
+
+/* ============================
+ * Legacy Exam Questions API (keep)
+ * - This hits /questions/exam?subject=...&examYear=...&examName=...
+ * ============================ */
+
 export async function fetchExamQuestions(
     subject: SubjectCode,
     examYear: number,
@@ -57,10 +159,11 @@ export async function fetchExamQuestions(
 
     return safeFetch<QuestionDTO[]>(url, { cache: "no-store" });
 }
+
 /* ---------------- Types ---------------- */
 import { PracticeQuestion } from "@/types/question";
 
-/* ---------------- Submit Answer ---------------- */
+/* ---------------- Submit Answer (practice + examKey passthrough) ---------------- */
 export async function submitAnswer(
     questionId: string,
     studentAnswer: string,
@@ -77,8 +180,8 @@ export async function submitAnswer(
     });
 
     if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || "Submit failed");
+        const text = await safeText(res);
+        throw new Error(text || `Submit failed (status ${res.status})`);
     }
 
     return res.json();
@@ -90,18 +193,23 @@ export async function fetchPracticeQuestions(
     topicCode: string
 ): Promise<PracticeQuestion[]> {
     const API_BASE = getApiBase();
+    const url = `${API_BASE}/questions/practice?subject=${encodeURIComponent(
+        subject
+    )}&topicCode=${encodeURIComponent(topicCode)}`;
 
-    const res = await fetch(
-        `${API_BASE}/questions/practice?subject=${encodeURIComponent(
-            subject
-        )}&topicCode=${encodeURIComponent(topicCode)}`,
-        { cache: "no-store" }
-    );
+    // optional debug
+    // console.debug("[apiClient] fetchPracticeQuestions:", url);
+
+    const res = await fetch(url, { cache: "no-store" });
 
     if (!res.ok) {
-        const text = await res.text();
-        console.error("Fetch practice failed:", text);
-        throw new Error("Failed to fetch practice questions");
+        const text = await safeText(res);
+        console.error("Fetch practice failed:", { url, status: res.status, text });
+        throw new Error(
+            `Failed to fetch practice questions (status ${res.status}). ` +
+            `subject=${subject}, topicCode=${topicCode}. ` +
+            (text ? `Body: ${text}` : "")
+        );
     }
 
     return res.json();
@@ -124,7 +232,7 @@ export async function aiExplain(payload: {
     });
 
     if (!res.ok) {
-        const text = await res.text();
+        const text = await safeText(res);
         console.error("AI explain failed:", text);
         throw new Error("AI explain failed");
     }
@@ -149,7 +257,7 @@ export async function aiHint(payload: {
     });
 
     if (!res.ok) {
-        const text = await res.text();
+        const text = await safeText(res);
         console.error("AI hint failed:", text);
         throw new Error("AI hint failed");
     }
@@ -172,7 +280,7 @@ export async function aiSimilarQuestion(payload: {
     });
 
     if (!res.ok) {
-        const text = await res.text();
+        const text = await safeText(res);
         console.error("AI similar failed:", text);
         throw new Error("AI similar failed");
     }
@@ -185,9 +293,7 @@ export async function fetchRecommendations(userId: number) {
     const API_BASE = getApiBase();
 
     const res = await fetch(
-        `${API_BASE}/recommendation/next?userId=${encodeURIComponent(
-            String(userId)
-        )}`,
+        `${API_BASE}/recommendation/next?userId=${encodeURIComponent(String(userId))}`,
         { cache: "no-store" }
     );
 
@@ -214,3 +320,28 @@ export async function getAdaptiveRecommendation(subject: string) {
     return res.json();
 }
 
+/* ---------------- fetchSimilarQuestions ---------------- */
+export async function fetchSimilarQuestions(args: {
+    subject: string;
+    questionId: string;
+    skillGaps: string[];
+    limit?: number;
+}) {
+    const API_BASE = getApiBase();
+    const { subject, questionId, skillGaps, limit = 5 } = args;
+
+    const params = new URLSearchParams();
+    params.set("subject", subject);
+    params.set("questionId", questionId);
+    params.set("limit", String(limit));
+    // NOTE: you were doing both set + append; keep as-is to avoid breaking backend parsing
+    params.set("skillCodes", skillGaps.join(","));
+    for (const g of skillGaps) params.append("skillCodes", g);
+
+    const res = await fetch(`${API_BASE}/questions/similar?${params.toString()}`, {
+        cache: "no-store",
+    });
+
+    if (!res.ok) return [];
+    return await res.json();
+}
