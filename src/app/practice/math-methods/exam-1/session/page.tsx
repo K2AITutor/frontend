@@ -10,12 +10,11 @@ import {
 } from "@/lib/apiClient";
 
 export default function Exam1SessionPage() {
-    // ✅ Keep a single source of truth for Option B
     const examKey = "VCE_MM_EXAM1_2025";
 
-    const [loading, setLoading] = useState(true);
     const [exam, setExam] = useState<ExamDTO | null>(null);
     const [questions, setQuestions] = useState<ExamQuestionDTO[]>([]);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -23,17 +22,11 @@ export default function Exam1SessionPage() {
 
         (async () => {
             try {
-                setLoading(true);
-                setError(null);
-
-                // Load exam metadata (includes pdf url/filePath)
-                const examMeta = await fetchExam(examKey);
-
-                // Load exam question set
+                const meta = await fetchExam(examKey);
                 const qs = await fetchExamQuestionsByExamKey(examKey);
 
                 if (!cancelled) {
-                    setExam(examMeta);
+                    setExam(meta);
                     setQuestions(qs);
                 }
             } catch (e: any) {
@@ -53,7 +46,7 @@ export default function Exam1SessionPage() {
     if (loading) {
         return (
             <div className="max-w-5xl mx-auto px-6 py-10 text-slate-300">
-                Loading exam…
+                Loading examination…
             </div>
         );
     }
@@ -61,13 +54,8 @@ export default function Exam1SessionPage() {
     if (error) {
         return (
             <div className="max-w-5xl mx-auto px-6 py-10 text-red-300">
-                <p className="font-semibold">Unable to start exam</p>
-                <p className="text-sm text-slate-300 mt-2">{error}</p>
-                <p className="text-xs text-slate-400 mt-2">
-                    Expected backend endpoints:
-                    <span className="font-mono"> GET /api/exams/{examKey}</span> and{" "}
-                    <span className="font-mono">GET /api/exams/{examKey}/questions</span>
-                </p>
+                <p className="font-semibold">Unable to start examination</p>
+                <p className="text-sm mt-2">{error}</p>
             </div>
         );
     }
@@ -75,27 +63,26 @@ export default function Exam1SessionPage() {
     if (!exam || questions.length === 0) {
         return (
             <div className="max-w-5xl mx-auto px-6 py-10 text-slate-300">
-                No exam questions found for <span className="font-mono">{examKey}</span>.
+                No questions available for this examination.
             </div>
         );
     }
 
-    // Prefer uploaded filePath (when you add upload later), otherwise use URL
     const pdfSrc = exam.pdf?.filePath || exam.pdf?.url || null;
 
     return (
         <div className="max-w-6xl mx-auto px-6 py-10">
             <ExamSessionClient
-                initialQuestions={questions as any} // we’ll tighten typing after the client is updated to accept ExamQuestionDTO
+                initialQuestions={questions as any}
                 subject="math-methods"
                 examKey={examKey}
-                examTitle={exam.title || "VCE Mathematical Methods — Exam 1"}
+                examTitle={exam.title ?? "VCE Mathematical Methods — Exam 1"}
                 examPdfSrc={pdfSrc}
                 readingMins={exam.readingMins ?? 15}
                 writingMins={exam.writingMins ?? 60}
-                allowCAS={Boolean(exam.allowCAS)}
-                exactRequired={Boolean(exam.exactRequired)}
-                workingRequired={Boolean(exam.workingRequired)}
+                allowCAS={false}
+                exactRequired={true}
+                workingRequired={true}
             />
         </div>
     );
