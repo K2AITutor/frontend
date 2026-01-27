@@ -1,7 +1,9 @@
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+
 export default function ParentLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return <DashboardLayout role="parent">{children}</DashboardLayout>;
 }

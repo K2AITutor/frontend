@@ -1,8 +1,12 @@
 import { apiPost } from "./apiClient";
 import { saveToken, clearToken } from "./storage";
 
+interface LoginResponse {
+    access_token: string;
+}
+
 export async function login(email: string, password: string) {
-    const res = await apiPost("/auth/login", { email, password });
+    const res = await apiPost<LoginResponse>("/auth/login", { email, password });
     if (res.access_token) saveToken(res.access_token);
     return res;
 }

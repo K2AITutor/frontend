@@ -1,36 +1,39 @@
-// frontend/src/lib/api/questions.ts
+"use client";
 
-const API_BASE =
-    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
+import { useMutation, useQuery } from "@tanstack/react-query";
 
-/**
- * Day 1: Fetch practice questions
- * GET /api/questions/practice?topic=
- */
-export async function fetchPracticeQuestions(topic: string) {
-    const res = await fetch(
-        `${API_BASE}/api/questions/practice?topic=${encodeURIComponent(topic)}`,
-        { cache: 'no-store' }
-    );
+const MOCK_API_BASE = "http://localhost:4002/api";
 
-    if (!res.ok) {
-        throw new Error('Failed to fetch practice questions');
-    }
+export function usePracticeQuestions(topic: string) {
+    return useQuery({
+        queryKey: ["practiceQuestions", topic],
+        queryFn: async () => {
+            const res = await fetch(
+                `${MOCK_API_BASE}/questions/practice?topic=${encodeURIComponent(topic)}`,
+                { cache: 'no-store' }
+            );
 
-    return res.json();
+            if (!res.ok) {
+                throw new Error('Failed to fetch practice questions');
+            }
+
+            return res.json();
+        },
+        enabled: !!topic,
+    });
 }
 
-/**
- * Day 2: Submit answer for auto-marking
- * POST /api/questions/submit
- */
-export async function submitAnswer(questionId: string, answer: string) {
-    const res = await fetch(`${API_BASE}/questions/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questionId, answer }),  // Correct structure
-    });
+export function useSubmitAnswer() {
+    return useMutation({
+        mutationFn: async ({ questionId, answer }: { questionId: string; answer: string }) => {
+            const res = await fetch(`${MOCK_API_BASE}/questions/submit`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ questionId, answer }),
+            });
 
-    if (!res.ok) throw new Error("Submit failed");
-    return res.json();
+            if (!res.ok) throw new Error("Submit failed");
+            return res.json();
+        },
+    });
 }

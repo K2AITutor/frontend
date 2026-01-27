@@ -52,3 +52,5 @@ coverage/
 *.onetoc2
 
 .claude
+
+.opencode

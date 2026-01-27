@@ -27,7 +27,7 @@ interface ProfileData {
   bio: string;
 }
 
-export default function StudentProfilePage() {
+export default function ParentProfilePage() {
   const [profile, setProfile] = useState<ProfileData>({
     firstName: "Emma",
     lastName: "Johnson",
