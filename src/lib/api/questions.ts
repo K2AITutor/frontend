@@ -1,39 +1,36 @@
-"use client";
+// frontend/src/lib/api/questions.ts
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+const API_BASE =
+    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
-const MOCK_API_BASE = "http://localhost:4002/api";
+/**
+ * Day 1: Fetch practice questions
+ * GET /api/questions/practice?topic=
+ */
+export async function fetchPracticeQuestions(topic: string) {
+    const res = await fetch(
+        `${API_BASE}/api/questions/practice?topic=${encodeURIComponent(topic)}`,
+        { cache: 'no-store' }
+    );
 
-export function usePracticeQuestions(topic: string) {
-    return useQuery({
-        queryKey: ["practiceQuestions", topic],
-        queryFn: async () => {
-            const res = await fetch(
-                `${MOCK_API_BASE}/questions/practice?topic=${encodeURIComponent(topic)}`,
-                { cache: 'no-store' }
-            );
+    if (!res.ok) {
+        throw new Error('Failed to fetch practice questions');
+    }
 
-            if (!res.ok) {
-                throw new Error('Failed to fetch practice questions');
-            }
-
-            return res.json();
-        },
-        enabled: !!topic,
-    });
+    return res.json();
 }
 
-export function useSubmitAnswer() {
-    return useMutation({
-        mutationFn: async ({ questionId, answer }: { questionId: string; answer: string }) => {
-            const res = await fetch(`${MOCK_API_BASE}/questions/submit`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ questionId, answer }),
-            });
-
-            if (!res.ok) throw new Error("Submit failed");
-            return res.json();
-        },
+/**
+ * Day 2: Submit answer for auto-marking
+ * POST /api/questions/submit
+ */
+export async function submitAnswer(questionId: string, answer: string) {
+    const res = await fetch(`${API_BASE}/questions/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionId, answer }),  // Correct structure
     });
+
+    if (!res.ok) throw new Error("Submit failed");
+    return res.json();
 }

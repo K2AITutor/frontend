@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, Suspense } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 
-function RegisterForm() {
+export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan");
@@ -69,13 +69,10 @@ function RegisterForm() {
       });
 
       // Auto-login after registration
-      const loginResponse = await axios.post<{ access_token: string }>(
-        "http://localhost:4000/auth/login",
-        {
-          email: formData.email,
-          password: formData.password,
-        }
-      );
+      const loginResponse = await axios.post("http://localhost:4000/auth/login", {
+        email: formData.email,
+        password: formData.password,
+      });
 
       localStorage.setItem("token", loginResponse.data.access_token);
       router.push("/student");
@@ -391,13 +388,5 @@ function RegisterForm() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function RegisterPage() {
-  return (
-    <Suspense fallback={<div className="auth-page"><div className="flex items-center justify-center h-screen">Loading...</div></div>}>
-      <RegisterForm />
-    </Suspense>
   );
 }
