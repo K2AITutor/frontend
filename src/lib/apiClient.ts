@@ -21,36 +21,81 @@ export type QuestionDTO = {
 };
 
 function getApiBase() {
+    // ✅ inside Docker network, your backend service is called "api"
+    const serverDefault = "http://api:4000";
+    const browserDefault = "http://localhost:4000";
+
     const base =
         typeof window === "undefined"
-            ? process.env.INTERNAL_API_BASE || "http://backend:4000"
-            : process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000";
+            ? process.env.INTERNAL_API_BASE || serverDefault
+            : process.env.NEXT_PUBLIC_API_BASE || browserDefault;
 
-    // normalize trailing slash
     const clean = base.replace(/\/+$/, "");
 
     // ensure /api suffix exactly once
     return clean.endsWith("/api") ? clean : `${clean}/api`;
 }
 
-async function safeFetch<T>(url: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(url, init);
-
-    if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`Request failed (${res.status}) ${res.statusText}: ${text}`);
-    }
-
-    return (await res.json()) as T;
-}
-
-// ✅ more useful error body (does NOT change behavior)
+/**
+ * Read Response body as text safely.
+ * (Never throws.)
+ */
 async function safeText(res: Response): Promise<string> {
     try {
         return await res.text();
     } catch {
         return "";
     }
+}
+
+/**
+ * ✅ Robust JSON parser:
+ * - avoids "Unexpected end of JSON input"
+ * - handles HTML/text error bodies
+ * - surfaces meaningful messages
+ */
+async function safeJsonFromResponse<T>(res: Response, urlForError: string): Promise<T> {
+    const text = await safeText(res);
+    const trimmed = text.trim();
+
+    // Empty body => don't call res.json()
+    if (!trimmed) {
+        if (!res.ok) {
+            throw new Error(`API ${res.status} ${res.statusText} (empty response) for ${urlForError}`);
+        }
+        // allow empty-success responses (rare but happens)
+        return {} as T;
+    }
+
+    let data: any;
+    try {
+        data = JSON.parse(trimmed);
+    } catch {
+        // If server returned HTML/text, show a snippet
+        const snippet = trimmed.slice(0, 400);
+        if (!res.ok) {
+            throw new Error(
+                `API ${res.status} ${res.statusText} returned non-JSON for ${urlForError}: ${snippet}`
+            );
+        }
+        throw new Error(`API returned non-JSON for ${urlForError}: ${snippet}`);
+    }
+
+    if (!res.ok) {
+        const msg =
+            data?.message ||
+            data?.error ||
+            data?.detail ||
+            `API ${res.status} ${res.statusText} for ${urlForError}`;
+        throw new Error(msg);
+    }
+
+    return data as T;
+}
+
+async function safeFetch<T>(url: string, init?: RequestInit): Promise<T> {
+    const res = await fetch(url, init);
+    return await safeJsonFromResponse<T>(res, url);
 }
 
 /* ============================
@@ -92,23 +137,13 @@ export type ExamQuestionDTO = {
 export async function fetchExam(examKey: string): Promise<ExamDTO> {
     const base = getApiBase();
     const url = `${base}/exams/${encodeURIComponent(examKey)}`;
-
-    // optional debug
-    // console.debug("[apiClient] fetchExam:", url);
-
     return safeFetch<ExamDTO>(url, { cache: "no-store" });
 }
 
 // GET /api/exams/:examKey/questions
-export async function fetchExamQuestionsByExamKey(
-    examKey: string
-): Promise<ExamQuestionDTO[]> {
+export async function fetchExamQuestionsByExamKey(examKey: string): Promise<ExamQuestionDTO[]> {
     const base = getApiBase();
     const url = `${base}/exams/${encodeURIComponent(examKey)}/questions`;
-
-    // optional debug
-    // console.debug("[apiClient] fetchExamQuestionsByExamKey:", url);
-
     return safeFetch<ExamQuestionDTO[]>(url, { cache: "no-store" });
 }
 
@@ -121,7 +156,8 @@ export async function submitExamAnswer(args: {
 }) {
     const { examKey, questionId, answer, userId } = args;
 
-    const res = await fetch(`${getApiBase()}/exams/${encodeURIComponent(examKey)}/submit`, {
+    const url = `${getApiBase()}/exams/${encodeURIComponent(examKey)}/submit`;
+    const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -131,12 +167,7 @@ export async function submitExamAnswer(args: {
         }),
     });
 
-    if (!res.ok) {
-        const text = await safeText(res);
-        throw new Error(text || `Submit failed (status ${res.status})`);
-    }
-
-    return res.json();
+    return await safeJsonFromResponse(res, url);
 }
 
 /* ============================
@@ -164,12 +195,9 @@ export async function fetchExamQuestions(
 import { PracticeQuestion } from "@/types/question";
 
 /* ---------------- Submit Answer (practice + examKey passthrough) ---------------- */
-export async function submitAnswer(
-    questionId: string,
-    studentAnswer: string,
-    examKey?: string
-) {
-    const res = await fetch(`${getApiBase()}/questions/submit`, {
+export async function submitAnswer(questionId: string, studentAnswer: string, examKey?: string) {
+    const url = `${getApiBase()}/questions/submit`;
+    const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -179,40 +207,20 @@ export async function submitAnswer(
         }),
     });
 
-    if (!res.ok) {
-        const text = await safeText(res);
-        throw new Error(text || `Submit failed (status ${res.status})`);
-    }
-
-    return res.json();
+    return await safeJsonFromResponse(res, url);
 }
 
 /* ---------------- Fetch Practice Questions ---------------- */
-export async function fetchPracticeQuestions(
-    subject: string,
-    topicCode: string
-): Promise<PracticeQuestion[]> {
+export async function fetchPracticeQuestions(subject: string, topicCode: string): Promise<PracticeQuestion[]> {
     const API_BASE = getApiBase();
-    const url = `${API_BASE}/questions/practice?subject=${encodeURIComponent(
-        subject
-    )}&topicCode=${encodeURIComponent(topicCode)}`;
-
-    // optional debug
-    // console.debug("[apiClient] fetchPracticeQuestions:", url);
+    const url = `${API_BASE}/questions/practice?subject=${encodeURIComponent(subject)}&topicCode=${encodeURIComponent(
+        topicCode
+    )}`;
 
     const res = await fetch(url, { cache: "no-store" });
 
-    if (!res.ok) {
-        const text = await safeText(res);
-        console.error("Fetch practice failed:", { url, status: res.status, text });
-        throw new Error(
-            `Failed to fetch practice questions (status ${res.status}). ` +
-            `subject=${subject}, topicCode=${topicCode}. ` +
-            (text ? `Body: ${text}` : "")
-        );
-    }
-
-    return res.json();
+    // Use robust parsing so we never crash on empty/non-JSON bodies
+    return await safeJsonFromResponse<PracticeQuestion[]>(res, url);
 }
 
 /* ---------------- AI Explain ---------------- */
@@ -224,20 +232,15 @@ export async function aiExplain(payload: {
     correctAnswer: string;
 }) {
     const API_BASE = getApiBase();
+    const url = `${API_BASE}/ai-tutor/explain`;
 
-    const res = await fetch(`${API_BASE}/ai-tutor/explain`, {
+    const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
     });
 
-    if (!res.ok) {
-        const text = await safeText(res);
-        console.error("AI explain failed:", text);
-        throw new Error("AI explain failed");
-    }
-
-    return res.json();
+    return await safeJsonFromResponse(res, url);
 }
 
 /* ---------------- AI Hint ---------------- */
@@ -249,75 +252,47 @@ export async function aiHint(payload: {
     level: 1 | 2 | 3;
 }) {
     const API_BASE = getApiBase();
+    const url = `${API_BASE}/ai-tutor/hint`;
 
-    const res = await fetch(`${API_BASE}/ai-tutor/hint`, {
+    const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
     });
 
-    if (!res.ok) {
-        const text = await safeText(res);
-        console.error("AI hint failed:", text);
-        throw new Error("AI hint failed");
-    }
-
-    return res.json();
+    return await safeJsonFromResponse(res, url);
 }
 
 /* ---------------- AI Similar Question ---------------- */
-export async function aiSimilarQuestion(payload: {
-    subject: string;
-    skillCode: string;
-    question: string;
-}) {
+export async function aiSimilarQuestion(payload: { subject: string; skillCode: string; question: string }) {
     const API_BASE = getApiBase();
+    const url = `${API_BASE}/ai-tutor/similar`;
 
-    const res = await fetch(`${API_BASE}/ai-tutor/similar`, {
+    const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
     });
 
-    if (!res.ok) {
-        const text = await safeText(res);
-        console.error("AI similar failed:", text);
-        throw new Error("AI similar failed");
-    }
-
-    return res.json();
+    return await safeJsonFromResponse(res, url);
 }
 
 /* ---------------- Recommendations ---------------- */
 export async function fetchRecommendations(userId: number) {
     const API_BASE = getApiBase();
+    const url = `${API_BASE}/recommendation/next?userId=${encodeURIComponent(String(userId))}`;
 
-    const res = await fetch(
-        `${API_BASE}/recommendation/next?userId=${encodeURIComponent(String(userId))}`,
-        { cache: "no-store" }
-    );
-
-    if (!res.ok) {
-        throw new Error("Failed to fetch recommendations");
-    }
-
-    return res.json() as Promise<PracticeQuestion[]>;
+    const res = await fetch(url, { cache: "no-store" });
+    return await safeJsonFromResponse<PracticeQuestion[]>(res, url);
 }
 
 /* ---------------- Adaptive Recommendation ---------------- */
 export async function getAdaptiveRecommendation(subject: string) {
     const API_BASE = getApiBase();
+    const url = `${API_BASE}/recommendation/adaptive?subject=${encodeURIComponent(subject)}`;
 
-    const res = await fetch(
-        `${API_BASE}/recommendation/adaptive?subject=${encodeURIComponent(subject)}`,
-        { cache: "no-store" }
-    );
-
-    if (!res.ok) {
-        throw new Error("Recommendation unavailable");
-    }
-
-    return res.json();
+    const res = await fetch(url, { cache: "no-store" });
+    return await safeJsonFromResponse(res, url);
 }
 
 /* ---------------- fetchSimilarQuestions ---------------- */
@@ -338,10 +313,16 @@ export async function fetchSimilarQuestions(args: {
     params.set("skillCodes", skillGaps.join(","));
     for (const g of skillGaps) params.append("skillCodes", g);
 
-    const res = await fetch(`${API_BASE}/questions/similar?${params.toString()}`, {
-        cache: "no-store",
-    });
+    const url = `${API_BASE}/questions/similar?${params.toString()}`;
+    const res = await fetch(url, { cache: "no-store" });
 
+    // keep legacy behavior: if backend returns non-ok, just return []
     if (!res.ok) return [];
-    return await res.json();
+
+    // robust JSON parsing (still safe)
+    try {
+        return await safeJsonFromResponse<any[]>(res, url);
+    } catch {
+        return [];
+    }
 }
