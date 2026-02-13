@@ -20,13 +20,14 @@
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "react-toastify": "^11.0.5",
-        "typeorm": "^0.3.28"
+        "typeorm": "^0.3.28",
+        "pdfjs-dist": "^4.10.38"
     },
     "devDependencies": {
         "@types/axios": "^0.9.36",
         "@types/node": "^20.12.12",
         "@types/passport-jwt": "^4.0.1",
-        "@types/react": "^18.3.3",
+        "@types/react": "^18.3.27",
         "@types/react-dom": "^18.3.0",
         "autoprefixer": "^10.4.23",
         "eslint": "^9.39.2",
