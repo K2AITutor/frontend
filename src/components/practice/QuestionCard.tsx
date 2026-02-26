@@ -1,17 +1,18 @@
 // frontend/src/components/practice/QuestionCard.tsx
 "use client";
-import { submitAnswer } from "@/lib/apiClient";
-
+import MathRenderer from "@/components/ui/MathRenderer";
 import { PracticeQuestion } from "@/types/question";
 
 export default function QuestionCard({
     question,
 }: {
-    question: PracticeQuestion;
+    question: { prompt: string };
 }) {
     return (
         <div className="glass p-4">
-            <p className="text-lg font-medium">{question.prompt}</p>
+            <div className="text-lg font-medium leading-relaxed">
+                <MathRenderer math={question.prompt} />
+            </div>
         </div>
     );
 }

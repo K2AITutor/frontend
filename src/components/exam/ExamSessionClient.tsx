@@ -7,6 +7,8 @@ import { submitExamAnswer } from "@/lib/apiClient";
 import PdfQuestionCrop from "@/components/exam/PdfQuestionCrop";
 import { fetchExamMeta, resolveQuestionAsset, type ExamMeta } from "@/lib/examAssets";
 
+import MathInput from "@/components/ui/MathInput";
+
 type MarkingResult = {
   correct?: boolean;
   isCorrect?: boolean;
@@ -390,11 +392,10 @@ export default function ExamSessionClient(props: {
             <QuestionCard question={question as any} />
 
             <div className="space-y-3">
-              <input
+              <MathInput
                 value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder="Enter your answer"
-                className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg text-slate-200"
+                onChange={(val) => setAnswer(val)}
+                className="w-full"
               />
 
               <button
