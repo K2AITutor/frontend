@@ -10,9 +10,7 @@ import {
     aiHint,
     fetchPracticeQuestions,
     getAdaptiveRecommendation,
-    fetchSimilarQuestions,
 } from "@/lib/apiClient";
-
 import { PracticeQuestion } from "@/types/question";
 
 type AdaptiveRecommendation = {
@@ -20,50 +18,41 @@ type AdaptiveRecommendation = {
     questions: PracticeQuestion[];
 };
 
-// ✅ Shape of marking result coming back from backend
 type MarkingResult = {
-    correct: boolean;
+    correct: boolean | null;
     explanation?: string | null;
     skillGaps?: string[] | null;
-
-    // marking-engine fields
     score?: number | null;
     maxScore?: number | null;
     errorTags?: string[] | null;
-
-    // optional extras
     aiExplanation?: string | null;
     diagnostics?: any;
 };
 
-// ✅ VCAA-style tag → message map (frontend tutor voice)
 const ERROR_TAG_MESSAGES: Record<string, string> = {
     "CALC_ERR.PRODUCT_RULE": "You did not apply the product rule.",
     "CALC_ERR.CHAIN_RULE": "You did not apply the chain rule correctly.",
     "CALC_ERR.QUOTIENT_RULE": "You did not apply the quotient rule correctly.",
     "CALC_ERR.TRIG_DERIVATIVE":
         "Incorrect derivative of a trigonometric function (check signs).",
-
     "INT_ERR.MISSING_CONSTANT": "You omitted the constant of integration (+C).",
     "INT_ERR.INCORRECT_BOUNDS": "The limits/bounds of integration are incorrect.",
     "INT_ERR.AREA_INTERPRET":
         "You treated signed area as area (consider splitting and taking absolute value).",
-
     "META_ERR.INTERVAL_NOTATION":
         "Interval/set notation is incorrect or not in the expected form.",
     "META_ERR.ENDPOINT_INCLUSION":
         "Check whether endpoints should be included (brackets vs parentheses).",
     "META_ERR.UNDEFINED_SYMBOL":
         "Your input could not be interpreted as a valid mathematical answer.",
-
     "ALG_ERR.SIGN": "There is a sign error in your working.",
     "ALG_ERR.SIMPLIFY": "Your final expression is not equivalent to the correct answer.",
     "ALG_ERR.ARITHMETIC": "There is an arithmetic error.",
     "FORMAT.NOT_EXACT":
         "An exact value is required. Do not use decimals unless the question allows it.",
+    INCORRECT: "Your answer is incorrect.",
 };
 
-// ✅ Tag → next-step tip (short + actionable)
 const ERROR_TAG_TUTOR_TIPS: Record<string, string> = {
     "CALC_ERR.PRODUCT_RULE": "Tip: For y = u·v, use (uv)' = u'v + uv'.",
     "CALC_ERR.CHAIN_RULE":
@@ -85,36 +74,24 @@ export default function PracticeClient({
     subject: string;
     examKey?: string;
 }) {
-    /* ===================== QUESTION FLOW ===================== */
     const [questions, setQuestions] = useState<PracticeQuestion[]>(initialQuestions);
     const [currentIndex, setCurrentIndex] = useState(0);
-
     const question = questions[currentIndex] ?? null;
 
-    /* ===================== CORE STATE ===================== */
     const [answer, setAnswer] = useState("");
     const [result, setResult] = useState<MarkingResult | null>(null);
     const [explanation, setExplanation] = useState<any>(null);
-
-    // ✅ show submit errors instead of “nothing happens”
     const [submitError, setSubmitError] = useState<string | null>(null);
 
-    // ✅ Debug panel toggle (for testing)
     const [showDebug, setShowDebug] = useState(false);
-
-    /* ===================== LOADING STATES ===================== */
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isExplaining, setIsExplaining] = useState(false);
     const [isHinting, setIsHinting] = useState(false);
 
-    /* ===================== HINT STATE ===================== */
     const [hintLevel, setHintLevel] = useState<1 | 2 | 3>(1);
     const [hints, setHints] = useState<string[]>([]);
 
-    /* ===================== ADAPTIVE RECOMMENDATION ===================== */
-    const [recommendation, setRecommendation] = useState<AdaptiveRecommendation | null>(
-        null
-    );
+    const [recommendation, setRecommendation] = useState<AdaptiveRecommendation | null>(null);
     const [isRecLoading, setIsRecLoading] = useState(false);
 
     const resetHints = () => {
@@ -128,103 +105,78 @@ export default function PracticeClient({
         setExplanation(null);
         setSubmitError(null);
         resetHints();
-        // keep showDebug as-is so you don't have to re-toggle every question
     };
+
+    const aiAvailable = useMemo(() => !!question?.skillCode, [question]);
+
+    const displayedScore =
+        result?.score != null ? result.score : result?.correct === true ? 1 : result?.correct === false ? 0 : null;
+
+    const displayedMaxScore = result?.maxScore != null ? result.maxScore : result ? 1 : null;
+
+    const errorTags = result?.errorTags ?? [];
 
     if (!question) {
         return (
-            <div className="p-8 text-center text-slate-300">
-                <p>No questions loaded.</p>
+            <div className="glass p-6">
+                <h2 className="text-lg font-semibold text-foreground">No questions loaded.</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                    This usually means the selected topic has no seeded questions yet, or the frontend
+                    subject/topic code does not match the backend data.
+                </p>
             </div>
         );
     }
 
-    // ✅ AI endpoints require skillCode
-    const aiAvailable = Boolean(question.skillCode);
-
-    // ✅ Robust marks display: use backend maxScore if present, else question.marks if present, else 1
-    const maxMarks = useMemo(() => {
-        const qMarks = (question as any)?.marks;
-        return typeof qMarks === "number" && qMarks > 0 ? qMarks : 1;
-    }, [question]);
-
-    const displayedScore = useMemo(() => {
-        if (!result) return null;
-        const s = result.score;
-        return typeof s === "number" ? s : result.correct ? maxMarks : 0;
-    }, [result, maxMarks]);
-
-    const displayedMaxScore = useMemo(() => {
-        if (!result) return null;
-        const ms = result.maxScore;
-        return typeof ms === "number" && ms > 0 ? ms : maxMarks;
-    }, [result, maxMarks]);
-
-    const errorTags = useMemo(() => {
-        const tags = result?.errorTags ?? [];
-        return Array.isArray(tags) ? tags : [];
-    }, [result]);
-
-    /* ===================== HANDLERS ===================== */
     const handleSubmit = async () => {
-        if (!question || isSubmitting) return;
-
-        // ✅ clear previous state (prevents “sticky” UI)
-        setResult(null);
-        setExplanation(null);
-        setSubmitError(null);
+        if (!question) return;
 
         try {
             setIsSubmitting(true);
-            const res = (await submitAnswer(String(question.id), answer, examKey)) as MarkingResult;
-            setResult(res);
+            setSubmitError(null);
             setExplanation(null);
-            resetHints();
 
-            // ✅ If incorrect and skill gaps exist, fetch deterministic similar questions
-            try {
-                const gaps = Array.isArray(res.skillGaps) ? res.skillGaps.filter(Boolean) : [];
-                if (!res.correct && gaps.length > 0) {
+            const res = await submitAnswer(String(question.id), answer, examKey);
+
+            setResult({
+                correct: res.correct,
+                explanation: res.explanation,
+                skillGaps: res.skillGaps,
+                score: res.score,
+                maxScore: res.maxScore,
+                errorTags: res.errorTags,
+                aiExplanation: res.aiExplanation,
+                diagnostics: res.diagnostics,
+            });
+
+            if (!res.correct) {
+                try {
                     setIsRecLoading(true);
-
-                    const similar = (await fetchSimilarQuestions({
-                        subject,
-                        questionId: String(question.id),
-                        skillGaps: gaps,
-                        limit: 5,
-                    })) as PracticeQuestion[];
-
-                    if (Array.isArray(similar) && similar.length > 0) {
+                    const adaptive = await getAdaptiveRecommendation(subject);
+                    if (adaptive?.questions?.length) {
                         setRecommendation({
-                            reason: `Targeting skill gaps: ${gaps.join(", ")}`,
-                            questions: similar,
+                            reason: adaptive.reason || "Recommended practice based on your recent performance.",
+                            questions: adaptive.questions,
                         });
-                    } else {
-                        // fallback to existing adaptive recommendation if similar set is empty
-                        const rec = await getAdaptiveRecommendation(subject);
-                        setRecommendation(rec);
                     }
-                } else {
-                    // ✅ If correct OR no skill gaps returned, keep your existing adaptive rec logic
-                    setIsRecLoading(true);
-                    const rec = await getAdaptiveRecommendation(subject);
-                    setRecommendation(rec);
+                } catch (e) {
+                    console.error("Adaptive recommendation failed:", e);
+                } finally {
+                    setIsRecLoading(false);
                 }
-            } catch (e) {
-                console.warn("Recommendation unavailable");
-            } finally {
-                setIsRecLoading(false);
+            } else {
+                setRecommendation(null);
             }
         } catch (err: any) {
             console.error("Submit failed:", err);
-            setSubmitError(err?.message || "Submit failed");
+            setSubmitError(err?.message || "Failed to fetch");
         } finally {
             setIsSubmitting(false);
         }
     };
 
     const handleExplain = async () => {
-        if (!aiAvailable || isExplaining) return;
+        if (!question || !aiAvailable || isExplaining) return;
 
         try {
             setIsExplaining(true);
@@ -246,7 +198,7 @@ export default function PracticeClient({
     };
 
     const handleHint = async () => {
-        if (!aiAvailable || isHinting || hintLevel > 3) return;
+        if (!question || !aiAvailable || isHinting || hintLevel > 3) return;
 
         try {
             setIsHinting(true);
@@ -269,7 +221,7 @@ export default function PracticeClient({
     };
 
     const handleSimilar = async () => {
-        if (!aiAvailable) return;
+        if (!question || !aiAvailable) return;
 
         try {
             const next = await aiSimilarQuestion({
@@ -283,7 +235,6 @@ export default function PracticeClient({
                 finalAdvice: next.question,
             });
 
-            // ✅ reset the current attempt state so user can answer again
             resetQuestionState();
         } catch (err) {
             console.error("AI similar failed:", err);
@@ -292,7 +243,6 @@ export default function PracticeClient({
 
     const handleNextQuestion = () => {
         if (currentIndex >= questions.length - 1) return;
-
         setCurrentIndex((i) => i + 1);
         setRecommendation(null);
         resetQuestionState();
@@ -300,8 +250,8 @@ export default function PracticeClient({
 
     const startPractice = async (topicCode: string) => {
         try {
+            setSubmitError(null);
             const res = await fetchPracticeQuestions(subject, topicCode);
-
             setQuestions(res);
             setCurrentIndex(0);
             setRecommendation(null);
@@ -314,25 +264,23 @@ export default function PracticeClient({
 
     const loadRecommendedSet = () => {
         if (!recommendation?.questions?.length) return;
-
         setQuestions(recommendation.questions);
         setCurrentIndex(0);
         resetQuestionState();
     };
 
-    /* ===================== UI ===================== */
     return (
         <div className="space-y-6">
-            <div className="text-sm text-slate-400">
+            <div className="text-sm text-muted-foreground">
                 Question {currentIndex + 1} of {questions.length}
             </div>
 
-            <div className="flex flex-wrap gap-2 mb-6">
+            <div className="mb-6 flex flex-wrap gap-2">
                 {MATH_METHODS_TOPICS.map((t) => (
                     <button
                         key={t.code}
                         onClick={() => startPractice(t.code)}
-                        className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm"
+                        className="rounded-lg bg-slate-800 px-4 py-2 text-sm text-white transition hover:bg-slate-700"
                     >
                         {t.name}
                     </button>
@@ -345,44 +293,53 @@ export default function PracticeClient({
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
                 placeholder="Enter your answer"
-                className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg"
+                className="w-full rounded-lg border border-border bg-card px-4 py-3 text-foreground outline-none focus:ring-2 focus:ring-primary"
             />
 
-            <button
-                disabled={isSubmitting}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold disabled:opacity-50"
-                onClick={handleSubmit}
-            >
-                {isSubmitting ? "Checking..." : "Submit Answer"}
-            </button>
+            <div className="flex flex-wrap gap-3">
+                <button
+                    disabled={isSubmitting}
+                    className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50"
+                    onClick={handleSubmit}
+                >
+                    {isSubmitting ? "Checking..." : "Submit Answer"}
+                </button>
 
-            {/* ✅ show submit errors instead of silently failing */}
+                {result && currentIndex < questions.length - 1 && (
+                    <button
+                        className="rounded-lg bg-slate-700 px-6 py-3 font-semibold text-white transition hover:bg-slate-600"
+                        onClick={handleNextQuestion}
+                    >
+                        Next Question
+                    </button>
+                )}
+            </div>
+
             {submitError && (
-                <div className="glass p-4 text-red-300">
-                    <p className="font-semibold mb-1">Submission error</p>
-                    <p className="text-sm text-slate-300">{submitError}</p>
-                    <p className="text-xs text-slate-400 mt-2">
+                <div className="glass p-4">
+                    <p className="mb-1 font-semibold text-red-400">Submission error</p>
+                    <p className="text-sm text-muted-foreground">{submitError}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">
                         If this happens repeatedly, check backend logs for /questions/submit.
                     </p>
                 </div>
             )}
 
-            {/* ✅ ADAPTIVE RECOMMENDATION PANEL */}
             {recommendation && (
-                <div className="glass p-4 text-slate-300">
-                    <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-semibold">Recommended Next</h3>
+                <div className="glass p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                        <h3 className="font-semibold text-foreground">Recommended Next</h3>
                         <button
                             onClick={loadRecommendedSet}
-                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm"
+                            className="rounded-lg bg-emerald-600 px-3 py-1 text-sm text-white transition hover:bg-emerald-500"
                         >
                             Load set
                         </button>
                     </div>
 
-                    <p className="text-sm text-slate-400 mb-2">Reason: {recommendation.reason}</p>
+                    <p className="mb-2 text-sm text-muted-foreground">Reason: {recommendation.reason}</p>
 
-                    <ul className="list-disc ml-6 text-sm">
+                    <ul className="ml-6 list-disc text-sm text-muted-foreground">
                         {recommendation.questions.slice(0, 5).map((q) => (
                             <li key={q.id}>{q.prompt}</li>
                         ))}
@@ -390,17 +347,18 @@ export default function PracticeClient({
                 </div>
             )}
 
-            {/* ✅ RESULT PANEL */}
             {result && (
-                <div className={`glass p-4 ${result.correct ? "text-green-400" : "text-red-400"}`}>
+                <div className="glass p-4">
                     <div className="flex items-start justify-between gap-3">
                         <div>
-                            <p className="font-semibold">{result.correct ? "Correct" : "Incorrect"}</p>
+                            <p className={`font-semibold ${result.correct ? "text-green-400" : "text-red-400"}`}>
+                                {result.correct ? "Correct" : "Incorrect"}
+                            </p>
 
                             {displayedScore !== null && displayedMaxScore !== null && (
-                                <p className="mt-1 text-slate-300">
+                                <p className="mt-1 text-muted-foreground">
                                     Marks:{" "}
-                                    <span className="font-semibold">
+                                    <span className="font-semibold text-foreground">
                                         {displayedScore} / {displayedMaxScore}
                                     </span>
                                 </p>
@@ -408,64 +366,46 @@ export default function PracticeClient({
                         </div>
 
                         {isRecLoading && (
-                            <div className="text-xs text-slate-400">Updating recommendations…</div>
+                            <div className="text-xs text-muted-foreground">Updating recommendations…</div>
                         )}
                     </div>
 
-                    {/* ✅ Debug details (for testing) */}
-                    <div className="mt-3 border-t border-slate-700 pt-3">
+                    <div className="mt-3 border-t border-border pt-3">
                         <button
-                            className="text-xs text-slate-300 underline"
+                            className="text-xs text-muted-foreground underline"
                             onClick={() => setShowDebug((v) => !v)}
                         >
                             {showDebug ? "Hide debug details" : "Show debug details"}
                         </button>
 
                         {showDebug && (
-                            <div className="mt-2 text-xs text-slate-200 space-y-2">
+                            <div className="mt-2 space-y-2 text-xs text-foreground">
                                 <div>
-                                    <div className="text-slate-400">correct / score</div>
+                                    <div className="text-muted-foreground">correct / score</div>
                                     <div>
-                                        correct:{" "}
-                                        <span className="font-semibold">{String(result.correct)}</span>,{" "}
-                                        score:{" "}
-                                        <span className="font-semibold">
-                                            {String(result.score ?? displayedScore)}
-                                        </span>
-                                        , maxScore:{" "}
-                                        <span className="font-semibold">
-                                            {String(result.maxScore ?? displayedMaxScore)}
-                                        </span>
+                                        correct: <span className="font-semibold">{String(result.correct)}</span>, score:{" "}
+                                        <span className="font-semibold">{String(result.score ?? displayedScore)}</span>, maxScore:{" "}
+                                        <span className="font-semibold">{String(result.maxScore ?? displayedMaxScore)}</span>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <div className="text-slate-400">errorTags</div>
-                                    <pre className="whitespace-pre-wrap break-words bg-slate-900/50 p-2 rounded">
+                                    <div className="text-muted-foreground">errorTags</div>
+                                    <pre className="whitespace-pre-wrap break-words rounded bg-slate-900/50 p-2">
                                         {JSON.stringify(result.errorTags ?? [], null, 2)}
                                     </pre>
                                 </div>
 
                                 <div>
-                                    <div className="text-slate-400">skillGaps</div>
-                                    <pre className="whitespace-pre-wrap break-words bg-slate-900/50 p-2 rounded">
+                                    <div className="text-muted-foreground">skillGaps</div>
+                                    <pre className="whitespace-pre-wrap break-words rounded bg-slate-900/50 p-2">
                                         {JSON.stringify(result.skillGaps ?? [], null, 2)}
                                     </pre>
                                 </div>
 
                                 <div>
-                                    <div className="text-slate-400">diagnostics</div>
-                                    <div className="text-slate-300">
-                                        sameLeft:{" "}
-                                        <span className="font-semibold">
-                                            {String(result.diagnostics?.sameLeft)}
-                                        </span>
-                                        , sameRight:{" "}
-                                        <span className="font-semibold">
-                                            {String(result.diagnostics?.sameRight)}
-                                        </span>
-                                    </div>
-                                    <pre className="whitespace-pre-wrap break-words bg-slate-900/50 p-2 rounded">
+                                    <div className="text-muted-foreground">diagnostics</div>
+                                    <pre className="whitespace-pre-wrap break-words rounded bg-slate-900/50 p-2">
                                         {JSON.stringify(result.diagnostics ?? {}, null, 2)}
                                     </pre>
                                 </div>
@@ -473,20 +413,17 @@ export default function PracticeClient({
                         )}
                     </div>
 
-                    {/* ✅ Examiner-style feedback */}
                     {!result.correct && (
-                        <div className="mt-3 text-slate-200">
-                            <p className="font-semibold mb-2">Examiner feedback</p>
+                        <div className="mt-3 text-foreground">
+                            <p className="mb-2 font-semibold">Examiner feedback</p>
 
                             {errorTags.length > 0 ? (
-                                <ul className="list-disc ml-6 space-y-1">
+                                <ul className="ml-6 list-disc space-y-1">
                                     {errorTags.map((tag) => (
                                         <li key={tag}>
-                                            <span className="text-slate-200">
-                                                {ERROR_TAG_MESSAGES[tag] ?? tag}
-                                            </span>
+                                            <span>{ERROR_TAG_MESSAGES[tag] ?? tag}</span>
                                             {ERROR_TAG_TUTOR_TIPS[tag] && (
-                                                <div className="text-slate-400 text-sm mt-1">
+                                                <div className="mt-1 text-sm text-muted-foreground">
                                                     {ERROR_TAG_TUTOR_TIPS[tag]}
                                                 </div>
                                             )}
@@ -494,85 +431,77 @@ export default function PracticeClient({
                                     ))}
                                 </ul>
                             ) : (
-                                <div className="text-slate-300">
+                                <div className="text-muted-foreground">
                                     <p>
-                                        No specific examiner tag was returned for this answer.
-                                        This usually means the submission was invalid/unparseable, or the
-                                        question doesn’t have tagged common wrong answers yet.
+                                        No specific examiner tag was returned for this answer. This usually means the
+                                        submission was invalid/unparseable, or the question doesn’t have tagged common
+                                        wrong answers yet.
                                     </p>
-                                    <p className="text-slate-400 text-sm mt-2">
-                                        Tip: Try rewriting your answer in standard notation (e.g. use *
-                                        for multiply, brackets for intervals, etc.).
+                                    <p className="mt-2 text-sm">
+                                        Tip: Try rewriting your answer in standard notation (e.g. use * for multiply,
+                                        brackets for intervals, etc.).
                                     </p>
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* existing backend explanation */}
                     {!result.correct && result.explanation && (
-                        <p className="text-slate-300 mt-3">Explanation: {result.explanation}</p>
+                        <p className="mt-3 text-muted-foreground">Explanation: {result.explanation}</p>
                     )}
 
                     {aiAvailable && (
-                        <button
-                            className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm"
-                            onClick={handleExplain}
-                            disabled={isExplaining}
-                        >
-                            {isExplaining ? "Explaining..." : "Explain with AI"}
-                        </button>
+                        <div className="mt-4 flex flex-wrap gap-3">
+                            <button
+                                className="rounded-lg bg-amber-600 px-4 py-2 text-sm text-white transition hover:bg-amber-500"
+                                onClick={handleHint}
+                                disabled={isHinting || hintLevel > 3}
+                            >
+                                {isHinting ? "Thinking..." : hintLevel <= 3 ? `Hint ${hintLevel}` : "No more hints"}
+                            </button>
+
+                            <button
+                                className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white transition hover:bg-purple-500 disabled:opacity-50"
+                                onClick={handleExplain}
+                                disabled={isExplaining}
+                            >
+                                {isExplaining ? "Explaining..." : "Explain"}
+                            </button>
+
+                            <button
+                                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white transition hover:bg-emerald-500"
+                                onClick={handleSimilar}
+                            >
+                                Similar Question
+                            </button>
+                        </div>
                     )}
 
-                    {currentIndex < questions.length - 1 && (
-                        <button
-                            className="mt-4 ml-3 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm"
-                            onClick={handleNextQuestion}
-                        >
-                            Next Question →
-                        </button>
+                    {hints.length > 0 && (
+                        <div className="mt-4 space-y-2">
+                            {hints.map((h, idx) => (
+                                <div key={idx} className="glass p-3 text-sm text-foreground">
+                                    <span className="font-semibold text-amber-400">Hint {idx + 1}:</span> {h}
+                                </div>
+                            ))}
+                        </div>
                     )}
-                </div>
-            )}
 
-            {/* Hints only when incorrect */}
-            {!result?.correct && aiAvailable && (
-                <div className="glass p-4">
-                    <button
-                        className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-sm"
-                        onClick={handleHint}
-                        disabled={isHinting}
-                    >
-                        {isHinting ? "Getting hint..." : `Hint ${hintLevel}`}
-                    </button>
-
-                    <ul className="mt-3 list-disc ml-6 text-slate-300">
-                        {hints.map((h, i) => (
-                            <li key={i}>{h}</li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-
-            {/* AI explanation panel */}
-            {explanation && (
-                <div className="glass p-4 text-slate-300">
-                    <h3 className="font-semibold mb-2">AI Explanation</h3>
-
-                    <ul className="list-disc ml-6">
-                        {explanation.stepByStep?.map((s: string, i: number) => (
-                            <li key={i}>{s}</li>
-                        ))}
-                    </ul>
-
-                    <p className="mt-3 text-purple-300">{explanation.finalAdvice}</p>
-
-                    <button
-                        className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm"
-                        onClick={handleSimilar}
-                    >
-                        Try Similar Question
-                    </button>
+                    {explanation && (
+                        <div className="glass mt-4 p-4">
+                            <h3 className="mb-2 font-semibold text-foreground">AI Explanation</h3>
+                            {Array.isArray(explanation.stepByStep) && explanation.stepByStep.length > 0 && (
+                                <ol className="ml-6 list-decimal space-y-1 text-sm text-muted-foreground">
+                                    {explanation.stepByStep.map((step: string, i: number) => (
+                                        <li key={i}>{step}</li>
+                                    ))}
+                                </ol>
+                            )}
+                            {explanation.finalAdvice && (
+                                <p className="mt-3 text-sm text-foreground">{explanation.finalAdvice}</p>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
         </div>
