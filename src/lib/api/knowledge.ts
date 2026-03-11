@@ -1,30 +1,28 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+"use client";
 
-export async function getTopics() {
-    const res = await fetch(`${BASE_URL}/knowledge-engine/topics`);
-    return res.json();
-}
+import { useMutation } from "@tanstack/react-query";
 
-export async function getQuestion(topicId: number) {
-    const res = await fetch(`${BASE_URL}/knowledge-engine/generate`, {
+const API_BASE_RAW =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  "http://localhost:4000";
+
+const API_BASE = (() => {
+  const clean = String(API_BASE_RAW).replace(/\/+$/, "");
+  return clean.endsWith("/api") ? clean : `${clean}/api`;
+})();
+
+export function useAskKnowledge() {
+  return useMutation({
+    mutationFn: async (payload: { question: string }) => {
+      const res = await fetch(`${API_BASE}/knowledge/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topicId }),
-    });
-
-    return res.json();
-}
-
-export async function submitAnswer(payload: {
-    questionId: number;
-    answerIndex?: number;
-    answerText?: string;
-}) {
-    const res = await fetch(`${BASE_URL}/knowledge-engine/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(payload),
-    });
-
-    return res.json();
+      });
+      if (!res.ok) throw new Error("Failed to ask knowledge");
+      return res.json();
+    },
+  });
 }

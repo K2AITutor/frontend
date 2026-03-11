@@ -1,328 +1,255 @@
-// frontend/src/lib/apiClient.ts
-
-/**
- * API base resolver
- *
- * - Server Components (Docker): use internal Docker network
- * - Client Components (Browser): use host-exposed port
- *
- * IMPORTANT: This returns a base INCLUDING "/api"
- * so all calls should use `${API_BASE}/...`
- */
-
-type SubjectCode = string;
-
-export type QuestionDTO = {
-    id: string;
-    prompt: string;
-    answerType: string;
-    marks: number;
-    // ...whatever else your UI expects
-};
+import { PracticeQuestion } from "@/types/question";
 
 function getApiBase() {
-    // ✅ inside Docker network, your backend service is called "api"
-    const serverDefault = "http://api:4000";
-    const browserDefault = "http://localhost:4000";
+  const raw =
+    process.env.INTERNAL_API_BASE ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_BASE ||
+    "http://localhost:4000";
 
-    const base =
-        typeof window === "undefined"
-            ? process.env.INTERNAL_API_BASE || serverDefault
-            : process.env.NEXT_PUBLIC_API_BASE || browserDefault;
-
-    const clean = base.replace(/\/+$/, "");
-
-    // ensure /api suffix exactly once
-    return clean.endsWith("/api") ? clean : `${clean}/api`;
+  const clean = String(raw).trim().replace(/\/+$/, "");
+  return clean.endsWith("/api") ? clean : `${clean}/api`;
 }
 
-/**
- * Read Response body as text safely.
- * (Never throws.)
- */
 async function safeText(res: Response): Promise<string> {
-    try {
-        return await res.text();
-    } catch {
-        return "";
-    }
+  try {
+    return await res.text();
+  } catch {
+    return "";
+  }
 }
 
-/**
- * ✅ Robust JSON parser:
- * - avoids "Unexpected end of JSON input"
- * - handles HTML/text error bodies
- * - surfaces meaningful messages
- */
 async function safeJsonFromResponse<T>(res: Response, urlForError: string): Promise<T> {
-    const text = await safeText(res);
-    const trimmed = text.trim();
+  const text = await safeText(res);
+  const trimmed = text.trim();
 
-    // Empty body => don't call res.json()
-    if (!trimmed) {
-        if (!res.ok) {
-            throw new Error(`API ${res.status} ${res.statusText} (empty response) for ${urlForError}`);
-        }
-        // allow empty-success responses (rare but happens)
-        return {} as T;
-    }
-
-    let data: any;
-    try {
-        data = JSON.parse(trimmed);
-    } catch {
-        // If server returned HTML/text, show a snippet
-        const snippet = trimmed.slice(0, 400);
-        if (!res.ok) {
-            throw new Error(
-                `API ${res.status} ${res.statusText} returned non-JSON for ${urlForError}: ${snippet}`
-            );
-        }
-        throw new Error(`API returned non-JSON for ${urlForError}: ${snippet}`);
-    }
-
+  if (!trimmed) {
     if (!res.ok) {
-        const msg =
-            data?.message ||
-            data?.error ||
-            data?.detail ||
-            `API ${res.status} ${res.statusText} for ${urlForError}`;
-        throw new Error(msg);
+      throw new Error(`API ${res.status} ${res.statusText} (empty response) for ${urlForError}`);
     }
+    return {} as T;
+  }
 
-    return data as T;
+  let data: any;
+  try {
+    data = JSON.parse(trimmed);
+  } catch {
+    const snippet = trimmed.slice(0, 400);
+    if (!res.ok) {
+      throw new Error(
+        `API ${res.status} ${res.statusText} returned non-JSON for ${urlForError}: ${snippet}`
+      );
+    }
+    throw new Error(`API returned non-JSON for ${urlForError}: ${snippet}`);
+  }
+
+  if (!res.ok) {
+    const msg = data?.message || data?.error || data?.detail || `API ${res.status} ${res.statusText}`;
+    throw new Error(msg);
+  }
+
+  return data as T;
 }
 
-async function safeFetch<T>(url: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(url, init);
-    return await safeJsonFromResponse<T>(res, url);
+export async function apiGet<T>(path: string): Promise<T> {
+  const base = getApiBase();
+  const url = `${base}${path}`;
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    cache: "no-store",
+  });
+  return safeJsonFromResponse<T>(res, url);
 }
 
-/* ============================
- * Option B: Exam APIs (NEW)
- * ============================ */
+export async function apiPost<T>(path: string, body: any): Promise<T> {
+  const base = getApiBase();
+  const url = `${base}${path}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  return safeJsonFromResponse<T>(res, url);
+}
+
+export async function submitAnswer(questionId: string, answer: string, examKey?: string) {
+  const base = getApiBase();
+  const url = `${base}/questions/submit`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      questionId: Number(questionId),
+      answer,
+      ...(examKey ? { examKey } : {}),
+    }),
+  });
+
+  return safeJsonFromResponse(res, url);
+}
+
+export async function fetchPracticeQuestions(subject: string, topicCode: string): Promise<PracticeQuestion[]> {
+  const base = getApiBase();
+  const url = `${base}/questions/practice?subject=${encodeURIComponent(subject)}&topicCode=${encodeURIComponent(
+    topicCode
+  )}`;
+
+  console.log("[apiClient] fetchPracticeQuestions", { url, subject, topicCode });
+
+  const res = await fetch(url, { cache: "no-store", credentials: "include" });
+  return safeJsonFromResponse<PracticeQuestion[]>(res, url);
+}
+
+export async function aiExplain(payload: {
+  subject: string;
+  skillCode: string;
+  question: string;
+  studentAnswer: string;
+  correctAnswer: string;
+}) {
+  const base = getApiBase();
+  const url = `${base}/ai-tutor/explain`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+
+  return safeJsonFromResponse(res, url);
+}
+
+export async function aiHint(payload: {
+  subject: string;
+  skillCode: string;
+  question: string;
+  studentAnswer?: string;
+  level: 1 | 2 | 3;
+}) {
+  const base = getApiBase();
+  const url = `${base}/ai-tutor/hint`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+
+  return safeJsonFromResponse(res, url);
+}
+
+export async function aiSimilarQuestion(payload: {
+  subject: string;
+  skillCode: string;
+  question: string;
+}) {
+  const base = getApiBase();
+  const url = `${base}/ai-tutor/similar`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+
+  return safeJsonFromResponse(res, url);
+}
+
+export async function fetchRecommendations(userId: number) {
+  const base = getApiBase();
+  const url = `${base}/recommendation/next?userId=${encodeURIComponent(String(userId))}`;
+  const res = await fetch(url, { cache: "no-store", credentials: "include" });
+  return safeJsonFromResponse(res, url) as Promise<PracticeQuestion[]>;
+}
+
+export async function getAdaptiveRecommendation(subject?: string) {
+  const base = getApiBase();
+  const url = `${base}/recommendations/adaptive${subject ? `?subject=${encodeURIComponent(subject)}` : ""}`;
+  const res = await fetch(url, { credentials: "include" });
+  return safeJsonFromResponse(res, url);
+}
 
 export type ExamDocumentDTO = {
-    url?: string | null;
-    filePath?: string | null;
+  url?: string | null;
+  filePath?: string | null;
 };
 
 export type ExamDTO = {
-    examKey: string;
-    title?: string | null;
-    readingMins?: number | null;
-    writingMins?: number | null;
-    allowCAS?: boolean | null;
-    showHints?: boolean | null;
-    exactRequired?: boolean | null;
-    workingRequired?: boolean | null;
-    instructions?: string | null;
-    pdf?: ExamDocumentDTO | null;
+  examKey: string;
+  title?: string | null;
+  readingMins?: number | null;
+  writingMins?: number | null;
+  allowCAS?: boolean | null;
+  showHints?: boolean | null;
+  exactRequired?: boolean | null;
+  workingRequired?: boolean | null;
+  instructions?: string | null;
+  pdf?: ExamDocumentDTO | null;
 };
 
 export type ExamQuestionDTO = {
-    id: number;
-    examKey: string;
-    questionNumber: string; // e.g. "1a"
-    marks: number;
-    answerType: string;
-    prompt: string; // minimal prompt, student reads PDF
-    skillCode?: string | null;
-    pdfPage?: number | null;
-    groupId?: number | null;
-    partLabel?: string | null;
+  id: number;
+  examKey: string;
+  questionNumber: string;
+  marks: number;
+  answerType: string;
+  prompt: string;
+  skillCode?: string | null;
+  pdfPage?: number | null;
+  groupId?: number | null;
+  partLabel?: string | null;
 };
 
-// GET /api/exams/:examKey
 export async function fetchExam(examKey: string): Promise<ExamDTO> {
-    const base = getApiBase();
-    const url = `${base}/exams/${encodeURIComponent(examKey)}`;
-    return safeFetch<ExamDTO>(url, { cache: "no-store" });
+  const base = getApiBase();
+  const url = `${base}/exams/${encodeURIComponent(examKey)}`;
+  const res = await fetch(url, { cache: "no-store", credentials: "include" });
+  return safeJsonFromResponse<ExamDTO>(res, url);
 }
 
-// GET /api/exams/:examKey/questions
 export async function fetchExamQuestionsByExamKey(examKey: string): Promise<ExamQuestionDTO[]> {
-    const base = getApiBase();
-    const url = `${base}/exams/${encodeURIComponent(examKey)}/questions`;
-    return safeFetch<ExamQuestionDTO[]>(url, { cache: "no-store" });
+  const base = getApiBase();
+  const url = `${base}/exams/${encodeURIComponent(examKey)}/questions`;
+  const res = await fetch(url, { cache: "no-store", credentials: "include" });
+  return safeJsonFromResponse<ExamQuestionDTO[]>(res, url);
 }
 
-// POST /api/exams/:examKey/submit
 export async function submitExamAnswer(args: {
-    examKey: string;
-    questionId: number | string;
-    answer: string;
-    userId?: number;
+  examKey: string;
+  questionId: number | string;
+  answer: string;
+  userId?: number;
 }) {
-    const { examKey, questionId, answer, userId } = args;
+  const { examKey, questionId, answer, userId } = args;
+  const base = getApiBase();
+  const url = `${base}/exams/${encodeURIComponent(examKey)}/submit`;
 
-    const url = `${getApiBase()}/exams/${encodeURIComponent(examKey)}/submit`;
-    const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            questionId: Number(questionId),
-            answer,
-            ...(typeof userId === "number" ? { userId } : {}),
-        }),
-    });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      questionId: Number(questionId),
+      answer,
+      ...(typeof userId === "number" ? { userId } : {}),
+    }),
+  });
 
-    return await safeJsonFromResponse(res, url);
+  return safeJsonFromResponse(res, url);
 }
 
-/* ============================
- * Legacy Exam Questions API (keep)
- * - This hits /questions/exam?subject=...&examYear=...&examName=...
- * ============================ */
-
-export async function fetchExamQuestions(
-    subject: SubjectCode,
-    examYear: number,
-    examName: string
-): Promise<QuestionDTO[]> {
-    const base = getApiBase();
-
-    const url =
-        `${base}/questions/exam` +
-        `?subject=${encodeURIComponent(subject)}` +
-        `&examYear=${encodeURIComponent(String(examYear))}` +
-        `&examName=${encodeURIComponent(examName)}`;
-
-    return safeFetch<QuestionDTO[]>(url, { cache: "no-store" });
-}
-
-/* ---------------- Types ---------------- */
-import { PracticeQuestion } from "@/types/question";
-
-/* ---------------- Submit Answer (practice + examKey passthrough) ---------------- */
-export async function submitAnswer(questionId: string, studentAnswer: string, examKey?: string) {
-    const url = `${getApiBase()}/questions/submit`;
-    const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            questionId: Number(questionId),
-            answer: studentAnswer,
-            ...(examKey ? { examKey } : {}),
-        }),
-    });
-
-    return await safeJsonFromResponse(res, url);
-}
-
-/* ---------------- Fetch Practice Questions ---------------- */
-export async function fetchPracticeQuestions(subject: string, topicCode: string): Promise<PracticeQuestion[]> {
-    const API_BASE = getApiBase();
-    const url = `${API_BASE}/questions/practice?subject=${encodeURIComponent(subject)}&topicCode=${encodeURIComponent(
-        topicCode
-    )}`;
-
-    const res = await fetch(url, { cache: "no-store" });
-
-    // Use robust parsing so we never crash on empty/non-JSON bodies
-    return await safeJsonFromResponse<PracticeQuestion[]>(res, url);
-}
-
-/* ---------------- AI Explain ---------------- */
-export async function aiExplain(payload: {
-    subject: string;
-    skillCode: string;
-    question: string;
-    studentAnswer: string;
-    correctAnswer: string;
+export async function fetchSimilarQuestions(payload: {
+  subject: string;
+  questionId: string;
+  skillGaps?: string[];
+  limit?: number;
 }) {
-    const API_BASE = getApiBase();
-    const url = `${API_BASE}/ai-tutor/explain`;
-
-    const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
-
-    return await safeJsonFromResponse(res, url);
-}
-
-/* ---------------- AI Hint ---------------- */
-export async function aiHint(payload: {
-    subject: string;
-    skillCode: string;
-    question: string;
-    studentAnswer?: string;
-    level: 1 | 2 | 3;
-}) {
-    const API_BASE = getApiBase();
-    const url = `${API_BASE}/ai-tutor/hint`;
-
-    const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
-
-    return await safeJsonFromResponse(res, url);
-}
-
-/* ---------------- AI Similar Question ---------------- */
-export async function aiSimilarQuestion(payload: { subject: string; skillCode: string; question: string }) {
-    const API_BASE = getApiBase();
-    const url = `${API_BASE}/ai-tutor/similar`;
-
-    const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
-
-    return await safeJsonFromResponse(res, url);
-}
-
-/* ---------------- Recommendations ---------------- */
-export async function fetchRecommendations(userId: number) {
-    const API_BASE = getApiBase();
-    const url = `${API_BASE}/recommendation/next?userId=${encodeURIComponent(String(userId))}`;
-
-    const res = await fetch(url, { cache: "no-store" });
-    return await safeJsonFromResponse<PracticeQuestion[]>(res, url);
-}
-
-/* ---------------- Adaptive Recommendation ---------------- */
-export async function getAdaptiveRecommendation(subject: string) {
-    const API_BASE = getApiBase();
-    const url = `${API_BASE}/recommendation/adaptive?subject=${encodeURIComponent(subject)}`;
-
-    const res = await fetch(url, { cache: "no-store" });
-    return await safeJsonFromResponse(res, url);
-}
-
-/* ---------------- fetchSimilarQuestions ---------------- */
-export async function fetchSimilarQuestions(args: {
-    subject: string;
-    questionId: string;
-    skillGaps: string[];
-    limit?: number;
-}) {
-    const API_BASE = getApiBase();
-    const { subject, questionId, skillGaps, limit = 5 } = args;
-
-    const params = new URLSearchParams();
-    params.set("subject", subject);
-    params.set("questionId", questionId);
-    params.set("limit", String(limit));
-    // NOTE: you were doing both set + append; keep as-is to avoid breaking backend parsing
-    params.set("skillCodes", skillGaps.join(","));
-    for (const g of skillGaps) params.append("skillCodes", g);
-
-    const url = `${API_BASE}/questions/similar?${params.toString()}`;
-    const res = await fetch(url, { cache: "no-store" });
-
-    // keep legacy behavior: if backend returns non-ok, just return []
-    if (!res.ok) return [];
-
-    // robust JSON parsing (still safe)
-    try {
-        return await safeJsonFromResponse<any[]>(res, url);
-    } catch {
-        return [];
-    }
+  return apiPost<PracticeQuestion[]>("/questions/similar", payload);
 }

@@ -50,3 +50,7 @@ coverage/
 # Logs
 *.log
 *.onetoc2
+
+.claude
+
+.opencode

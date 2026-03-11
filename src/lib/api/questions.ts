@@ -1,22 +1,45 @@
-// frontend/src/lib/api/questions.ts
+"use client";
 
-import { PracticeQuestion } from "@/types/question";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
-const API_BASE =
-    process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") || "http://localhost:4000";
+const API_BASE_RAW =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  "http://localhost:4000";
 
-export async function fetchPracticeQuestionsApi(subject: string, topicCode: string) {
-    const url = `${API_BASE}/api/questions/practice?subject=${encodeURIComponent(
-        subject
-    )}&topicCode=${encodeURIComponent(topicCode)}`;
+const API_BASE = (() => {
+  const clean = String(API_BASE_RAW).replace(/\/+$/, "");
+  return clean.endsWith("/api") ? clean : `${clean}/api`;
+})();
 
-    const res = await fetch(url, { cache: "no-store" });
+export function usePracticeQuestions(topic: string) {
+  return useQuery({
+    queryKey: ["practiceQuestions", topic],
+    queryFn: async () => {
+      const res = await fetch(
+        `${API_BASE}/questions/practice?topic=${encodeURIComponent(topic)}`,
+        { cache: "no-store", credentials: "include" }
+      );
 
-    if (!res.ok) {
-        throw new Error(
-            `Failed to fetch practice questions (status ${res.status}). Check that topicCode ${topicCode} returns questions.`
-        );
-    }
+      if (!res.ok) throw new Error("Failed to fetch practice questions");
+      return res.json();
+    },
+    enabled: !!topic,
+  });
+}
 
-    return (await res.json()) as PracticeQuestion[];
+export function useSubmitAnswer() {
+  return useMutation({
+    mutationFn: async ({ questionId, answer }: { questionId: string; answer: string }) => {
+      const res = await fetch(`${API_BASE}/questions/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ questionId, answer }),
+      });
+
+      if (!res.ok) throw new Error("Submit failed");
+      return res.json();
+    },
+  });
 }

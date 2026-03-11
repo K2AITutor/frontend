@@ -1,4 +1,4 @@
-export default function LoginPage() {
+/*export default function LoginPage() {
     return (
         <main className="min-h-screen flex items-center justify-center">
             <div className="w-full max-w-sm bg-slate-900 p-8 rounded-lg shadow">
@@ -21,4 +21,10 @@ export default function LoginPage() {
             </div>
         </main>
     );
+}*/
+import { redirect } from "next/navigation";
+
+export default function LoginLegacyRedirectPage() {
+    redirect("/auth/login");
 }
+
