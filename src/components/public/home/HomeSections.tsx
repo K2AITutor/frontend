@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { fetchTestimonials } from '@/lib/apiClient'
+import { Testimonial } from '@/types/testimonial'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -527,8 +529,12 @@ function PracticeVisual() {
 }
 
 export function TestimonialsSection() {
-  const testimonials = [
+  const [activeTestimonials, setActiveTestimonials] = useState<Testimonial[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const staticTestimonials: Testimonial[] = [
     {
+      id: 1,
       name: 'Emily Chen',
       role: 'Year 12 Student',
       subject: 'Maths Methods',
@@ -536,8 +542,13 @@ export function TestimonialsSection() {
       quote: 'The AI tutor helped me understand calculus concepts I struggled with for months. My practice exam scores jumped from 65% to 89% in just 6 weeks!',
       rating: 5,
       atarImprovement: '+15 pts',
+      order: 0,
+      isActive: true,
+      createdAt: '',
+      updatedAt: ''
     },
     {
+      id: 2,
       name: 'James Wilson',
       role: 'Year 12 Student',
       subject: 'Physics & Chemistry',
@@ -545,8 +556,13 @@ export function TestimonialsSection() {
       quote: 'Having 24/7 access to explanations is a game-changer. I can study at my own pace and get instant feedback on every question.',
       rating: 5,
       atarImprovement: '+12 pts',
+      order: 1,
+      isActive: true,
+      createdAt: '',
+      updatedAt: ''
     },
     {
+      id: 3,
       name: 'Sarah Thompson',
       role: 'Parent',
       subject: 'Daughter in Year 11',
@@ -554,8 +570,13 @@ export function TestimonialsSection() {
       quote: 'As a parent, I can see my daughter\'s progress in real-time. The detailed analytics give me peace of mind that she\'s on track for her goals.',
       rating: 5,
       atarImprovement: null,
+      order: 2,
+      isActive: true,
+      createdAt: '',
+      updatedAt: ''
     },
     {
+      id: 4,
       name: 'Michael Nguyen',
       role: 'Year 12 Student',
       subject: 'Maths Methods',
@@ -563,8 +584,13 @@ export function TestimonialsSection() {
       quote: 'The ATAR predictor kept me motivated throughout the year. Watching my predicted score climb as I improved was incredibly satisfying.',
       rating: 5,
       atarImprovement: '+18 pts',
+      order: 3,
+      isActive: true,
+      createdAt: '',
+      updatedAt: ''
     },
     {
+      id: 5,
       name: 'Dr. Rebecca Hall',
       role: 'Education Consultant',
       subject: 'VCE Expert',
@@ -572,8 +598,13 @@ export function TestimonialsSection() {
       quote: 'I recommend VCE AI Tutor to all my students. The VCAA-aligned content and adaptive learning approach is exactly what modern students need.',
       rating: 5,
       atarImprovement: null,
+      order: 4,
+      isActive: true,
+      createdAt: '',
+      updatedAt: ''
     },
     {
+      id: 6,
       name: 'Alex Kumar',
       role: 'Year 12 Student',
       subject: 'English & Psychology',
@@ -581,8 +612,33 @@ export function TestimonialsSection() {
       quote: 'The personalised study plans helped me balance multiple subjects effectively. I finally feel confident going into my exams.',
       rating: 5,
       atarImprovement: '+10 pts',
+      order: 5,
+      isActive: true,
+      createdAt: '',
+      updatedAt: ''
     },
   ]
+
+  useEffect(() => {
+    async function loadTestimonials() {
+      try {
+        const data = await fetchTestimonials()
+        if (data && data.length > 0) {
+          setActiveTestimonials(data)
+        } else {
+          setActiveTestimonials(staticTestimonials)
+        }
+      } catch (error) {
+        console.error('Failed to fetch testimonials:', error)
+        setActiveTestimonials(staticTestimonials)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadTestimonials()
+  }, [])
+
+  const displayTestimonials = activeTestimonials.length > 0 ? activeTestimonials : staticTestimonials
 
   return (
     <section id="testimonials" className="py-24 relative scroll-mt-20">
@@ -621,60 +677,81 @@ export function TestimonialsSection() {
 
         {/* Testimonials Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {testimonials.map((testimonial, index) => (
-            <motion.div
-              key={testimonial.name}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
-              className="bg-bg-secondary border border-border-subtle rounded-2xl p-6 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-accent-teal/30 group"
-            >
-              {/* Hover gradient */}
-              <div className="absolute inset-0 bg-gradient-to-br from-accent-teal/8 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-
-              <div className="relative z-10">
-                {/* Quote Icon */}
-                <div className="absolute top-0 right-0 text-accent-teal/10 text-6xl font-serif leading-none select-none">
-                  &ldquo;
-                </div>
-
-                {/* Rating */}
-                <div className="flex gap-1 mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Sparkles key={i} className="w-4 h-4 text-accent-gold fill-accent-gold" />
-                  ))}
-                </div>
-
-                {/* Quote */}
-                <p className="text-text-secondary text-[0.9375rem] leading-[1.7] mb-6 min-h-[5rem]">
-                  &ldquo;{testimonial.quote}&rdquo;
-                </p>
-
-                {/* Author */}
+          {isLoading && activeTestimonials.length === 0 ? (
+            // Shimmer / Loading State
+            [...Array(6)].map((_, i) => (
+              <div key={i} className="bg-bg-secondary border border-border-subtle rounded-2xl p-6 h-[280px] animate-pulse">
+                <div className="h-4 w-24 bg-border-subtle rounded mb-4" />
+                <div className="h-20 bg-border-subtle rounded mb-6" />
                 <div className="flex items-center gap-4">
-                  {/* Avatar */}
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent-teal/30 to-accent-coral/30 flex items-center justify-center text-text-primary font-semibold text-lg border-2 border-border-subtle">
-                    {testimonial.name.split(' ').map(n => n[0]).join('')}
+                  <div className="w-12 h-12 rounded-full bg-border-subtle" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-24 bg-border-subtle rounded" />
+                    <div className="h-3 w-32 bg-border-subtle rounded" />
                   </div>
-
-                  <div className="flex-1">
-                    <div className="font-semibold text-text-primary">{testimonial.name}</div>
-                    <div className="text-[0.8125rem] text-text-muted">{testimonial.role}</div>
-                    <div className="text-[0.75rem] text-accent-teal">{testimonial.subject}</div>
-                  </div>
-
-                  {/* ATAR Improvement Badge */}
-                  {testimonial.atarImprovement && (
-                    <div className="bg-accent-teal/10 border border-accent-teal/30 rounded-lg px-3 py-1.5 text-center">
-                      <div className="text-accent-teal font-bold text-sm">{testimonial.atarImprovement}</div>
-                      <div className="text-[0.625rem] text-text-muted uppercase tracking-wider">Score</div>
-                    </div>
-                  )}
                 </div>
               </div>
-            </motion.div>
-          ))}
+            ))
+          ) : (
+            displayTestimonials.map((testimonial, index) => (
+              <motion.div
+                key={`${testimonial.name}-${index}`}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                className="bg-bg-secondary border border-border-subtle rounded-2xl p-6 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-accent-teal/30 group"
+              >
+                {/* Hover gradient */}
+                <div className="absolute inset-0 bg-gradient-to-br from-accent-teal/8 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+                <div className="relative z-10">
+                  {/* Quote Icon */}
+                  <div className="absolute top-0 right-0 text-accent-teal/10 text-6xl font-serif leading-none select-none">
+                    &ldquo;
+                  </div>
+
+                  {/* Rating */}
+                  <div className="flex gap-1 mb-4">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Sparkles key={i} className="w-4 h-4 text-accent-gold fill-accent-gold" />
+                    ))}
+                  </div>
+
+                  {/* Quote */}
+                  <p className="text-text-secondary text-[0.9375rem] leading-[1.7] mb-6 min-h-[5rem]">
+                    &ldquo;{testimonial.quote}&rdquo;
+                  </p>
+
+                  {/* Author */}
+                  <div className="flex items-center gap-4">
+                    {/* Avatar */}
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent-teal/30 to-accent-coral/30 flex items-center justify-center text-text-primary font-semibold text-lg border-2 border-border-subtle overflow-hidden">
+                      {testimonial.image ? (
+                        <img src={testimonial.image} alt={testimonial.name} className="w-full h-full object-cover" />
+                      ) : (
+                        testimonial.name.split(' ').map(n => n[0]).join('')
+                      )}
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="font-semibold text-text-primary">{testimonial.name}</div>
+                      <div className="text-[0.8125rem] text-text-muted">{testimonial.role}</div>
+                      <div className="text-[0.75rem] text-accent-teal">{testimonial.subject}</div>
+                    </div>
+
+                    {/* ATAR Improvement Badge */}
+                    {testimonial.atarImprovement && (
+                      <div className="bg-accent-teal/10 border border-accent-teal/30 rounded-lg px-3 py-1.5 text-center">
+                        <div className="text-accent-teal font-bold text-sm">{testimonial.atarImprovement}</div>
+                        <div className="text-[0.625rem] text-text-muted uppercase tracking-wider">Score</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ))
+          )}
         </div>
 
         {/* Bottom Stats */}
