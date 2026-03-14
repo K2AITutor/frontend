@@ -157,3 +157,14 @@ export function useStudentDashboardData() {
     staleTime: 30_000,
   });
 }
+
+export function useAdminDashboardData() {
+  return useQuery({
+    queryKey: ["adminDashboard"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/admin/dashboard`);
+      return res.json();
+    },
+  });
+}
+

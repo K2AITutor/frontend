@@ -75,6 +75,29 @@ export async function apiPost<T>(path: string, body: any): Promise<T> {
   return safeJsonFromResponse<T>(res, url);
 }
 
+export async function apiPut<T>(path: string, body: any): Promise<T> {
+  const base = getApiBase();
+  const url = `${base}${path}`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  return safeJsonFromResponse<T>(res, url);
+}
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  const base = getApiBase();
+  const url = `${base}${path}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  });
+  return safeJsonFromResponse<T>(res, url);
+}
+
 export async function submitAnswer(questionId: string, answer: string, examKey?: string) {
   const base = getApiBase();
   const url = `${base}/questions/submit`;

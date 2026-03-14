@@ -17,7 +17,7 @@ export const authOptions: NextAuthOptions = {
                     id: "dev-user-id",
                     email: credentials.email,
                     name: credentials.email.split("@")[0], // ✅ add this
-                    role: "student",
+                    role: "admin",
                 };
 
             },
