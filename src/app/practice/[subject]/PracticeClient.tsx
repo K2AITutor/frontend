@@ -1,509 +1,729 @@
-"use client";
+'use client';
 
-import { useMemo, useState } from "react";
-import QuestionCard from "@/components/practice/QuestionCard";
-import { MATH_METHODS_TOPICS } from "@/constants/mathMethodsTopics";
+import { useEffect, useMemo, useState } from 'react';
 import {
-    submitAnswer,
     aiExplain,
-    aiSimilarQuestion,
     aiHint,
+    aiSimilarQuestion,
     fetchPracticeQuestions,
+    fetchSimilarQuestions,
     getAdaptiveRecommendation,
-} from "@/lib/apiClient";
-import { PracticeQuestion } from "@/types/question";
+    submitAnswer,
+} from '@/lib/apiClient';
+import { PracticeQuestion } from '@/types/question';
+import { TopicGroup } from '@/types/topic';
 
-type AdaptiveRecommendation = {
-    reason: string;
-    questions: PracticeQuestion[];
+type SubmissionResult = {
+    correct?: boolean;
+    score?: number;
+    maxScore?: number;
+    feedback?: string;
+    errorTags?: string[];
+    skillGaps?: string[];
+    diagnostics?: Record<string, any>;
+    commonMistake?: string;
+    modelAnswer?: string;
 };
 
-type MarkingResult = {
-    correct: boolean | null;
-    explanation?: string | null;
-    skillGaps?: string[] | null;
-    score?: number | null;
-    maxScore?: number | null;
-    errorTags?: string[] | null;
-    aiExplanation?: string | null;
-    diagnostics?: any;
+type TopicMeta = {
+    attempted: number;
+    total: number;
+    mastery: number;
+    status: 'Not started' | 'Weak' | 'Medium' | 'Strong';
 };
 
-const ERROR_TAG_MESSAGES: Record<string, string> = {
-    "CALC_ERR.PRODUCT_RULE": "You did not apply the product rule.",
-    "CALC_ERR.CHAIN_RULE": "You did not apply the chain rule correctly.",
-    "CALC_ERR.QUOTIENT_RULE": "You did not apply the quotient rule correctly.",
-    "CALC_ERR.TRIG_DERIVATIVE":
-        "Incorrect derivative of a trigonometric function (check signs).",
-    "INT_ERR.MISSING_CONSTANT": "You omitted the constant of integration (+C).",
-    "INT_ERR.INCORRECT_BOUNDS": "The limits/bounds of integration are incorrect.",
-    "INT_ERR.AREA_INTERPRET":
-        "You treated signed area as area (consider splitting and taking absolute value).",
-    "META_ERR.INTERVAL_NOTATION":
-        "Interval/set notation is incorrect or not in the expected form.",
-    "META_ERR.ENDPOINT_INCLUSION":
-        "Check whether endpoints should be included (brackets vs parentheses).",
-    "META_ERR.UNDEFINED_SYMBOL":
-        "Your input could not be interpreted as a valid mathematical answer.",
-    "ALG_ERR.SIGN": "There is a sign error in your working.",
-    "ALG_ERR.SIMPLIFY": "Your final expression is not equivalent to the correct answer.",
-    "ALG_ERR.ARITHMETIC": "There is an arithmetic error.",
-    "FORMAT.NOT_EXACT":
-        "An exact value is required. Do not use decimals unless the question allows it.",
-    INCORRECT: "Your answer is incorrect.",
-};
+function getStatusFromMastery(mastery: number, attempted: number): TopicMeta['status'] {
+    if (attempted === 0) return 'Not started';
+    if (mastery < 40) return 'Weak';
+    if (mastery < 75) return 'Medium';
+    return 'Strong';
+}
 
-const ERROR_TAG_TUTOR_TIPS: Record<string, string> = {
-    "CALC_ERR.PRODUCT_RULE": "Tip: For y = u·v, use (uv)' = u'v + uv'.",
-    "CALC_ERR.CHAIN_RULE":
-        "Tip: Differentiate the outer function, then multiply by the inner derivative.",
-    "CALC_ERR.QUOTIENT_RULE": "Tip: For y = u/v, use (u/v)' = (u'v − uv')/v².",
-    "CALC_ERR.TRIG_DERIVATIVE":
-        "Tip: Remember d/dx(cos x) = −sin x and d/dx(sin x) = cos x.",
-    "META_ERR.ENDPOINT_INCLUSION":
-        "Tip: Use [ ] when the endpoint is included, and ( ) when it is not.",
-    "INT_ERR.MISSING_CONSTANT": "Tip: If it’s an indefinite integral, always include + C.",
-};
+function statusClasses(status: TopicMeta['status']) {
+    switch (status) {
+        case 'Weak':
+            return 'bg-red-500/15 text-red-300 border-red-500/20';
+        case 'Medium':
+            return 'bg-amber-500/15 text-amber-300 border-amber-500/20';
+        case 'Strong':
+            return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20';
+        default:
+            return 'bg-slate-500/15 text-slate-300 border-white/10';
+    }
+}
 
 export default function PracticeClient({
     initialQuestions,
     subject,
     examKey,
+    initialTopicCode = 'MM_FUNC_BASICS',
+    topicCounts = {},
+    topicGroups = [],
 }: {
     initialQuestions: PracticeQuestion[];
     subject: string;
     examKey?: string;
+    initialTopicCode?: string;
+    topicCounts?: Record<string, number>;
+    topicGroups?: TopicGroup[];
 }) {
-    const [questions, setQuestions] = useState<PracticeQuestion[]>(initialQuestions);
+    const [questions, setQuestions] = useState<PracticeQuestion[]>(initialQuestions ?? []);
     const [currentIndex, setCurrentIndex] = useState(0);
-    const question = questions[currentIndex] ?? null;
+    const [selectedTopicCode, setSelectedTopicCode] = useState(initialTopicCode);
+    const [userAnswer, setUserAnswer] = useState('');
+    const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
 
-    const [answer, setAnswer] = useState("");
-    const [result, setResult] = useState<MarkingResult | null>(null);
-    const [explanation, setExplanation] = useState<any>(null);
-    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [hint1Text, setHint1Text] = useState('');
+    const [hint2Text, setHint2Text] = useState('');
+    const [explainText, setExplainText] = useState('');
+    const [similarQuestionText, setSimilarQuestionText] = useState('');
 
+    const [hintLevelUsed, setHintLevelUsed] = useState(0);
     const [showDebug, setShowDebug] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isExplaining, setIsExplaining] = useState(false);
-    const [isHinting, setIsHinting] = useState(false);
 
-    const [hintLevel, setHintLevel] = useState<1 | 2 | 3>(1);
-    const [hints, setHints] = useState<string[]>([]);
+    const [loadingHint1, setLoadingHint1] = useState(false);
+    const [loadingHint2, setLoadingHint2] = useState(false);
+    const [loadingExplain, setLoadingExplain] = useState(false);
+    const [loadingSimilar, setLoadingSimilar] = useState(false);
 
-    const [recommendation, setRecommendation] = useState<AdaptiveRecommendation | null>(null);
-    const [isRecLoading, setIsRecLoading] = useState(false);
+    const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+    const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
 
-    const resetHints = () => {
-        setHintLevel(1);
-        setHints([]);
-    };
+    const currentQuestion = questions[currentIndex] ?? null;
 
-    const resetQuestionState = () => {
-        setAnswer("");
-        setResult(null);
-        setExplanation(null);
-        setSubmitError(null);
-        resetHints();
-    };
+    useEffect(() => {
+        const initialState: Record<string, boolean> = {};
+        for (const group of topicGroups) {
+            const hasSelected = group.topics.some((t) => t.topicCode === selectedTopicCode);
+            initialState[group.strandCode] = hasSelected;
+        }
+        setOpenGroups((prev) => ({ ...initialState, ...prev }));
+    }, [topicGroups, selectedTopicCode]);
 
-    const aiAvailable = useMemo(() => !!question?.skillCode, [question]);
+    const currentTopicName = useMemo(() => {
+        const allTopics = topicGroups.flatMap((g) => g.topics);
+        const match = allTopics.find((t) => t.topicCode === selectedTopicCode);
+        return match?.name ?? 'Topic Category';
+    }, [selectedTopicCode, topicGroups]);
 
-    const displayedScore =
-        result?.score != null ? result.score : result?.correct === true ? 1 : result?.correct === false ? 0 : null;
-
-    const displayedMaxScore = result?.maxScore != null ? result.maxScore : result ? 1 : null;
-
-    const errorTags = result?.errorTags ?? [];
-
-    if (!question) {
-        return (
-            <div className="glass p-6">
-                <h2 className="text-lg font-semibold text-foreground">No questions loaded.</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                    This usually means the selected topic has no seeded questions yet, or the frontend
-                    subject/topic code does not match the backend data.
-                </p>
-            </div>
+    const groupedTopics = useMemo(() => {
+        return topicGroups.filter(
+            (g) =>
+                g.strandName === 'Functions & Graphs' ||
+                g.strandName === 'Algebra' ||
+                g.strandName === 'Calculus' ||
+                g.strandName === 'Probability & Statistics'
         );
-    }
+    }, [topicGroups]);
 
-    const handleSubmit = async () => {
-        if (!question) return;
+    const topicMetaMap = useMemo(() => {
+        const map: Record<string, TopicMeta> = {};
 
-        try {
-            setIsSubmitting(true);
-            setSubmitError(null);
-            setExplanation(null);
+        for (const group of groupedTopics) {
+            for (const topic of group.topics) {
+                const total = topicCounts[topic.topicCode] ?? topic.questionCount ?? 0;
 
-            const res = await submitAnswer(String(question.id), answer, examKey);
+                // UI-first placeholder logic until mastery backend exists
+                const attempted = topic.topicCode === selectedTopicCode ? Math.min(1, total) : 0;
+                const mastery = topic.topicCode === selectedTopicCode && submissionResult
+                    ? submissionResult.correct
+                        ? 100
+                        : 30
+                    : 0;
 
-            setResult({
-                correct: res.correct,
-                explanation: res.explanation,
-                skillGaps: res.skillGaps,
-                score: res.score,
-                maxScore: res.maxScore,
-                errorTags: res.errorTags,
-                aiExplanation: res.aiExplanation,
-                diagnostics: res.diagnostics,
-            });
-
-            if (!res.correct) {
-                try {
-                    setIsRecLoading(true);
-                    const adaptive = await getAdaptiveRecommendation(subject);
-                    if (adaptive?.questions?.length) {
-                        setRecommendation({
-                            reason: adaptive.reason || "Recommended practice based on your recent performance.",
-                            questions: adaptive.questions,
-                        });
-                    }
-                } catch (e) {
-                    console.error("Adaptive recommendation failed:", e);
-                } finally {
-                    setIsRecLoading(false);
-                }
-            } else {
-                setRecommendation(null);
+                map[topic.topicCode] = {
+                    attempted,
+                    total,
+                    mastery,
+                    status: getStatusFromMastery(mastery, attempted),
+                };
             }
-        } catch (err: any) {
-            console.error("Submit failed:", err);
-            setSubmitError(err?.message || "Failed to fetch");
-        } finally {
-            setIsSubmitting(false);
         }
+
+        return map;
+    }, [groupedTopics, topicCounts, selectedTopicCode, submissionResult]);
+
+    const resetSupportState = () => {
+        setHint1Text('');
+        setHint2Text('');
+        setExplainText('');
+        setSimilarQuestionText('');
+        setHintLevelUsed(0);
+        setSubmissionResult(null);
+        setShowDebug(false);
     };
 
-    const handleExplain = async () => {
-        if (!question || !aiAvailable || isExplaining) return;
-
-        try {
-            setIsExplaining(true);
-
-            const ai = await aiExplain({
-                subject,
-                skillCode: question.skillCode!,
-                question: question.prompt,
-                studentAnswer: answer,
-                correctAnswer: question.answer,
-            });
-
-            setExplanation(ai);
-        } catch (err) {
-            console.error("AI explain failed:", err);
-        } finally {
-            setIsExplaining(false);
-        }
-    };
-
-    const handleHint = async () => {
-        if (!question || !aiAvailable || isHinting || hintLevel > 3) return;
-
-        try {
-            setIsHinting(true);
-
-            const res = await aiHint({
-                subject,
-                skillCode: question.skillCode!,
-                question: question.prompt,
-                studentAnswer: answer,
-                level: hintLevel,
-            });
-
-            setHints((prev) => [...prev, res.hint]);
-            setHintLevel((prev) => (prev < 3 ? ((prev + 1) as 1 | 2 | 3) : prev));
-        } catch (err) {
-            console.error("AI hint failed:", err);
-        } finally {
-            setIsHinting(false);
-        }
-    };
-
-    const handleSimilar = async () => {
-        if (!question || !aiAvailable) return;
-
-        try {
-            const next = await aiSimilarQuestion({
-                subject,
-                skillCode: question.skillCode!,
-                question: question.prompt,
-            });
-
-            setExplanation({
-                stepByStep: ["Try this similar question:"],
-                finalAdvice: next.question,
-            });
-
-            resetQuestionState();
-        } catch (err) {
-            console.error("AI similar failed:", err);
-        }
-    };
-
-    const handleNextQuestion = () => {
-        if (currentIndex >= questions.length - 1) return;
-        setCurrentIndex((i) => i + 1);
-        setRecommendation(null);
-        resetQuestionState();
+    const toggleGroup = (strandCode: string) => {
+        setOpenGroups((prev) => ({
+            ...prev,
+            [strandCode]: !prev[strandCode],
+        }));
     };
 
     const startPractice = async (topicCode: string) => {
         try {
-            setSubmitError(null);
-            const res = await fetchPracticeQuestions(subject, topicCode);
-            setQuestions(res);
+            setSelectedTopicCode(topicCode);
+            setUserAnswer('');
+            resetSupportState();
+
+            const nextQuestions = await fetchPracticeQuestions(subject, topicCode);
+            const filtered =
+                difficultyFilter === 'all'
+                    ? nextQuestions
+                    : nextQuestions.filter((q: any) => q.difficulty === difficultyFilter);
+
+            setQuestions(Array.isArray(filtered) ? filtered : []);
             setCurrentIndex(0);
-            setRecommendation(null);
-            resetQuestionState();
-        } catch (err) {
-            console.error("Failed to start practice:", err);
-            setSubmitError("Failed to load questions for this topic.");
+        } catch (error) {
+            console.error('Failed to start practice', error);
+            setQuestions([]);
+            setCurrentIndex(0);
         }
     };
 
-    const loadRecommendedSet = () => {
-        if (!recommendation?.questions?.length) return;
-        setQuestions(recommendation.questions);
-        setCurrentIndex(0);
-        resetQuestionState();
+    const handleSubmit = async () => {
+        if (!currentQuestion) return;
+
+        try {
+            const result = await submitAnswer(
+                String(currentQuestion.id),
+                userAnswer,
+                examKey,
+                hintLevelUsed
+            );
+
+            setSubmissionResult({
+                ...result,
+                modelAnswer: currentQuestion.answer || 'No model answer available.',
+                commonMistake:
+                    result?.errorTags?.length
+                        ? result.errorTags.join(', ')
+                        : result?.diagnostics?.mistakeType || 'Check substitution, setup, and arithmetic carefully.',
+            });
+        } catch (error) {
+            console.error('Submit failed', error);
+            setSubmissionResult({
+                correct: false,
+                score: 0,
+                maxScore: currentQuestion?.marks ?? 1,
+                feedback: 'Unable to submit answer at the moment.',
+                modelAnswer: currentQuestion?.answer || 'No model answer available.',
+                commonMistake: 'Submission service unavailable.',
+            });
+        }
     };
 
+    const handleHint = async (level: 1 | 2) => {
+        if (!currentQuestion) return;
+
+        const setLoading = level === 1 ? setLoadingHint1 : setLoadingHint2;
+        const setText = level === 1 ? setHint1Text : setHint2Text;
+
+        try {
+            setLoading(true);
+
+            const res = await aiHint({
+                subject,
+                skillCode: currentQuestion.skillCode || selectedTopicCode,
+                question: currentQuestion.prompt,
+                studentAnswer: userAnswer,
+                level,
+            });
+
+            setText(
+                res?.hint ||
+                res?.finalAdvice ||
+                (Array.isArray(res?.stepByStep) ? res.stepByStep.join(' ') : '') ||
+                'No hint available.'
+            );
+            setHintLevelUsed(Math.max(hintLevelUsed, level));
+        } catch (error) {
+            console.error(`Hint ${level} failed`, error);
+            setText(`Unable to load hint ${level} right now.`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleExplain = async () => {
+        if (!currentQuestion || loadingExplain) return;
+
+        try {
+            setLoadingExplain(true);
+
+            const res = await aiExplain({
+                subject,
+                skillCode: currentQuestion.skillCode || selectedTopicCode,
+                question: currentQuestion.prompt,
+                studentAnswer: userAnswer,
+                correctAnswer: currentQuestion.answer || '',
+            });
+
+            const parts: string[] = [];
+
+            if (typeof res?.mistakeType === 'string' && res.mistakeType.trim()) {
+                parts.push(`Mistake type: ${res.mistakeType}`);
+            }
+
+            if (Array.isArray(res?.stepByStep) && res.stepByStep.length > 0) {
+                parts.push(
+                    'Step by step:\n' +
+                    res.stepByStep.map((step: string, i: number) => `${i + 1}. ${step}`).join('\n')
+                );
+            }
+
+            if (typeof res?.finalAdvice === 'string' && res.finalAdvice.trim()) {
+                parts.push(`Final advice: ${res.finalAdvice}`);
+            }
+
+            if (typeof res?.explanation === 'string' && res.explanation.trim()) {
+                parts.unshift(res.explanation);
+            }
+
+            if (typeof res?.message === 'string' && res.message.trim()) {
+                parts.unshift(res.message);
+            }
+
+            setExplainText(parts.join('\n\n') || 'No explanation available.');
+        } catch (error) {
+            console.error('Explain failed', error);
+            setExplainText('Unable to load an explanation right now.');
+        } finally {
+            setLoadingExplain(false);
+        }
+    };
+
+    const handleSimilarQuestion = async () => {
+        if (!currentQuestion || loadingSimilar) return;
+
+        try {
+            setLoadingSimilar(true);
+
+            let loaded = false;
+
+            try {
+                const similar = await fetchSimilarQuestions({
+                    subject,
+                    topicCode: selectedTopicCode,
+                    questionId: String(currentQuestion.id),
+                    skillGaps: submissionResult?.skillGaps,
+                    limit: 1,
+                });
+
+                if (Array.isArray(similar) && similar.length > 0) {
+                    setQuestions([similar[0]]);
+                    setCurrentIndex(0);
+                    setUserAnswer('');
+                    resetSupportState();
+                    loaded = true;
+                }
+            } catch (dbError) {
+                console.warn('DB similar question failed', dbError);
+            }
+
+            if (!loaded) {
+                const aiRes = await aiSimilarQuestion({
+                    subject,
+                    skillCode: currentQuestion.skillCode || selectedTopicCode,
+                    question: currentQuestion.prompt,
+                });
+
+                setSimilarQuestionText(
+                    aiRes?.question || aiRes?.similarQuestion || aiRes?.message || 'No similar question available.'
+                );
+            }
+        } catch (error) {
+            console.error('Similar question failed', error);
+            setSimilarQuestionText('Unable to load a similar question right now.');
+        } finally {
+            setLoadingSimilar(false);
+        }
+    };
+
+    const moveNext = async () => {
+        if (currentIndex < questions.length - 1) {
+            setCurrentIndex((prev) => prev + 1);
+            setUserAnswer('');
+            resetSupportState();
+            return;
+        }
+
+        try {
+            const nextQuestions = await fetchPracticeQuestions(subject, selectedTopicCode);
+            const filtered =
+                difficultyFilter === 'all'
+                    ? nextQuestions
+                    : nextQuestions.filter((q: any) => q.difficulty === difficultyFilter);
+
+            if (Array.isArray(filtered) && filtered.length > 0) {
+                setQuestions(filtered);
+                setCurrentIndex(0);
+                setUserAnswer('');
+                resetSupportState();
+            }
+        } catch (error) {
+            console.error('Next question load failed', error);
+        }
+    };
+
+    const nextRecommendedAction = useMemo(() => {
+        if (!submissionResult) return '';
+        if (submissionResult.correct) return 'Move to the next question or try a similar one for reinforcement.';
+        return 'Try a similar substitution question or use AI Explain to review the method.';
+    }, [submissionResult]);
+
     return (
-        <div className="space-y-6">
-            <div className="text-sm text-muted-foreground">
-                Question {currentIndex + 1} of {questions.length}
-            </div>
+        <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+            <aside className="space-y-5">
+                <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg">
+                    <div className="text-sm font-medium uppercase tracking-wide text-slate-400">
+                        Select Topic Category
+                    </div>
+                    <h2 className="mt-2 text-2xl font-bold text-white">{currentTopicName}</h2>
 
-            <div className="mb-6 flex flex-wrap gap-2">
-                {MATH_METHODS_TOPICS.map((t) => (
-                    <button
-                        key={t.code}
-                        onClick={() => startPractice(t.code)}
-                        className="rounded-lg bg-slate-800 px-4 py-2 text-sm text-white transition hover:bg-slate-700"
-                    >
-                        {t.name}
-                    </button>
-                ))}
-            </div>
-
-            <QuestionCard question={question} />
-
-            <input
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder="Enter your answer"
-                className="w-full rounded-lg border border-border bg-card px-4 py-3 text-foreground outline-none focus:ring-2 focus:ring-primary"
-            />
-
-            <div className="flex flex-wrap gap-3">
-                <button
-                    disabled={isSubmitting}
-                    className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50"
-                    onClick={handleSubmit}
-                >
-                    {isSubmitting ? "Checking..." : "Submit Answer"}
-                </button>
-
-                {result && currentIndex < questions.length - 1 && (
-                    <button
-                        className="rounded-lg bg-slate-700 px-6 py-3 font-semibold text-white transition hover:bg-slate-600"
-                        onClick={handleNextQuestion}
-                    >
-                        Next Question
-                    </button>
-                )}
-            </div>
-
-            {submitError && (
-                <div className="glass p-4">
-                    <p className="mb-1 font-semibold text-red-400">Submission error</p>
-                    <p className="text-sm text-muted-foreground">{submitError}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                        If this happens repeatedly, check backend logs for /questions/submit.
-                    </p>
-                </div>
-            )}
-
-            {recommendation && (
-                <div className="glass p-4">
-                    <div className="mb-2 flex items-center justify-between">
-                        <h3 className="font-semibold text-foreground">Recommended Next</h3>
-                        <button
-                            onClick={loadRecommendedSet}
-                            className="rounded-lg bg-emerald-600 px-3 py-1 text-sm text-white transition hover:bg-emerald-500"
+                    <div className="mt-4">
+                        <label className="mb-2 block text-sm text-slate-300">Difficulty filter</label>
+                        <select
+                            value={difficultyFilter}
+                            onChange={(e) => setDifficultyFilter(e.target.value as any)}
+                            className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white"
                         >
-                            Load set
-                        </button>
+                            <option value="all">All difficulties</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
                     </div>
 
-                    <p className="mb-2 text-sm text-muted-foreground">Reason: {recommendation.reason}</p>
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-sm text-slate-300">
+                        Resume where you left off will use stored progress once mastery tracking is connected.
+                    </div>
+                </section>
 
-                    <ul className="ml-6 list-disc text-sm text-muted-foreground">
-                        {recommendation.questions.slice(0, 5).map((q) => (
-                            <li key={q.id}>{q.prompt}</li>
-                        ))}
-                    </ul>
-                </div>
-            )}
+                <section className="space-y-4">
+                    {groupedTopics.map((group) => {
+                        const isOpen = !!openGroups[group.strandCode];
 
-            {result && (
-                <div className="glass p-4">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <p className={`font-semibold ${result.correct ? "text-green-400" : "text-red-400"}`}>
-                                {result.correct ? "Correct" : "Incorrect"}
-                            </p>
-
-                            {displayedScore !== null && displayedMaxScore !== null && (
-                                <p className="mt-1 text-muted-foreground">
-                                    Marks:{" "}
-                                    <span className="font-semibold text-foreground">
-                                        {displayedScore} / {displayedMaxScore}
+                        return (
+                            <div
+                                key={group.strandCode}
+                                className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg"
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => toggleGroup(group.strandCode)}
+                                    className="flex w-full items-center justify-between text-left"
+                                >
+                                    <span className="text-lg font-semibold text-white">
+                                        {group.strandName}
                                     </span>
-                                </p>
-                            )}
+                                    <span
+                                        className={`text-slate-300 transition-transform ${isOpen ? 'rotate-90' : ''
+                                            }`}
+                                    >
+                                        ▶
+                                    </span>
+                                </button>
+
+                                {isOpen && (
+                                    <div className="mt-4 space-y-2">
+                                        {group.topics.map((topic) => {
+                                            const isActive = selectedTopicCode === topic.topicCode;
+                                            const meta = topicMetaMap[topic.topicCode] || {
+                                                attempted: 0,
+                                                total: topicCounts[topic.topicCode] ?? topic.questionCount ?? 0,
+                                                mastery: 0,
+                                                status: 'Not started' as const,
+                                            };
+
+                                            return (
+                                                <button
+                                                    key={topic.topicCode}
+                                                    type="button"
+                                                    onClick={() => void startPractice(topic.topicCode)}
+                                                    className={`block w-full rounded-xl border px-4 py-3 text-left transition ${isActive
+                                                            ? 'border-emerald-400 bg-emerald-500/10'
+                                                            : 'border-white/10 bg-slate-900/60 hover:border-slate-400 hover:bg-slate-800'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <div className="text-sm font-semibold text-white">
+                                                                {topic.name}
+                                                            </div>
+                                                            <div className="mt-1 text-xs text-slate-400">
+                                                                {meta.attempted}/{meta.total} attempted
+                                                            </div>
+                                                            <div className="mt-1 text-xs text-slate-400">
+                                                                Mastery {meta.mastery}%
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex flex-col items-end gap-2">
+                                                            <span
+                                                                className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusClasses(
+                                                                    meta.status
+                                                                )}`}
+                                                            >
+                                                                {meta.status}
+                                                            </span>
+                                                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-slate-300">
+                                                                {meta.total} q
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </section>
+            </aside>
+
+            <section className="space-y-6">
+                <div className="flex justify-end">
+                    <div className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm text-slate-300">
+                        Question {questions.length === 0 ? 0 : currentIndex + 1} of {questions.length}
+                    </div>
+                </div>
+
+                <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-xl backdrop-blur">
+                    <div className="space-y-6">
+                        <div>
+                            <div className="mb-3 text-sm text-slate-400">Current question</div>
+                            <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-5 text-2xl font-medium text-white">
+                                {currentQuestion?.prompt || 'No question available for this topic yet.'}
+                            </div>
                         </div>
 
-                        {isRecLoading && (
-                            <div className="text-xs text-muted-foreground">Updating recommendations…</div>
-                        )}
-                    </div>
+                        <div>
+                            <label className="mb-3 block text-sm font-medium text-white">
+                                Your answer
+                            </label>
+                            <input
+                                value={userAnswer}
+                                onChange={(e) => setUserAnswer(e.target.value)}
+                                placeholder="Enter your answer"
+                                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-4 text-lg text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400"
+                            />
+                        </div>
 
-                    <div className="mt-3 border-t border-border pt-3">
-                        <button
-                            className="text-xs text-muted-foreground underline"
-                            onClick={() => setShowDebug((v) => !v)}
-                        >
-                            {showDebug ? "Hide debug details" : "Show debug details"}
-                        </button>
+                        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                            <div className="space-y-4">
+                                <div className="flex flex-wrap items-center gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={handleSubmit}
+                                        disabled={!currentQuestion}
+                                        className="rounded-xl bg-emerald-500 px-6 py-3 text-base font-semibold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        Submit Answer
+                                    </button>
 
-                        {showDebug && (
-                            <div className="mt-2 space-y-2 text-xs text-foreground">
-                                <div>
-                                    <div className="text-muted-foreground">correct / score</div>
-                                    <div>
-                                        correct: <span className="font-semibold">{String(result.correct)}</span>, score:{" "}
-                                        <span className="font-semibold">{String(result.score ?? displayedScore)}</span>, maxScore:{" "}
-                                        <span className="font-semibold">{String(result.maxScore ?? displayedMaxScore)}</span>
+                                    {!submissionResult && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleHint(1)}
+                                            disabled={loadingHint1 || !currentQuestion}
+                                            className="text-sm font-medium text-emerald-300 underline underline-offset-4"
+                                        >
+                                            {loadingHint1 ? 'Loading hint...' : 'Need a hint?'}
+                                        </button>
+                                    )}
+                                </div>
+
+                                {hint1Text && (
+                                    <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-slate-100">
+                                        <div className="mb-2 font-semibold text-amber-300">Hint 1</div>
+                                        <div className="whitespace-pre-line">{hint1Text}</div>
                                     </div>
-                                </div>
+                                )}
 
-                                <div>
-                                    <div className="text-muted-foreground">errorTags</div>
-                                    <pre className="whitespace-pre-wrap break-words rounded bg-slate-900/50 p-2">
-                                        {JSON.stringify(result.errorTags ?? [], null, 2)}
-                                    </pre>
-                                </div>
+                                {hint2Text && (
+                                    <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-4 text-slate-100">
+                                        <div className="mb-2 font-semibold text-orange-300">Hint 2</div>
+                                        <div className="whitespace-pre-line">{hint2Text}</div>
+                                    </div>
+                                )}
 
-                                <div>
-                                    <div className="text-muted-foreground">skillGaps</div>
-                                    <pre className="whitespace-pre-wrap break-words rounded bg-slate-900/50 p-2">
-                                        {JSON.stringify(result.skillGaps ?? [], null, 2)}
-                                    </pre>
-                                </div>
+                                {submissionResult && (
+                                    <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-5">
+                                        <div
+                                            className={`text-2xl font-bold ${submissionResult.correct ? 'text-emerald-400' : 'text-red-400'
+                                                }`}
+                                        >
+                                            {submissionResult.correct ? 'Correct' : 'Incorrect'}
+                                        </div>
 
-                                <div>
-                                    <div className="text-muted-foreground">diagnostics</div>
-                                    <pre className="whitespace-pre-wrap break-words rounded bg-slate-900/50 p-2">
-                                        {JSON.stringify(result.diagnostics ?? {}, null, 2)}
-                                    </pre>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                                        <div className="mt-2 text-lg text-slate-300">
+                                            Marks: <span className="font-semibold text-white">{submissionResult.score ?? 0}</span>
+                                            <span className="text-slate-400"> / {submissionResult.maxScore ?? 1}</span>
+                                        </div>
 
-                    {!result.correct && (
-                        <div className="mt-3 text-foreground">
-                            <p className="mb-2 font-semibold">Examiner feedback</p>
+                                        <div className="mt-5">
+                                            <div className="mb-2 text-lg font-semibold text-white">
+                                                Model answer
+                                            </div>
+                                            <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-slate-100">
+                                                {submissionResult.modelAnswer || currentQuestion?.answer || 'No model answer available.'}
+                                            </div>
+                                        </div>
 
-                            {errorTags.length > 0 ? (
-                                <ul className="ml-6 list-disc space-y-1">
-                                    {errorTags.map((tag) => (
-                                        <li key={tag}>
-                                            <span>{ERROR_TAG_MESSAGES[tag] ?? tag}</span>
-                                            {ERROR_TAG_TUTOR_TIPS[tag] && (
-                                                <div className="mt-1 text-sm text-muted-foreground">
-                                                    {ERROR_TAG_TUTOR_TIPS[tag]}
+                                        <div className="mt-5">
+                                            <div className="mb-2 text-lg font-semibold text-white">
+                                                Examiner feedback
+                                            </div>
+                                            <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-slate-100">
+                                                {submissionResult.feedback || 'Your answer is incorrect.'}
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-5">
+                                            <div className="mb-2 text-lg font-semibold text-white">
+                                                Common mistake note
+                                            </div>
+                                            <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-slate-100">
+                                                {submissionResult.commonMistake || 'Check your substitution and arithmetic carefully.'}
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-5">
+                                            <div className="mb-2 text-lg font-semibold text-white">
+                                                Next recommended action
+                                            </div>
+                                            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-slate-100">
+                                                {nextRecommendedAction}
+                                            </div>
+                                        </div>
+
+                                        {(submissionResult.errorTags?.length ||
+                                            submissionResult.skillGaps?.length ||
+                                            submissionResult.diagnostics) && (
+                                                <div className="mt-4">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowDebug((prev) => !prev)}
+                                                        className="text-sm text-slate-300 underline"
+                                                    >
+                                                        {showDebug ? 'Hide debug' : 'Show debug'}
+                                                    </button>
+
+                                                    {showDebug && (
+                                                        <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm text-slate-200">
+                                                            {submissionResult.errorTags?.length ? (
+                                                                <div>
+                                                                    <div className="mb-1 font-semibold text-white">errorTags</div>
+                                                                    <pre className="overflow-x-auto whitespace-pre-wrap">
+                                                                        {JSON.stringify(submissionResult.errorTags, null, 2)}
+                                                                    </pre>
+                                                                </div>
+                                                            ) : null}
+
+                                                            {submissionResult.skillGaps?.length ? (
+                                                                <div>
+                                                                    <div className="mb-1 font-semibold text-white">skillGaps</div>
+                                                                    <pre className="overflow-x-auto whitespace-pre-wrap">
+                                                                        {JSON.stringify(submissionResult.skillGaps, null, 2)}
+                                                                    </pre>
+                                                                </div>
+                                                            ) : null}
+
+                                                            {submissionResult.diagnostics ? (
+                                                                <div>
+                                                                    <div className="mb-1 font-semibold text-white">diagnostics</div>
+                                                                    <pre className="overflow-x-auto whitespace-pre-wrap">
+                                                                        {JSON.stringify(submissionResult.diagnostics, null, 2)}
+                                                                    </pre>
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <div className="text-muted-foreground">
-                                    <p>
-                                        No specific examiner tag was returned for this answer. This usually means the
-                                        submission was invalid/unparseable, or the question doesn’t have tagged common
-                                        wrong answers yet.
-                                    </p>
-                                    <p className="mt-2 text-sm">
-                                        Tip: Try rewriting your answer in standard notation (e.g. use * for multiply,
-                                        brackets for intervals, etc.).
-                                    </p>
+                                    </div>
+                                )}
+
+                                {explainText && (
+                                    <div className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4 text-slate-100">
+                                        <div className="mb-2 font-semibold text-violet-300">
+                                            Worked explanation
+                                        </div>
+                                        <div className="whitespace-pre-line">{explainText}</div>
+                                    </div>
+                                )}
+
+                                {similarQuestionText && (
+                                    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-slate-100">
+                                        <div className="mb-2 font-semibold text-emerald-300">
+                                            Similar Question
+                                        </div>
+                                        <div>{similarQuestionText}</div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="rounded-2xl border border-white/10 bg-white/10 p-5">
+                                    <div className="mb-4 text-xl font-semibold text-white">
+                                        Learning support
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleHint(1)}
+                                            disabled={loadingHint1 || !currentQuestion}
+                                            className="rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-amber-400 disabled:opacity-50"
+                                        >
+                                            {loadingHint1 ? 'Loading...' : 'Hint 1'}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => handleHint(2)}
+                                            disabled={loadingHint2 || !currentQuestion}
+                                            className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-400 disabled:opacity-50"
+                                        >
+                                            {loadingHint2 ? 'Loading...' : 'Hint 2'}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleExplain}
+                                            disabled={loadingExplain || !currentQuestion}
+                                            className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
+                                        >
+                                            {loadingExplain ? 'Loading...' : 'Explain'}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleSimilarQuestion}
+                                            disabled={loadingSimilar || !currentQuestion}
+                                            className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-50"
+                                        >
+                                            {loadingSimilar ? 'Loading...' : 'Try Similar'}
+                                        </button>
+                                    </div>
                                 </div>
-                            )}
+                            </div>
                         </div>
-                    )}
 
-                    {!result.correct && result.explanation && (
-                        <p className="mt-3 text-muted-foreground">Explanation: {result.explanation}</p>
-                    )}
-
-                    {aiAvailable && (
-                        <div className="mt-4 flex flex-wrap gap-3">
+                        <div>
                             <button
-                                className="rounded-lg bg-amber-600 px-4 py-2 text-sm text-white transition hover:bg-amber-500"
-                                onClick={handleHint}
-                                disabled={isHinting || hintLevel > 3}
+                                type="button"
+                                onClick={moveNext}
+                                className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                             >
-                                {isHinting ? "Thinking..." : hintLevel <= 3 ? `Hint ${hintLevel}` : "No more hints"}
-                            </button>
-
-                            <button
-                                className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white transition hover:bg-purple-500 disabled:opacity-50"
-                                onClick={handleExplain}
-                                disabled={isExplaining}
-                            >
-                                {isExplaining ? "Explaining..." : "Explain"}
-                            </button>
-
-                            <button
-                                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white transition hover:bg-emerald-500"
-                                onClick={handleSimilar}
-                            >
-                                Similar Question
+                                Next Question
                             </button>
                         </div>
-                    )}
-
-                    {hints.length > 0 && (
-                        <div className="mt-4 space-y-2">
-                            {hints.map((h, idx) => (
-                                <div key={idx} className="glass p-3 text-sm text-foreground">
-                                    <span className="font-semibold text-amber-400">Hint {idx + 1}:</span> {h}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {explanation && (
-                        <div className="glass mt-4 p-4">
-                            <h3 className="mb-2 font-semibold text-foreground">AI Explanation</h3>
-                            {Array.isArray(explanation.stepByStep) && explanation.stepByStep.length > 0 && (
-                                <ol className="ml-6 list-decimal space-y-1 text-sm text-muted-foreground">
-                                    {explanation.stepByStep.map((step: string, i: number) => (
-                                        <li key={i}>{step}</li>
-                                    ))}
-                                </ol>
-                            )}
-                            {explanation.finalAdvice && (
-                                <p className="mt-3 text-sm text-foreground">{explanation.finalAdvice}</p>
-                            )}
-                        </div>
-                    )}
+                    </div>
                 </div>
-            )}
+            </section>
         </div>
     );
 }
