@@ -94,6 +94,42 @@ export type TopicCountsDTO = {
   counts: Record<string, number>;
 };
 
+export type SubmitAnswerResponse = {
+  correct: boolean | null;
+  correctAnswer?: string | null;
+  explanation?: string | null;
+  workedSolution?: string | null;
+  score?: number | null;
+  maxScore?: number | null;
+  errorTags?: string[];
+  skillGaps?: string[];
+  diagnostics?: Record<string, unknown>;
+};
+
+export type AiExplainResponse = {
+  stepByStep?: string[];
+  finalAdvice?: string;
+};
+
+export type AiHintResponse = {
+  hint: string;
+};
+
+export type AiSimilarQuestionResponse = {
+  question: string;
+};
+
+export type TopicProgressRow = {
+  topicCode: string;
+  topicName?: string | null;
+  strandCode?: string | null;
+  strandName?: string | null;
+  attempts: number;
+  correct: number;
+  mastery: number;
+  status: 'Not started' | 'Weak' | 'Medium' | 'Strong';
+};
+
 export async function fetchTopicCounts(subject: string): Promise<TopicCountsDTO> {
   const base = getApiBase();
   const url = `${base}/questions/topic-counts?subject=${encodeURIComponent(subject)}`;
@@ -114,12 +150,30 @@ export async function fetchPracticeQuestions(
   return safeJsonFromResponse<PracticeQuestion[]>(res, url);
 }
 
+export async function fetchTopicProgress(
+  subject: string,
+  userId = 1
+): Promise<TopicProgressRow[]> {
+  const base = getApiBase();
+  const url = `${base}/analytics/topic-progress?userId=${encodeURIComponent(
+    String(userId)
+  )}&subjectCode=${encodeURIComponent(subject)}`;
+
+  const res = await fetch(url, {
+    cache: 'no-store',
+    credentials: 'include',
+  });
+
+  return safeJsonFromResponse<TopicProgressRow[]>(res, url);
+}
+
 export async function submitAnswer(
   questionId: string,
   answer: string,
   examKey?: string,
-  hintCount?: number
-) {
+  hintCount?: number,
+  userId?: number
+): Promise<SubmitAnswerResponse> {
   const base = getApiBase();
   const url = `${base}/questions/submit`;
 
@@ -130,12 +184,13 @@ export async function submitAnswer(
     body: JSON.stringify({
       questionId: Number(questionId),
       answer,
+      userId: userId ?? 1,
       ...(examKey ? { examKey } : {}),
       ...(typeof hintCount === "number" ? { hintCount } : {}),
     }),
   });
 
-  return safeJsonFromResponse(res, url);
+  return safeJsonFromResponse<SubmitAnswerResponse>(res, url);
 }
 
 export async function getNextRecommendedQuestions(args: {
@@ -146,7 +201,7 @@ export async function getNextRecommendedQuestions(args: {
   hintCount?: number;
   excludeQuestionId?: number | string;
   limit?: number;
-}) {
+}): Promise<PracticeQuestion[]> {
   const params = new URLSearchParams();
   params.set("subject", args.subject);
   if (args.skillCode) params.set("skillCode", args.skillCode);
@@ -171,7 +226,7 @@ export async function getAdaptiveRecommendation(args: {
   hintCount?: number;
   excludeQuestionId?: number | string;
   limit?: number;
-}) {
+}): Promise<PracticeQuestion[]> {
   return getNextRecommendedQuestions(args);
 }
 
@@ -181,8 +236,8 @@ export async function aiExplain(payload: {
   question: string;
   studentAnswer: string;
   correctAnswer: string;
-}) {
-  return apiPost(`/ai-tutor/explain`, payload);
+}): Promise<AiExplainResponse> {
+  return apiPost<AiExplainResponse>(`/ai-tutor/explain`, payload);
 }
 
 export async function aiHint(payload: {
@@ -191,16 +246,16 @@ export async function aiHint(payload: {
   question: string;
   studentAnswer?: string;
   level: 1 | 2 | 3;
-}) {
-  return apiPost(`/ai-tutor/hint`, payload);
+}): Promise<AiHintResponse> {
+  return apiPost<AiHintResponse>(`/ai-tutor/hint`, payload);
 }
 
 export async function aiSimilarQuestion(payload: {
   subject: string;
   skillCode: string;
   question: string;
-}) {
-  return apiPost(`/ai-tutor/similar`, payload);
+}): Promise<AiSimilarQuestionResponse> {
+  return apiPost<AiSimilarQuestionResponse>(`/ai-tutor/similar`, payload);
 }
 
 export async function fetchSimilarQuestions(payload: {

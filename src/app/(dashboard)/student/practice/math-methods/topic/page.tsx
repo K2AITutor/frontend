@@ -1,6 +1,11 @@
 import Link from 'next/link';
 import PracticeClient from '@/app/practice/[subject]/PracticeClient';
-import { fetchPracticeQuestions, fetchTopicCounts } from '@/lib/apiClient';
+import {
+    fetchPracticeQuestions,
+    fetchTopicCounts,
+    fetchTopicProgress,
+    TopicProgressRow,
+} from '@/lib/apiClient';
 import { fetchTopicCatalogue } from '@/lib/api/topics';
 import { PracticeQuestion } from '@/types/question';
 
@@ -11,8 +16,12 @@ export default async function StudentMathMethodsTopicPracticePage({
 }) {
     const subject = 'MATH_METHODS';
 
+    // TODO: replace with real authenticated user id once auth is wired properly
+    const currentUserId = 1;
+
     const catalogue = await fetchTopicCatalogue(subject);
     const topicCountsDto = await fetchTopicCounts(subject);
+    const topicProgress: TopicProgressRow[] = await fetchTopicProgress(subject, currentUserId);
 
     const firstTopic = catalogue.groups.flatMap((g) => g.topics)[0];
     const initialTopicCode =
@@ -116,10 +125,12 @@ export default async function StudentMathMethodsTopicPracticePage({
 
                 <PracticeClient
                     subject={subject}
+                    currentUserId={currentUserId}
                     initialQuestions={initialQuestions}
                     initialTopicCode={initialTopicCode}
                     topicCounts={topicCountsDto.counts}
                     topicGroups={catalogue.groups}
+                    initialTopicProgress={topicProgress}
                 />
             </div>
         </div>

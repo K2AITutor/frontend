@@ -101,15 +101,26 @@ export default function PracticeClient({
     try {
       setIsSubmitting(true);
 
-      const res = await submitAnswer(String(question.id), answer);
+      const res = await submitAnswer(String(question.id), answer, undefined, hints.length, 1);
       setResult(res);
       setExplanation(null);
       resetHints();
 
       try {
         setIsRecLoading(true);
-        const rec = await getAdaptiveRecommendation();
-        setRecommendation(rec);
+        const rec = await getAdaptiveRecommendation({
+          subject,
+          skillCode: question.skillCode,
+          topicCode: question.topicCode,
+          wasCorrect: Boolean((res as any)?.correct),
+          hintCount: hints.length,
+          excludeQuestionId: question.id,
+          limit: 5,
+        });
+        setRecommendation({
+          reason: "Recommended next questions based on your latest result.",
+          questions: Array.isArray(rec) ? rec : [],
+        });
       } catch (e) {
         console.warn("Recommendation unavailable");
       } finally {
@@ -158,7 +169,7 @@ export default function PracticeClient({
         level: hintLevel,
       });
 
-      setHints((prev) => [...prev, res.hint]);
+      setHints((prev) => [...prev, (res as any).hint]);
       setHintLevel((prev) => (prev < 3 ? ((prev + 1) as 1 | 2 | 3) : prev));
     } catch (err) {
       console.error("AI hint failed:", err);
@@ -179,7 +190,7 @@ export default function PracticeClient({
 
       setExplanation({
         stepByStep: ["Try this similar question:"],
-        finalAdvice: next.question,
+        finalAdvice: (next as any).question,
       });
 
       resetQuestionState();
