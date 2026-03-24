@@ -107,6 +107,11 @@ const adminNavItems: NavItem[] = [
     icon: <BookOpen className="h-5 w-5" />,
   },
   {
+    title: "Subjects",
+    href: "/admin/subjects",
+    icon: <BookOpen className="h-5 w-5" />,
+  },
+  {
     title: "FAQs",
     href: "/admin/faqs",
     icon: <HelpCircle className="h-5 w-5" />,

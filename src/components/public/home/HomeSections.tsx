@@ -26,10 +26,12 @@ import {
   Brain,
   Calendar,
   CheckCircle2,
-  MousePointer2
+  MousePointer2,
+  AlertCircle
 } from 'lucide-react'
 import Button from '../Button'
 import { NeuralCanvas } from './NeuralCanvas'
+import { fetchSubjects } from '@/lib/api/subjects'
 
 const floatCards = [
   { icon: Lightbulb, label: 'AI-Powered Hints', position: 'top-[15%] right-[8%]', delay: '0s', iconColor: 'text-accent-teal', bgColor: 'bg-accent-teal/12' },
@@ -217,14 +219,64 @@ export function FeaturesSection() {
 }
 
 export function SubjectsSection() {
-  const subjects = [
-    { name: 'Maths Methods', units: 'Units 1-4', icon: Calculator },
-    { name: 'Physics', units: 'Coming Soon', icon: Atom },
-    { name: 'Chemistry', units: 'Coming Soon', icon: FlaskConical },
-    { name: 'English', units: 'Coming Soon', icon: BookText },
-    { name: 'Biology', units: 'Coming Soon', icon: Dna },
-    { name: 'Psychology', units: 'Coming Soon', icon: Brain },
-  ]
+  const [subjects, setSubjects] = useState<Array<{ id: number; name: string; description?: string; imageUrl?: string }>>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadSubjects = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      const data = await fetchSubjects()
+      setSubjects(data)
+    } catch (err) {
+      setError('Failed to load subjects. Please try again later.')
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadSubjects()
+  }, [])
+
+  if (isLoading) {
+    return (
+      <section id="subjects" className="py-24 relative scroll-mt-20">
+        <div className="max-w-[80rem] mx-auto px-8">
+          <div className="flex items-center justify-center h-[300px]">
+            <div className="flex items-center gap-4">
+              <div className="w-8 h-8 border-2 border-accent-teal rounded-full animate-spin" />
+              <span className="text-text-secondary">Loading subjects...</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section id="subjects" className="py-24 relative scroll-mt-20">
+        <div className="max-w-[80rem] mx-auto px-8">
+          <div className="flex items-center justify-center h-[300px] flex-col gap-4 text-center">
+            <div className="flex items-center gap-2 text-red-500">
+              <AlertCircle className="h-5 w-5" />
+              <span>Error loading subjects</span>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => {
+              setIsLoading(true)
+              setError(null)
+              loadSubjects()
+            }}>
+              Retry
+            </Button>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section id="subjects" className="py-24 relative scroll-mt-20">
@@ -250,12 +302,24 @@ export function SubjectsSection() {
                 className="bg-bg-secondary border border-border-subtle rounded-xl p-6 text-center transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:scale-102 hover:border-accent-teal hover:bg-bg-tertiary group"
               >
                 <div className="flex justify-center mb-4 text-accent-teal group-hover:scale-110 transition-transform duration-300">
-                  <subject.icon size={40} strokeWidth={1.5} />
+                  {subject.imageUrl ? (
+                    <img 
+                      src={subject.imageUrl} 
+                      alt={subject.name} 
+                      className="w-16 h-16 object-contain"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-bg-tertiary flex items-center justify-center rounded-xl">
+                      <Calculator className="w-8 h-8 text-accent-teal" />
+                    </div>
+                  )}
                 </div>
                 <div className="font-semibold text-[0.9375rem] mb-1">{subject.name}</div>
-                <div className="text-[0.8125rem] text-text-muted">
-                  {subject.units}
-                </div>
+                {subject.description && (
+                  <div className="text-[0.8125rem] text-text-muted line-clamp-2">
+                    {subject.description}
+                  </div>
+                )}
               </motion.div>
             ))}
           </div>
