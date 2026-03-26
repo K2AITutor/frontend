@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -526,63 +526,75 @@ function PracticeVisual() {
   )
 }
 
+const FALLBACK_TESTIMONIALS = [
+  {
+    name: 'Emily Chen',
+    role: 'Year 12 Student',
+    subject: 'Maths Methods',
+    quote: 'The AI tutor helped me understand calculus concepts I struggled with for months. My practice exam scores jumped from 65% to 89% in just 6 weeks!',
+    rating: 5,
+    atarImprovement: '+15 pts',
+  },
+  {
+    name: 'James Wilson',
+    role: 'Year 12 Student',
+    subject: 'Physics & Chemistry',
+    quote: 'Having 24/7 access to explanations is a game-changer. I can study at my own pace and get instant feedback on every question.',
+    rating: 5,
+    atarImprovement: '+12 pts',
+  },
+  {
+    name: 'Sarah Thompson',
+    role: 'Parent',
+    subject: 'Daughter in Year 11',
+    quote: 'As a parent, I can see my daughter\'s progress in real-time. The detailed analytics give me peace of mind that she\'s on track for her goals.',
+    rating: 5,
+    atarImprovement: null,
+  },
+  {
+    name: 'Michael Nguyen',
+    role: 'Year 12 Student',
+    subject: 'Maths Methods',
+    quote: 'The ATAR predictor kept me motivated throughout the year. Watching my predicted score climb as I improved was incredibly satisfying.',
+    rating: 5,
+    atarImprovement: '+18 pts',
+  },
+  {
+    name: 'Dr. Rebecca Hall',
+    role: 'Education Consultant',
+    subject: 'VCE Expert',
+    quote: 'I recommend VCE AI Tutor to all my students. The VCAA-aligned content and adaptive learning approach is exactly what modern students need.',
+    rating: 5,
+    atarImprovement: null,
+  },
+  {
+    name: 'Alex Kumar',
+    role: 'Year 12 Student',
+    subject: 'English & Psychology',
+    quote: 'The personalised study plans helped me balance multiple subjects effectively. I finally feel confident going into my exams.',
+    rating: 5,
+    atarImprovement: '+10 pts',
+  },
+]
+
 export function TestimonialsSection() {
-  const testimonials = [
-    {
-      name: 'Emily Chen',
-      role: 'Year 12 Student',
-      subject: 'Maths Methods',
-      image: null,
-      quote: 'The AI tutor helped me understand calculus concepts I struggled with for months. My practice exam scores jumped from 65% to 89% in just 6 weeks!',
-      rating: 5,
-      atarImprovement: '+15 pts',
-    },
-    {
-      name: 'James Wilson',
-      role: 'Year 12 Student',
-      subject: 'Physics & Chemistry',
-      image: null,
-      quote: 'Having 24/7 access to explanations is a game-changer. I can study at my own pace and get instant feedback on every question.',
-      rating: 5,
-      atarImprovement: '+12 pts',
-    },
-    {
-      name: 'Sarah Thompson',
-      role: 'Parent',
-      subject: 'Daughter in Year 11',
-      image: null,
-      quote: 'As a parent, I can see my daughter\'s progress in real-time. The detailed analytics give me peace of mind that she\'s on track for her goals.',
-      rating: 5,
-      atarImprovement: null,
-    },
-    {
-      name: 'Michael Nguyen',
-      role: 'Year 12 Student',
-      subject: 'Maths Methods',
-      image: null,
-      quote: 'The ATAR predictor kept me motivated throughout the year. Watching my predicted score climb as I improved was incredibly satisfying.',
-      rating: 5,
-      atarImprovement: '+18 pts',
-    },
-    {
-      name: 'Dr. Rebecca Hall',
-      role: 'Education Consultant',
-      subject: 'VCE Expert',
-      image: null,
-      quote: 'I recommend VCE AI Tutor to all my students. The VCAA-aligned content and adaptive learning approach is exactly what modern students need.',
-      rating: 5,
-      atarImprovement: null,
-    },
-    {
-      name: 'Alex Kumar',
-      role: 'Year 12 Student',
-      subject: 'English & Psychology',
-      image: null,
-      quote: 'The personalised study plans helped me balance multiple subjects effectively. I finally feel confident going into my exams.',
-      rating: 5,
-      atarImprovement: '+10 pts',
-    },
-  ]
+  const [testimonials, setTestimonials] = useState(FALLBACK_TESTIMONIALS)
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:4000/api'}/testimonials`)
+      .then((res) => {
+        if (!res.ok) throw new Error('fetch failed');
+        return res.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setTestimonials(data)
+        }
+      })
+      .catch(() => {
+        // keep fallback
+      })
+  }, [])
 
   return (
     <section id="testimonials" className="py-24 relative scroll-mt-20">
