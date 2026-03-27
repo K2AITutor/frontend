@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { fetchTestimonials } from '@/lib/apiClient'
+import { Testimonial } from '@/types/testimonial'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -24,10 +26,14 @@ import {
   Brain,
   Calendar,
   CheckCircle2,
-  MousePointer2
+  MousePointer2,
+  AlertCircle,
+  Sigma,
+  type LucideIcon
 } from 'lucide-react'
 import Button from '../Button'
 import { NeuralCanvas } from './NeuralCanvas'
+import { fetchSubjects } from '@/lib/api/subjects'
 
 const floatCards = [
   { icon: Lightbulb, label: 'AI-Powered Hints', position: 'top-[15%] right-[8%]', delay: '0s', iconColor: 'text-accent-teal', bgColor: 'bg-accent-teal/12' },
@@ -214,15 +220,79 @@ export function FeaturesSection() {
   )
 }
 
+const ICON_COMPONENT_MAP: Record<string, LucideIcon> = {
+  Calculator,
+  Sigma,
+  Atom,
+  FlaskConical,
+  Dna,
+  BookText,
+  Brain,
+}
+
+function getSubjectIcon(icon?: string): LucideIcon {
+  return (icon && ICON_COMPONENT_MAP[icon]) ? ICON_COMPONENT_MAP[icon] : Calculator
+}
+
 export function SubjectsSection() {
-  const subjects = [
-    { name: 'Maths Methods', units: 'Units 1-4', icon: Calculator },
-    { name: 'Physics', units: 'Coming Soon', icon: Atom },
-    { name: 'Chemistry', units: 'Coming Soon', icon: FlaskConical },
-    { name: 'English', units: 'Coming Soon', icon: BookText },
-    { name: 'Biology', units: 'Coming Soon', icon: Dna },
-    { name: 'Psychology', units: 'Coming Soon', icon: Brain },
-  ]
+  const [subjects, setSubjects] = useState<Array<{ id: number; name: string; description?: string; icon?: string }>>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadSubjects = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      const data = await fetchSubjects()
+      setSubjects(data)
+    } catch (err) {
+      setError('Failed to load subjects. Please try again later.')
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadSubjects()
+  }, [])
+
+  if (isLoading) {
+    return (
+      <section id="subjects" className="py-24 relative scroll-mt-20">
+        <div className="max-w-[80rem] mx-auto px-8">
+          <div className="flex items-center justify-center h-[300px]">
+            <div className="flex items-center gap-4">
+              <div className="w-8 h-8 border-2 border-accent-teal rounded-full animate-spin" />
+              <span className="text-text-secondary">Loading subjects...</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section id="subjects" className="py-24 relative scroll-mt-20">
+        <div className="max-w-[80rem] mx-auto px-8">
+          <div className="flex items-center justify-center h-[300px] flex-col gap-4 text-center">
+            <div className="flex items-center gap-2 text-red-500">
+              <AlertCircle className="h-5 w-5" />
+              <span>Error loading subjects</span>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => {
+              setIsLoading(true)
+              setError(null)
+              loadSubjects()
+            }}>
+              Retry
+            </Button>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section id="subjects" className="py-24 relative scroll-mt-20">
@@ -248,12 +318,21 @@ export function SubjectsSection() {
                 className="bg-bg-secondary border border-border-subtle rounded-xl p-6 text-center transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:scale-102 hover:border-accent-teal hover:bg-bg-tertiary group"
               >
                 <div className="flex justify-center mb-4 text-accent-teal group-hover:scale-110 transition-transform duration-300">
-                  <subject.icon size={40} strokeWidth={1.5} />
+                  {(() => {
+                    const Icon = getSubjectIcon(subject.icon)
+                    return (
+                      <div className="w-16 h-16 bg-bg-tertiary flex items-center justify-center rounded-xl">
+                        <Icon className="w-8 h-8 text-accent-teal" />
+                      </div>
+                    )
+                  })()}
                 </div>
                 <div className="font-semibold text-[0.9375rem] mb-1">{subject.name}</div>
-                <div className="text-[0.8125rem] text-text-muted">
-                  {subject.units}
-                </div>
+                {subject.description && (
+                  <div className="text-[0.8125rem] text-text-muted line-clamp-2">
+                    {subject.description}
+                  </div>
+                )}
               </motion.div>
             ))}
           </div>
@@ -526,75 +605,117 @@ function PracticeVisual() {
   )
 }
 
-const FALLBACK_TESTIMONIALS = [
-  {
-    name: 'Emily Chen',
-    role: 'Year 12 Student',
-    subject: 'Maths Methods',
-    quote: 'The AI tutor helped me understand calculus concepts I struggled with for months. My practice exam scores jumped from 65% to 89% in just 6 weeks!',
-    rating: 5,
-    atarImprovement: '+15 pts',
-  },
-  {
-    name: 'James Wilson',
-    role: 'Year 12 Student',
-    subject: 'Physics & Chemistry',
-    quote: 'Having 24/7 access to explanations is a game-changer. I can study at my own pace and get instant feedback on every question.',
-    rating: 5,
-    atarImprovement: '+12 pts',
-  },
-  {
-    name: 'Sarah Thompson',
-    role: 'Parent',
-    subject: 'Daughter in Year 11',
-    quote: 'As a parent, I can see my daughter\'s progress in real-time. The detailed analytics give me peace of mind that she\'s on track for her goals.',
-    rating: 5,
-    atarImprovement: null,
-  },
-  {
-    name: 'Michael Nguyen',
-    role: 'Year 12 Student',
-    subject: 'Maths Methods',
-    quote: 'The ATAR predictor kept me motivated throughout the year. Watching my predicted score climb as I improved was incredibly satisfying.',
-    rating: 5,
-    atarImprovement: '+18 pts',
-  },
-  {
-    name: 'Dr. Rebecca Hall',
-    role: 'Education Consultant',
-    subject: 'VCE Expert',
-    quote: 'I recommend VCE AI Tutor to all my students. The VCAA-aligned content and adaptive learning approach is exactly what modern students need.',
-    rating: 5,
-    atarImprovement: null,
-  },
-  {
-    name: 'Alex Kumar',
-    role: 'Year 12 Student',
-    subject: 'English & Psychology',
-    quote: 'The personalised study plans helped me balance multiple subjects effectively. I finally feel confident going into my exams.',
-    rating: 5,
-    atarImprovement: '+10 pts',
-  },
-]
-
 export function TestimonialsSection() {
-  const [testimonials, setTestimonials] = useState(FALLBACK_TESTIMONIALS)
+  const [activeTestimonials, setActiveTestimonials] = useState<Testimonial[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const staticTestimonials: Testimonial[] = [
+    {
+      id: 1,
+      name: 'Emily Chen',
+      role: 'Year 12 Student',
+      subject: 'Maths Methods',
+      image: null,
+      quote: 'The AI tutor helped me understand calculus concepts I struggled with for months. My practice exam scores jumped from 65% to 89% in just 6 weeks!',
+      rating: 5,
+      atarImprovement: '+15 pts',
+      order: 0,
+      isActive: true,
+      createdAt: '',
+      updatedAt: ''
+    },
+    {
+      id: 2,
+      name: 'James Wilson',
+      role: 'Year 12 Student',
+      subject: 'Physics & Chemistry',
+      image: null,
+      quote: 'Having 24/7 access to explanations is a game-changer. I can study at my own pace and get instant feedback on every question.',
+      rating: 5,
+      atarImprovement: '+12 pts',
+      order: 1,
+      isActive: true,
+      createdAt: '',
+      updatedAt: ''
+    },
+    {
+      id: 3,
+      name: 'Sarah Thompson',
+      role: 'Parent',
+      subject: 'Daughter in Year 11',
+      image: null,
+      quote: 'As a parent, I can see my daughter\'s progress in real-time. The detailed analytics give me peace of mind that she\'s on track for her goals.',
+      rating: 5,
+      atarImprovement: null,
+      order: 2,
+      isActive: true,
+      createdAt: '',
+      updatedAt: ''
+    },
+    {
+      id: 4,
+      name: 'Michael Nguyen',
+      role: 'Year 12 Student',
+      subject: 'Maths Methods',
+      image: null,
+      quote: 'The ATAR predictor kept me motivated throughout the year. Watching my predicted score climb as I improved was incredibly satisfying.',
+      rating: 5,
+      atarImprovement: '+18 pts',
+      order: 3,
+      isActive: true,
+      createdAt: '',
+      updatedAt: ''
+    },
+    {
+      id: 5,
+      name: 'Dr. Rebecca Hall',
+      role: 'Education Consultant',
+      subject: 'VCE Expert',
+      image: null,
+      quote: 'I recommend VCE AI Tutor to all my students. The VCAA-aligned content and adaptive learning approach is exactly what modern students need.',
+      rating: 5,
+      atarImprovement: null,
+      order: 4,
+      isActive: true,
+      createdAt: '',
+      updatedAt: ''
+    },
+    {
+      id: 6,
+      name: 'Alex Kumar',
+      role: 'Year 12 Student',
+      subject: 'English & Psychology',
+      image: null,
+      quote: 'The personalised study plans helped me balance multiple subjects effectively. I finally feel confident going into my exams.',
+      rating: 5,
+      atarImprovement: '+10 pts',
+      order: 5,
+      isActive: true,
+      createdAt: '',
+      updatedAt: ''
+    },
+  ]
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:4000/api'}/testimonials`)
-      .then((res) => {
-        if (!res.ok) throw new Error('fetch failed');
-        return res.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setTestimonials(data)
+    async function loadTestimonials() {
+      try {
+        const data = await fetchTestimonials()
+        if (data && data.length > 0) {
+          setActiveTestimonials(data)
+        } else {
+          setActiveTestimonials(staticTestimonials)
         }
-      })
-      .catch(() => {
-        // keep fallback
-      })
+      } catch (error) {
+        console.error('Failed to fetch testimonials:', error)
+        setActiveTestimonials(staticTestimonials)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadTestimonials()
   }, [])
+
+  const displayTestimonials = activeTestimonials.length > 0 ? activeTestimonials : staticTestimonials
 
   return (
     <section id="testimonials" className="py-24 relative scroll-mt-20">
@@ -633,7 +754,23 @@ export function TestimonialsSection() {
 
         {/* Testimonials Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {testimonials.map((testimonial, index) => (
+          {isLoading && activeTestimonials.length === 0 ? (
+            // Shimmer / Loading State
+            [...Array(6)].map((_, i) => (
+              <div key={i} className="bg-bg-secondary border border-border-subtle rounded-2xl p-6 h-[280px] animate-pulse">
+                <div className="h-4 w-24 bg-border-subtle rounded mb-4" />
+                <div className="h-20 bg-border-subtle rounded mb-6" />
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-border-subtle" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-24 bg-border-subtle rounded" />
+                    <div className="h-3 w-32 bg-border-subtle rounded" />
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+          displayTestimonials.map((testimonial, index) => (
             <motion.div
               key={testimonial.name}
               initial={{ opacity: 0, y: 40 }}
@@ -666,8 +803,12 @@ export function TestimonialsSection() {
                 {/* Author */}
                 <div className="flex items-center gap-4">
                   {/* Avatar */}
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent-teal/30 to-accent-coral/30 flex items-center justify-center text-text-primary font-semibold text-lg border-2 border-border-subtle">
-                    {testimonial.name.split(' ').map(n => n[0]).join('')}
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent-teal/30 to-accent-coral/30 flex items-center justify-center text-text-primary font-semibold text-lg border-2 border-border-subtle overflow-hidden">
+                    {testimonial.image ? (
+                      <img src={testimonial.image} alt={testimonial.name} className="w-full h-full object-cover" />
+                    ) : (
+                      testimonial.name.split(' ').map(n => n[0]).join('')
+                    )}
                   </div>
 
                   <div className="flex-1">
@@ -686,7 +827,8 @@ export function TestimonialsSection() {
                 </div>
               </div>
             </motion.div>
-          ))}
+          ))
+          )}
         </div>
 
         {/* Bottom Stats */}

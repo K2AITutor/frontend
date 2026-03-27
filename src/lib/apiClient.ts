@@ -1,4 +1,5 @@
 import { PracticeQuestion } from "@/types/question";
+import { Testimonial } from "@/types/testimonial";
 
 function getApiBase() {
   const raw =
@@ -266,4 +267,8 @@ export async function fetchSimilarQuestions(payload: {
   limit?: number;
 }) {
   return apiPost<PracticeQuestion[]>(`/questions/similar`, payload);
+}
+
+export async function fetchTestimonials() {
+  return apiGet<Testimonial[]>("/testimonials");
 }
