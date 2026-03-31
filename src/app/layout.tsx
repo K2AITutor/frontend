@@ -1,4 +1,3 @@
-import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Providers from "./providers";
 import { DM_Sans, Instrument_Serif } from "next/font/google";
