@@ -11,20 +11,16 @@ export default withAuth(
 
     if (token && isAuthPage) {
       if (role === 'admin') return NextResponse.redirect(new URL("/admin", req.url));
-      if (role === 'parent') return NextResponse.redirect(new URL("/parent", req.url));
       return NextResponse.redirect(new URL("/student", req.url));
     }
 
     if (pathname.startsWith("/admin") && role !== "admin") {
-      return NextResponse.redirect(new URL("/student", req.url)); // Default fallback or login
-    }
-
-    if (pathname.startsWith("/parent") && role !== "parent") {
       return NextResponse.redirect(new URL("/student", req.url));
     }
 
     if (pathname.startsWith("/student") && role !== "student") {
-      return NextResponse.redirect(new URL("/", req.url));
+      if (role === "admin") return NextResponse.redirect(new URL("/admin", req.url));
+      return NextResponse.redirect(new URL("/auth/login", req.url));
     }
 
     return NextResponse.next();
@@ -44,5 +40,5 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/admin/:path*", "/parent/:path*", "/student/:path*", "/auth/:path*"],
+  matcher: ["/admin/:path*", "/student/:path*", "/auth/:path*"],
 };
