@@ -43,7 +43,7 @@ export default function ParentSettingsPage() {
 
     try {
       const API_BASE = typeof window === "undefined"
-        ? process.env.INTERNAL_API_BASE || "http://backend:4000/api"
+        ? process.env.INTERNAL_API_BASE_URL || "http://backend:4000/api"
         : process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
 
       const res = await fetch(`${API_BASE}/auth/change-password`, {

@@ -39,9 +39,7 @@ type WeakAreaResponse = {
 
 function getApiBase() {
     const raw =
-        process.env.INTERNAL_API_BASE ||
-        process.env.API_BASE_URL ||
-        process.env.NEXT_PUBLIC_API_BASE ||
+        process.env.INTERNAL_API_BASE_URL ||
         process.env.NEXT_PUBLIC_API_BASE_URL ||
         'http://aitutor-backend:4000/api';
 
