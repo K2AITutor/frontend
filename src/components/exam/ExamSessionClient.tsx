@@ -209,7 +209,7 @@ export default function ExamSessionClient(props: {
   }, [attemptsByQid]);
 
   const finishAndReview = () => {
-    router.push(`/practice/math-methods/exam-1/review?examKey=${encodeURIComponent(examKey)}`);
+    router.push(`/student/practice/math-methods/exam-1/review?examKey=${encodeURIComponent(examKey)}`);
   };
   
   if (!questions.length) {

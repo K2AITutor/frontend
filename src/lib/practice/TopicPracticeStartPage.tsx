@@ -57,7 +57,7 @@ export default function TopicPracticeStartPage({ data }: Props) {
                         {group.topics.map((topic) => (
                             <Link
                                 key={topic.code}
-                                href={`/practice/${data.subjectSlug}/topic?topicCode=${topic.code}`}
+                                href={`/student/practice/${data.subjectSlug}/topic?topicCode=${topic.code}`}
                                 className="rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
                             >
                                 {topic.name}
