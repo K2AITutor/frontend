@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
-export type UserRole = "student" | "parent" | "admin";
+export type UserRole = "student" | "admin";
 
 interface NavItem {
   title: string;
@@ -68,19 +68,6 @@ const studentBottomNavItems: NavItem[] = [
   },
 ];
 
-const parentNavItems: NavItem[] = [
-  {
-    title: "Dashboard",
-    href: "/parent",
-    icon: <LayoutDashboard className="h-5 w-5" />,
-  },
-  {
-    title: "Children",
-    href: "/parent/children",
-    icon: <Users className="h-5 w-5" />,
-  },
-];
-
 const adminNavItems: NavItem[] = [
   {
     title: "Dashboard",
@@ -92,32 +79,15 @@ const adminNavItems: NavItem[] = [
     href: "/admin/users",
     icon: <UserCog className="h-5 w-5" />,
   },
-  {
-    title: "Courses",
-    href: "/admin/courses",
-    icon: <BookOpen className="h-5 w-5" />,
-  },
-  {
-    title: "Analytics",
-    href: "/admin/analytics",
-    icon: <BarChart3 className="h-5 w-5" />,
-  },
-  {
-    title: "Settings",
-    href: "/admin/settings",
-    icon: <Settings className="h-5 w-5" />,
-  },
 ];
 
 const navItemsByRole: Record<UserRole, NavItem[]> = {
   student: studentNavItems,
-  parent: parentNavItems,
   admin: adminNavItems,
 };
 
 const roleLabels: Record<UserRole, string> = {
   student: "Student Portal",
-  parent: "Parent Portal",
   admin: "Admin Portal",
 };
 
