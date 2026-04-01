@@ -17,7 +17,7 @@ function ensureApiBase(base: string) {
 async function fetchExam2Questions(): Promise<PracticeQuestion[]> {
     // Server-side fetch inside Docker network
     const rawBase =
-        process.env.INTERNAL_API_BASE || process.env.NEXT_PUBLIC_API_BASE || "http://backend:4000";
+        process.env.INTERNAL_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://backend:4000";
     const API_BASE = ensureApiBase(rawBase);
 
     // ✅ For now: reuse your existing practice endpoint to get a “mock Exam 2 set”

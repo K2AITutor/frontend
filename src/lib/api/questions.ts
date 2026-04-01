@@ -4,7 +4,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 const API_BASE_RAW =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_BASE ||
   "http://localhost:4000";
 
 const API_BASE = (() => {

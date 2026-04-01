@@ -28,7 +28,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const searchParams = useSearchParams()
   const router = useRouter()
-  const callbackUrl = searchParams.get('callbackUrl') || '/student'
+  const callbackUrl = searchParams.get('callbackUrl') || ''
 
   useEffect(() => {
     if (password.length === 0) {
@@ -97,7 +97,11 @@ export default function RegisterPage() {
         alert('Registration successful but login failed. Please sign in manually.')
         router.push('/auth/login')
       } else {
-        router.push(callbackUrl)
+        const sessionRes = await fetch('/api/auth/session')
+        const session = await sessionRes.json()
+        const role = session?.user?.role
+        const redirectTo = callbackUrl || (role === 'admin' ? '/admin' : '/student')
+        router.push(redirectTo)
       }
     } catch (error: any) {
       console.error('Registration error:', error)

@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/student'
+  const callbackUrl = searchParams.get('callbackUrl') || ''
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,22 +26,24 @@ export default function LoginPage() {
 
     setIsLoading(true)
     try {
-      // ✅ This will hit our dev-bypass CredentialsProvider and create a session
       const res = await signIn('credentials', {
         email,
         password,
         redirect: false,
-        callbackUrl,
       })
 
       if (res?.error) {
-        console.error('Sign in error:', res.error)
-        alert('Login failed (dev bypass should accept any email/password).')
+        alert('Invalid email or password. Please try again.')
         return
       }
 
-      // ✅ If signIn succeeded, go where user wanted
-      router.push(callbackUrl)
+      // Fetch session to get role for redirect
+      const sessionRes = await fetch('/api/auth/session')
+      const session = await sessionRes.json()
+      const role = session?.user?.role
+
+      const redirectTo = callbackUrl || (role === 'admin' ? '/admin' : '/student')
+      router.push(redirectTo)
       router.refresh()
     } catch (error) {
       console.error('Login error:', error)
@@ -51,9 +53,8 @@ export default function LoginPage() {
     }
   }
 
-  // 🔒 Disable Google for now unless you enable GoogleProvider in NextAuth
   const handleGoogleSignIn = async () => {
-    alert('Google login is disabled in DEV mode. Use email/password (anything works).')
+    alert('Google login is not available yet.')
   }
 
   return (

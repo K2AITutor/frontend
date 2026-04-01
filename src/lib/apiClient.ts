@@ -4,13 +4,10 @@ import { Testimonial } from "@/types/testimonial";
 function getApiBase() {
   const raw =
     typeof window === "undefined"
-      ? process.env.INTERNAL_API_BASE ||
-      process.env.API_BASE_URL ||
-      process.env.NEXT_PUBLIC_API_BASE ||
+      ? process.env.INTERNAL_API_BASE_URL ||
       process.env.NEXT_PUBLIC_API_BASE_URL ||
       "http://aitutor-backend:4000/api"
-      : process.env.NEXT_PUBLIC_API_BASE ||
-      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      : process.env.NEXT_PUBLIC_API_BASE_URL ||
       "/api";
 
   const clean = String(raw).trim().replace(/\/+$/, "");

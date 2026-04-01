@@ -3,15 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 
-/**
- * API base resolution:
- * - uses NEXT_PUBLIC_API_BASE_URL if set (recommended)
- * - falls back to NEXT_PUBLIC_API_BASE
- * - finally localhost for local dev
- */
 const API_BASE_RAW =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_BASE ||
   "http://localhost:4000";
 
 const API_BASE = (() => {
