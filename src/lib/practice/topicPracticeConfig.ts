@@ -31,6 +31,6 @@ export const emptyMathMethodsTopicPracticeConfig: TopicPracticeStartDTO = {
     startTitle: 'Start Topic Practice',
     startDescription:
         'Master Mathematical Methods through curriculum-aligned topic practice before moving into Exam 1 and Exam 2 style revision.',
-    startHref: '/practice/math-methods/topic',
+    startHref: '/student/practice/math-methods/topic',
     groups: [],
 };

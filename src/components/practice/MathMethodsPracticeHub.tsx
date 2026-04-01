@@ -100,30 +100,6 @@ export default function MathMethodsPracticeHub() {
                         </Link>
                     </div>
                 </div>
-
-                <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-xl backdrop-blur">
-                    <h2 className="text-2xl font-bold text-white">Full Methods Mock Test</h2>
-
-                    <p className="mt-5 leading-8 text-slate-300">
-                        Sit a full Mathematical Methods mock exam experience with mixed skills,
-                        timed pacing, and full-paper revision flow.
-                    </p>
-
-                    <ul className="mt-5 space-y-2 text-slate-300">
-                        <li>• Full-paper simulation</li>
-                        <li>• Mixed topics across Units 3–4</li>
-                        <li>• Best for final readiness</li>
-                    </ul>
-
-                    <div className="mt-6">
-                        <Link
-                            href="/student/practice/math-methods/mock"
-                            className="inline-flex items-center rounded-xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-500"
-                        >
-                            Start Mock Test
-                        </Link>
-                    </div>
-                </div>
             </section>
         </div>
     );

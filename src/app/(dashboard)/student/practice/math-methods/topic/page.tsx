@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import PracticeClient from '@/app/practice/[subject]/PracticeClient';
+import PracticeClient from '@/app/(dashboard)/student/practice/[subject]/PracticeClient';
 import {
     fetchPracticeQuestions,
     fetchTopicCounts,

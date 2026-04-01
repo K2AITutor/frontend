@@ -71,19 +71,19 @@ export default function Exam1ReviewPage() {
                 <div className="mt-5 flex flex-wrap gap-3">
                     <a
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold"
-                        href="/practice/math-methods/topic"
+                        href="/student/practice/math-methods/topic"
                     >
                         Practise by Topic →
                     </a>
                     <a
                         className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm"
-                        href="/practice/math-methods/insights"
+                        href="/student/practice/math-methods/insights"
                     >
                         View Weak-Skill Dashboard →
                     </a>
                     <a
                         className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm"
-                        href="/practice/math-methods/exam-1"
+                        href="/student/practice/math-methods/exam-1"
                     >
                         Back to Exam 1 Briefing
                     </a>
