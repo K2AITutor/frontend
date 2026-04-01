@@ -49,20 +49,13 @@ const studentNavItems: NavItem[] = [
     icon: <LayoutDashboard className="h-5 w-5" />,
   },
   {
-    title: "Courses",
-    href: "/student/courses",
-    icon: <BookOpen className="h-5 w-5" />,
-  },
-  {
     title: "Practice",
     href: "/student/practice",
     icon: <Sparkles className="h-5 w-5" />,
   },
-  {
-    title: "Assignments",
-    href: "/student/assignments",
-    icon: <FileText className="h-5 w-5" />,
-  },
+];
+
+const studentBottomNavItems: NavItem[] = [
   {
     title: "Settings",
     href: "/student/settings",
@@ -135,6 +128,7 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const navItems = navItemsByRole[role];
+  const bottomNavItems = role === "student" ? studentBottomNavItems : [];
 
   const isActive = (href: string) => {
     if (href === `/${role}`) {
@@ -222,7 +216,45 @@ export function DashboardSidebar({
         </ScrollArea>
 
         {/* Footer */}
-        <div className="border-t p-3">
+        <div className="border-t p-3 flex flex-col gap-1">
+          {bottomNavItems.map((item) => {
+            const active = isActive(item.href);
+            if (collapsed) {
+              return (
+                <Tooltip key={item.href}>
+                  <TooltipTrigger asChild>
+                    <Link href={item.href}>
+                      <Button
+                        variant={active ? "secondary" : "ghost"}
+                        size="icon"
+                        className={cn(
+                          "h-10 w-10",
+                          active && "bg-primary/10 text-primary"
+                        )}
+                      >
+                        {item.icon}
+                      </Button>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{item.title}</TooltipContent>
+                </Tooltip>
+              );
+            }
+            return (
+              <Link key={item.href} href={item.href}>
+                <Button
+                  variant={active ? "secondary" : "ghost"}
+                  className={cn(
+                    "w-full justify-start gap-3",
+                    active && "bg-primary/10 text-primary"
+                  )}
+                >
+                  {item.icon}
+                  <span>{item.title}</span>
+                </Button>
+              </Link>
+            );
+          })}
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>

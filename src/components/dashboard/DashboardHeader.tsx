@@ -18,8 +18,7 @@ import {
 } from "@/components/dashboard/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/dashboard/ui/sheet";
 import { DashboardSidebar, UserRole } from "./DashboardSidebar";
-import { Menu, Search, User, Settings, LogOut, Sun, Moon, Monitor, Check } from "lucide-react";
-import { Input } from "@/components/dashboard/ui/input";
+import { Menu, Search, Settings, LogOut, Sun, Moon, Monitor, Check } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
 interface DashboardHeaderProps {
@@ -78,18 +77,6 @@ export function DashboardHeader({ role }: DashboardHeaderProps) {
         </SheetContent>
       </Sheet>
 
-      {/* Search */}
-      <div className="flex-1 md:flex-initial">
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search..."
-            className="w-[200px] lg:w-[300px] pl-9 border-border"
-          />
-        </div>
-      </div>
-
       {/* Right side */}
       <div className="flex items-center gap-2 ml-auto">
         {/* Mobile Search */}
@@ -121,13 +108,6 @@ export function DashboardHeader({ role }: DashboardHeaderProps) {
             </DropdownMenuLabel>
 
             <DropdownMenuSeparator />
-
-            <DropdownMenuItem asChild>
-              <Link href={`/${role}/profile`} className="flex items-center">
-                <User className="mr-2 h-4 w-4" />
-                Profile
-              </Link>
-            </DropdownMenuItem>
 
             <DropdownMenuItem asChild>
               <Link href={`/${role}/settings`} className="flex items-center">
