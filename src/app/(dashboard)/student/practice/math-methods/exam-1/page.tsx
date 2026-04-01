@@ -114,6 +114,7 @@ export default function Exam1BriefingPage() {
             <div className="flex justify-end">
                 <a
                     href="/practice/math-methods/exam-1/session"
+                    href="/student/practice/math-methods/exam-1/session"
                     className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold"
                 >
                     Start Examination

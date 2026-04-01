@@ -211,7 +211,7 @@ export default function ExamSessionClient(props: {
   const finishAndReview = () => {
     router.push(`/practice/math-methods/exam-1/review?examKey=${encodeURIComponent(examKey)}`);
   };
-
+  
   if (!questions.length) {
     return (
       <div className="max-w-5xl mx-auto px-6 py-10 text-slate-300">

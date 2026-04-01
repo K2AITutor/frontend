@@ -7,8 +7,7 @@ function getApiBase() {
       ? process.env.INTERNAL_API_BASE_URL ||
       process.env.NEXT_PUBLIC_API_BASE_URL ||
       "http://aitutor-backend:4000/api"
-      : process.env.NEXT_PUBLIC_API_BASE_URL ||
-      "/api";
+      : process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
 
   const clean = String(raw).trim().replace(/\/+$/, "");
   return clean.endsWith("/api") ? clean : `${clean}/api`;
@@ -22,13 +21,18 @@ async function safeText(res: Response): Promise<string> {
   }
 }
 
-async function safeJsonFromResponse<T>(res: Response, urlForError: string): Promise<T> {
+async function safeJsonFromResponse<T>(
+  res: Response,
+  urlForError: string
+): Promise<T> {
   const text = await safeText(res);
   const trimmed = text.trim();
 
   if (!trimmed) {
     if (!res.ok) {
-      throw new Error(`API ${res.status} ${res.statusText} (empty response) for ${urlForError}`);
+      throw new Error(
+        `API ${res.status} ${res.statusText} (empty response) for ${urlForError}`
+      );
     }
     return {} as T;
   }
@@ -125,8 +129,71 @@ export type TopicProgressRow = {
   attempts: number;
   correct: number;
   mastery: number;
-  status: 'Not started' | 'Weak' | 'Medium' | 'Strong';
+  status: "Not started" | "Weak" | "Medium" | "Strong";
 };
+
+/* =========================
+   EXAM TYPES + API METHODS
+   ========================= */
+
+export type ExamDTO = {
+  examKey: string;
+  title: string;
+  readingMins?: number | null;
+  writingMins?: number | null;
+  allowCAS?: boolean | null;
+  showHints?: boolean | null;
+  exactRequired?: boolean | null;
+  workingRequired?: boolean | null;
+  instructions?: string | null;
+  pdf?: {
+    url?: string | null;
+    filePath?: string | null;
+  } | null;
+};
+
+export type ExamQuestionDTO = {
+  id: number;
+  examKey: string;
+  questionNumber: string;
+  marks: number;
+  answerType: string;
+  prompt: string;
+  skillCode?: string | null;
+  pdfPage?: number | null;
+  groupId?: number | null;
+  partLabel?: string | null;
+};
+
+export async function fetchExam(examKey: string): Promise<ExamDTO> {
+  return apiGet<ExamDTO>(`/exams/${encodeURIComponent(examKey)}`);
+}
+
+export async function fetchExamQuestionsByExamKey(
+  examKey: string
+): Promise<ExamQuestionDTO[]> {
+  return apiGet<ExamQuestionDTO[]>(
+    `/exams/${encodeURIComponent(examKey)}/questions`
+  );
+}
+
+export async function submitExamAnswer(payload: {
+  examKey: string;
+  questionId: number | string;
+  answer: string;
+  userId?: number;
+}): Promise<SubmitAnswerResponse> {
+  const { examKey, questionId, answer, userId } = payload;
+
+  return apiPost<SubmitAnswerResponse>(
+    `/exams/${encodeURIComponent(examKey)}/submit`,
+    {
+      questionId: Number(questionId),
+      answer,
+      ...(typeof userId === "number" ? { userId } : {}),
+    }
+  );
+}
 
 export async function fetchTopicCounts(subject: string): Promise<TopicCountsDTO> {
   const base = getApiBase();
@@ -158,8 +225,8 @@ export async function fetchTopicProgress(
   )}&subjectCode=${encodeURIComponent(subject)}`;
 
   const res = await fetch(url, {
-    cache: 'no-store',
-    credentials: 'include',
+    cache: "no-store",
+    credentials: "include",
   });
 
   return safeJsonFromResponse<TopicProgressRow[]>(res, url);
@@ -204,10 +271,18 @@ export async function getNextRecommendedQuestions(args: {
   params.set("subject", args.subject);
   if (args.skillCode) params.set("skillCode", args.skillCode);
   if (args.topicCode) params.set("topicCode", args.topicCode);
-  if (typeof args.wasCorrect === "boolean") params.set("wasCorrect", String(args.wasCorrect));
-  if (typeof args.hintCount === "number") params.set("hintCount", String(args.hintCount));
-  if (args.excludeQuestionId != null) params.set("excludeQuestionId", String(args.excludeQuestionId));
-  if (typeof args.limit === "number") params.set("limit", String(args.limit));
+  if (typeof args.wasCorrect === "boolean") {
+    params.set("wasCorrect", String(args.wasCorrect));
+  }
+  if (typeof args.hintCount === "number") {
+    params.set("hintCount", String(args.hintCount));
+  }
+  if (args.excludeQuestionId != null) {
+    params.set("excludeQuestionId", String(args.excludeQuestionId));
+  }
+  if (typeof args.limit === "number") {
+    params.set("limit", String(args.limit));
+  }
 
   const base = getApiBase();
   const url = `${base}/questions/recommend-next?${params.toString()}`;
