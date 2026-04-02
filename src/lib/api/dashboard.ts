@@ -31,19 +31,7 @@ export function useDashboardStats() {
   });
 }
 
-/**
- * Student dashboard hook expected by:
- *   src/app/(dashboard)/student/page.tsx
- *
- * Right now backend dashboard endpoint returns { mastery, recommendedTopics }
- * and also depends on req.user (which you don't have wired yet).
- *
- * To keep the app stable and avoid introducing new bugs,
- * this hook returns a SAFE mock dashboard for dev,
- * using session user details when available.
- *
- * Later, when backend auth is wired, you can replace the mock with a real fetch.
- */
+
 export function useStudentDashboardData() {
   const { data: session } = useSession();
 
@@ -150,3 +138,14 @@ export function useStudentDashboardData() {
     staleTime: 30_000,
   });
 }
+
+export function useAdminDashboardData() {
+  return useQuery({
+    queryKey: ["adminDashboard"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/admin/dashboard`);
+      return res.json();
+    },
+  });
+}
+
