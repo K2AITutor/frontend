@@ -35,6 +35,7 @@ import {
   useResendVerification,
   useDeleteUser,
 } from "@/lib/api/users";
+import { toast } from "@/components/dashboard/ui/sonner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
 
@@ -105,10 +106,15 @@ export default function UserProfilePage() {
 
   const confirmToggle = () => {
     if (!user) return;
+    const wasActive = user.isActive;
     toggleActive.mutate(user.id, {
       onSuccess: () => {
         setToggleDialogOpen(false);
         fetchUser();
+        toast.success(wasActive ? "User deactivated successfully" : "User activated successfully");
+      },
+      onError: () => {
+        toast.error("Failed to update user status");
       },
     });
   };
@@ -116,7 +122,13 @@ export default function UserProfilePage() {
   const handleResendVerification = () => {
     if (!user) return;
     resendVerification.mutate(user.id, {
-      onSuccess: () => fetchUser(),
+      onSuccess: () => {
+        fetchUser();
+        toast.success("Verification email sent successfully");
+      },
+      onError: () => {
+        toast.error("Failed to send verification email");
+      },
     });
   };
 
@@ -125,7 +137,11 @@ export default function UserProfilePage() {
     deleteUser.mutate(user.id, {
       onSuccess: () => {
         setDeleteDialogOpen(false);
+        toast.success("User deleted successfully");
         router.push("/admin/users");
+      },
+      onError: () => {
+        toast.error("Failed to delete user");
       },
     });
   };

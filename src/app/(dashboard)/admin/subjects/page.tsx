@@ -45,6 +45,7 @@ import {
   HelpCircle,
   Folder,
 } from "lucide-react";
+import { toast } from "@/components/dashboard/ui/sonner";
 
 export default function AdminSubjectsPage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -129,9 +130,10 @@ export default function AdminSubjectsPage() {
       }
       setIsDialogOpen(false);
       loadSubjects();
+      toast.success(editingSubject ? "Subject updated successfully" : "Subject created successfully");
     } catch (err) {
       console.error("Failed to save subject:", err);
-      alert("Failed to save subject");
+      toast.error("Failed to save subject");
     } finally {
       setIsSubmitting(false);
     }
@@ -144,9 +146,10 @@ export default function AdminSubjectsPage() {
       await deleteSubject(deletingSubject);
       setIsDeleteDialogOpen(false);
       loadSubjects();
+      toast.success("Subject deleted successfully");
     } catch (err) {
       console.error("Failed to delete subject:", err);
-      alert("Failed to delete subject");
+      toast.error("Failed to delete subject");
     } finally {
       setIsSubmitting(false);
       setDeletingSubject(null);

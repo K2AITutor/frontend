@@ -34,6 +34,7 @@ import {
   DialogFooter,
 } from "@/components/dashboard/ui/dialog";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { toast } from "@/components/dashboard/ui/sonner";
 
 export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,8 +77,15 @@ export default function AdminUsersPage() {
 
   const confirmToggle = () => {
     if (!pendingToggleId) return;
+    const isActive = pendingToggleUser?.isActive;
     setLoadingUserId(pendingToggleId);
     toggleActive.mutate(pendingToggleId, {
+      onSuccess: () => {
+        toast.success(isActive ? "User deactivated successfully" : "User activated successfully");
+      },
+      onError: () => {
+        toast.error("Failed to update user status");
+      },
       onSettled: () => {
         setLoadingUserId(null);
         setToggleDialogOpen(false);
@@ -89,6 +97,12 @@ export default function AdminUsersPage() {
   const handleResendVerification = (userId: string) => {
     setLoadingUserId(userId);
     resendVerification.mutate(userId, {
+      onSuccess: () => {
+        toast.success("Verification email sent successfully");
+      },
+      onError: () => {
+        toast.error("Failed to send verification email");
+      },
       onSettled: () => setLoadingUserId(null),
     });
   };
@@ -102,6 +116,12 @@ export default function AdminUsersPage() {
     if (!pendingDeleteId) return;
     setLoadingUserId(pendingDeleteId);
     deleteUser.mutate(pendingDeleteId, {
+      onSuccess: () => {
+        toast.success("User deleted successfully");
+      },
+      onError: () => {
+        toast.error("Failed to delete user");
+      },
       onSettled: () => {
         setLoadingUserId(null);
         setDeleteDialogOpen(false);

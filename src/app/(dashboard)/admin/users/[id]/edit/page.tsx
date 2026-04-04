@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/a
 import { ArrowLeft, Upload, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import { toast } from "@/components/dashboard/ui/sonner";
 
 type UserRole = "student" | "parent" | "teacher" | "admin";
 type UserStatus = "active" | "pending" | "suspended";
@@ -133,9 +134,13 @@ export default function EditUserPage() {
       status: user?.status || ("active" as UserStatus),
     },
     onSubmit: async ({ value }) => {
-      console.log("Form submitted:", value);
-      alert("User updated successfully!");
-      router.push("/admin/users");
+      try {
+        console.log("Form submitted:", value);
+        toast.success("User updated successfully");
+        router.push("/admin/users");
+      } catch {
+        toast.error("Failed to update user");
+      }
     },
   });
 

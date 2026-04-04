@@ -41,6 +41,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import Image from "next/image";
+import { toast } from "@/components/dashboard/ui/sonner";
 
 export default function AdminTestimonialsPage() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
@@ -147,9 +148,10 @@ export default function AdminTestimonialsPage() {
       }
       setIsDialogOpen(false);
       loadData();
+      toast.success(editingTestimonial ? "Testimonial updated successfully" : "Testimonial created successfully");
     } catch (err) {
       console.error("Failed to save testimonial:", err);
-      alert("Failed to save testimonial");
+      toast.error("Failed to save testimonial");
     } finally {
       setIsSubmitting(false);
     }
@@ -162,9 +164,10 @@ export default function AdminTestimonialsPage() {
       await deleteTestimonial(deletingId);
       setIsDeleteDialogOpen(false);
       loadData();
+      toast.success("Testimonial deleted successfully");
     } catch (err) {
       console.error("Failed to delete testimonial:", err);
-      alert("Failed to delete testimonial");
+      toast.error("Failed to delete testimonial");
     } finally {
       setIsSubmitting(false);
       setDeletingId(null);
@@ -175,9 +178,10 @@ export default function AdminTestimonialsPage() {
     try {
       await updateTestimonial(testimonial.id, { isActive: !testimonial.isActive });
       loadData();
+      toast.success(testimonial.isActive ? "Testimonial deactivated" : "Testimonial activated");
     } catch (err) {
       console.error("Failed to toggle active status:", err);
-      alert("Failed to update testimonial");
+      toast.error("Failed to update testimonial");
     }
   }
 

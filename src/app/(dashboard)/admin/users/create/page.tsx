@@ -17,6 +17,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
 import { ArrowLeft, Upload, User as UserIcon } from "lucide-react";
 import Link from "next/link";
+import { toast } from "@/components/dashboard/ui/sonner";
 
 type UserRole = "student" | "parent" | "teacher" | "admin";
 type UserStatus = "active" | "pending" | "suspended";
@@ -35,9 +36,13 @@ export default function CreateUserPage() {
       status: "active" as UserStatus,
     },
     onSubmit: async ({ value }) => {
-      console.log("Form submitted:", value);
-      alert("User created successfully!");
-      router.push("/admin/users");
+      try {
+        console.log("Form submitted:", value);
+        toast.success("User created successfully");
+        router.push("/admin/users");
+      } catch {
+        toast.error("Failed to create user");
+      }
     },
   });
 
