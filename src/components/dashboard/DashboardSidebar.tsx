@@ -96,6 +96,11 @@ const adminNavItems: NavItem[] = [
     href: "/admin/testimonials",
     icon: <Quote className="h-5 w-5" />,
   },
+  {
+    title: "Subscription Plans",
+    href: "/admin/subscription-plans",
+    icon: <CreditCard className="h-5 w-5" />,
+  },
 ];
 
 const navItemsByRole: Record<UserRole, NavItem[]> = {
