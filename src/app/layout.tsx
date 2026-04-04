@@ -1,4 +1,5 @@
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { Toaster } from "@/components/dashboard/ui/sonner";
 import Providers from "./providers";
 import { DM_Sans, Instrument_Serif } from "next/font/google";
 
@@ -31,6 +32,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             {children}
+            <Toaster />
           </ThemeProvider>
         </Providers>
       </body>

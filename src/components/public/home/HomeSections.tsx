@@ -651,49 +651,7 @@ export function TestimonialsSection() {
       isActive: true,
       createdAt: '',
       updatedAt: ''
-    },
-    {
-      id: 4,
-      name: 'Michael Nguyen',
-      role: 'Year 12 Student',
-      subject: 'Maths Methods',
-      image: null,
-      quote: 'The ATAR predictor kept me motivated throughout the year. Watching my predicted score climb as I improved was incredibly satisfying.',
-      rating: 5,
-      atarImprovement: '+18 pts',
-      order: 3,
-      isActive: true,
-      createdAt: '',
-      updatedAt: ''
-    },
-    {
-      id: 5,
-      name: 'Dr. Rebecca Hall',
-      role: 'Education Consultant',
-      subject: 'VCE Expert',
-      image: null,
-      quote: 'I recommend VCE AI Tutor to all my students. The VCAA-aligned content and adaptive learning approach is exactly what modern students need.',
-      rating: 5,
-      atarImprovement: null,
-      order: 4,
-      isActive: true,
-      createdAt: '',
-      updatedAt: ''
-    },
-    {
-      id: 6,
-      name: 'Alex Kumar',
-      role: 'Year 12 Student',
-      subject: 'English & Psychology',
-      image: null,
-      quote: 'The personalised study plans helped me balance multiple subjects effectively. I finally feel confident going into my exams.',
-      rating: 5,
-      atarImprovement: '+10 pts',
-      order: 5,
-      isActive: true,
-      createdAt: '',
-      updatedAt: ''
-    },
+    }
   ]
 
   useEffect(() => {

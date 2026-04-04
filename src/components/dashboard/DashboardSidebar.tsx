@@ -24,6 +24,8 @@ import {
   ChevronRight,
   Sparkles,
   CreditCard,
+  Quote,
+  HelpCircle,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -78,6 +80,21 @@ const adminNavItems: NavItem[] = [
     title: "Users",
     href: "/admin/users",
     icon: <UserCog className="h-5 w-5" />,
+  },
+  {
+    title: "Subjects",
+    href: "/admin/subjects",
+    icon: <BookOpen className="h-5 w-5" />,
+  },
+  {
+    title: "FAQs",
+    href: "/admin/faqs",
+    icon: <HelpCircle className="h-5 w-5" />,
+  },
+  {
+    title: "Testimonials",
+    href: "/admin/testimonials",
+    icon: <Quote className="h-5 w-5" />,
   },
 ];
 

@@ -1,0 +1,371 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
+import { Button } from "@/components/dashboard/ui/button";
+import { Badge } from "@/components/dashboard/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/dashboard/ui/dialog";
+import {
+  ArrowLeft,
+  Loader2,
+  Mail,
+  Phone,
+  Calendar,
+  GraduationCap,
+  ShieldCheck,
+  ShieldOff,
+  CircleCheck,
+  CircleX,
+  CreditCard,
+  Clock,
+  Power,
+  Trash2,
+} from "lucide-react";
+import {
+  useToggleUserActive,
+  useResendVerification,
+  useDeleteUser,
+} from "@/lib/api/users";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
+
+interface UserProfile {
+  id: string;
+  name: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  role: string;
+  phone: string | null;
+  avatar: string | null;
+  yearLevel: string | null;
+  vcaaStudentNumber: string | null;
+  isActive: boolean;
+  emailVerified: boolean;
+  lastLoginAt: string | null;
+  joinedDate: string;
+  subscription: {
+    status: string;
+    plan: string | null;
+    currentPeriodEnd: string | null;
+  } | null;
+  recentAttempts: {
+    id: number;
+    score: number | null;
+    createdAt: string;
+  }[];
+}
+
+function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export default function UserProfilePage() {
+  const params = useParams();
+  const router = useRouter();
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const toggleActive = useToggleUserActive();
+  const resendVerification = useResendVerification();
+  const deleteUser = useDeleteUser();
+
+  const fetchUser = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/${params.id}`);
+      if (!res.ok) throw new Error("User not found");
+      setUser(await res.json());
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
+
+  const confirmToggle = () => {
+    if (!user) return;
+    toggleActive.mutate(user.id, {
+      onSuccess: () => {
+        setToggleDialogOpen(false);
+        fetchUser();
+      },
+    });
+  };
+
+  const handleResendVerification = () => {
+    if (!user) return;
+    resendVerification.mutate(user.id, {
+      onSuccess: () => fetchUser(),
+    });
+  };
+
+  const confirmDelete = () => {
+    if (!user) return;
+    deleteUser.mutate(user.id, {
+      onSuccess: () => {
+        setDeleteDialogOpen(false);
+        router.push("/admin/users");
+      },
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error || !user) {
+    return (
+      <div className="flex items-center justify-center h-screen flex-col gap-4">
+        <p className="text-muted-foreground">{error || "User not found"}</p>
+        <Button variant="outline" onClick={() => router.push("/admin/users")}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 p-6 pb-20 max-w-4xl mx-auto">
+      <Button variant="ghost" onClick={() => router.push("/admin/users")} className="mb-2">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
+      </Button>
+
+      {/* Profile Header */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-start gap-6">
+            <Avatar className="h-20 w-20">
+              <AvatarImage src={user.avatar ?? undefined} alt={user.name} />
+              <AvatarFallback className="text-xl">
+                {user.name.split(" ").map((n) => n[0]).join("")}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold">{user.name}</h1>
+                {user.isActive ? (
+                  <Badge className="bg-green-100 text-green-800">Active</Badge>
+                ) : (
+                  <Badge className="bg-red-100 text-red-800">Inactive</Badge>
+                )}
+                {user.emailVerified ? (
+                  <Badge variant="outline" className="gap-1 border-green-200 text-green-700">
+                    <ShieldCheck className="h-3 w-3" /> Verified
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="gap-1 border-amber-200 text-amber-700">
+                    <ShieldOff className="h-3 w-3" /> Unverified
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1"><Mail className="h-4 w-4" /> {user.email}</span>
+                {user.phone && <span className="flex items-center gap-1"><Phone className="h-4 w-4" /> {user.phone}</span>}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Student Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <DetailRow icon={GraduationCap} label="Year Level" value={user.yearLevel || "-"} />
+            <DetailRow icon={GraduationCap} label="VCAA Student Number" value={user.vcaaStudentNumber || "-"} />
+            <DetailRow icon={Calendar} label="Joined" value={formatDate(user.joinedDate)} />
+            <DetailRow icon={Clock} label="Last Login" value={user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"} />
+            <DetailRow
+              icon={user.isActive ? CircleCheck : CircleX}
+              label="Account Status"
+              value={user.isActive ? "Active" : "Inactive"}
+              iconColor={user.isActive ? "text-green-500" : "text-red-500"}
+            />
+            <DetailRow
+              icon={user.emailVerified ? ShieldCheck : ShieldOff}
+              label="Email Verified"
+              value={user.emailVerified ? "Yes" : "No"}
+              iconColor={user.emailVerified ? "text-green-500" : "text-amber-500"}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Subscription */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Subscription</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {user.subscription ? (
+              <div className="space-y-3">
+                <DetailRow icon={CreditCard} label="Status" value={user.subscription.status} />
+                <DetailRow icon={CreditCard} label="Plan" value={user.subscription.plan || "-"} />
+                {user.subscription.currentPeriodEnd && (
+                  <DetailRow icon={Calendar} label="Renews" value={formatDate(user.subscription.currentPeriodEnd)} />
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No active subscription</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Attempts */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Recent Attempts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {user.recentAttempts.length > 0 ? (
+            <div className="space-y-2">
+              {user.recentAttempts.map((attempt) => (
+                <div key={attempt.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <span className="text-sm text-muted-foreground">{formatDate(attempt.createdAt)}</span>
+                  <span className="text-sm font-medium">
+                    {attempt.score !== null ? `${attempt.score}%` : "In progress"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">No attempts yet</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Actions</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setToggleDialogOpen(true)}
+          >
+            <Power className="mr-2 h-4 w-4" />
+            {user.isActive ? "Deactivate Account" : "Activate Account"}
+          </Button>
+
+          {!user.emailVerified && (
+            <Button
+              variant="outline"
+              onClick={handleResendVerification}
+              disabled={resendVerification.isPending}
+            >
+              {resendVerification.isPending
+                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                : <Mail className="mr-2 h-4 w-4" />}
+              Resend Verification Email
+            </Button>
+          )}
+
+          <Button
+            variant="destructive"
+            onClick={() => setDeleteDialogOpen(true)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete User
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Toggle Active Confirmation */}
+      <Dialog open={toggleDialogOpen} onOpenChange={setToggleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{user.isActive ? "Deactivate" : "Activate"} User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to {user.isActive ? "deactivate" : "activate"}{" "}
+              <span className="font-semibold text-foreground">{user.name}</span> ({user.email})?
+              {user.isActive
+                ? " They will no longer be able to access the platform."
+                : " They will regain access to the platform."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setToggleDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmToggle} disabled={toggleActive.isPending}>
+              {toggleActive.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {user.isActive ? "Deactivate" : "Activate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <span className="font-semibold text-foreground">{user.name}</span> ({user.email})?
+              This action cannot be undone and will remove all associated data.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteUser.isPending}>
+              {deleteUser.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+  iconColor,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  iconColor?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Icon className={`h-4 w-4 ${iconColor || ""}`} /> {label}
+      </span>
+      <span className="text-sm font-medium">{value}</span>
+    </div>
+  );
+}
