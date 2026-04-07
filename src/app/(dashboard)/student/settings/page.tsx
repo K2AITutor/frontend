@@ -96,6 +96,8 @@ export default function StudentSettingsPage() {
         body: JSON.stringify({
           firstName: profile.firstName,
           lastName: profile.lastName,
+          yearLevel: profile.yearLevel || undefined,
+          vcaaStudentNumber: profile.vcaaStudentNumber || undefined,
         }),
       });
 
@@ -147,8 +149,8 @@ export default function StudentSettingsPage() {
       });
 
       if (!res.ok) {
-        const error = await res.text();
-        setPasswordError(error || "Failed to change password");
+        const error = await res.json().catch(() => null);
+        setPasswordError(error?.message || "Failed to change password");
         return;
       }
 
@@ -159,7 +161,6 @@ export default function StudentSettingsPage() {
     }
   };
 
-  const yearLevelLabel = profile.yearLevel ? `Year ${profile.yearLevel}` : "—";
   const initials = `${profile.firstName?.[0] || ""}${profile.lastName?.[0] || ""}`.toUpperCase() || "?";
 
   if (isLoading) {
@@ -244,20 +245,24 @@ export default function StudentSettingsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="yearLevel">VCE Year Level</Label>
-                    <Input
+                    <select
                       id="yearLevel"
-                      value={yearLevelLabel}
-                      disabled
-                      className="bg-muted"
-                    />
+                      value={profile.yearLevel}
+                      onChange={(e) => setProfile({ ...profile, yearLevel: e.target.value })}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">Select year level</option>
+                      <option value="11">Year 11</option>
+                      <option value="12">Year 12</option>
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="studentId">Student ID</Label>
                     <Input
                       id="studentId"
-                      value={profile.vcaaStudentNumber || "—"}
-                      disabled
-                      className="bg-muted"
+                      value={profile.vcaaStudentNumber}
+                      onChange={(e) => setProfile({ ...profile, vcaaStudentNumber: e.target.value })}
+                      placeholder="Enter your student ID"
                     />
                   </div>
                 </div>
