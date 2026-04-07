@@ -2,6 +2,9 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
+const SESSION_MAX_AGE = Number(process.env.SESSION_MAX_AGE_SECONDS) || 3600; // 1 hour
+const SESSION_REMEMBER_ME_MAX_AGE = Number(process.env.SESSION_REMEMBER_ME_MAX_AGE_SECONDS) || 604800; // 7 days
+
 export const authOptions: NextAuthOptions = {
     providers: [
         GoogleProvider({
@@ -13,9 +16,12 @@ export const authOptions: NextAuthOptions = {
             credentials: {
                 email: { label: "Email", type: "email" },
                 password: { label: "Password", type: "password" },
+                rememberMe: { label: "Remember Me", type: "text" },
             },
             async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) return null;
+
+                const rememberMe = credentials.rememberMe === "true";
 
                 const apiBase =
                     process.env.INTERNAL_API_BASE_URL ||
@@ -29,6 +35,7 @@ export const authOptions: NextAuthOptions = {
                     body: JSON.stringify({
                         email: credentials.email,
                         password: credentials.password,
+                        rememberMe,
                     }),
                 });
 
@@ -43,6 +50,7 @@ export const authOptions: NextAuthOptions = {
                     role: data.role,
                     accessToken: data.access_token,
                     profileCompleted: true,
+                    rememberMe,
                 };
             },
         }),
@@ -52,6 +60,7 @@ export const authOptions: NextAuthOptions = {
 
     session: {
         strategy: "jwt",
+        maxAge: SESSION_REMEMBER_ME_MAX_AGE,
     },
 
     callbacks: {
@@ -95,7 +104,18 @@ export const authOptions: NextAuthOptions = {
                 token.role = (user as any).role;
                 token.accessToken = (user as any).accessToken;
                 token.profileCompleted = (user as any).profileCompleted;
+                token.rememberMe = (user as any).rememberMe ?? false;
+                token.loginAt = Date.now();
             }
+
+            // Expire non-rememberMe sessions after SESSION_MAX_AGE
+            if (!token.rememberMe && token.loginAt) {
+                const elapsed = Date.now() - (token.loginAt as number);
+                if (elapsed > SESSION_MAX_AGE * 1000) {
+                    return { ...token, accessToken: null };
+                }
+            }
+
             // Handle session.update() from client
             if (trigger === "update" && session?.profileCompleted !== undefined) {
                 token.profileCompleted = session.profileCompleted;

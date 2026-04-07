@@ -6,6 +6,7 @@ import AuthBanner from '@/components/auth/AuthBanner'
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { toast } from '@/components/dashboard/ui/sonner'
 
 export default function CompleteProfilePage() {
   const { data: session, update } = useSession()
@@ -18,7 +19,7 @@ export default function CompleteProfilePage() {
     e.preventDefault()
 
     if (!yearLevel) {
-      alert('Please select your VCE year')
+      toast.error('Please select your VCE year')
       return
     }
 
@@ -51,7 +52,7 @@ export default function CompleteProfilePage() {
       router.refresh()
     } catch (error) {
       console.error('Complete profile error:', error)
-      alert('An error occurred. Please try again.')
+      toast.error('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)
     }

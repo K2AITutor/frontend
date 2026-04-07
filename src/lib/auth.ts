@@ -59,6 +59,16 @@ export async function register(email: string, password: string, firstName: strin
     );
 }
 
+export async function forgotPassword(email: string) {
+    return apiPost<{ message: string }>("/auth/forgot-password", { email });
+}
+
+export async function resetPassword(token: string, password: string) {
+    const res = await apiPost<LoginResponse & { message: string }>("/auth/reset-password", { token, password });
+    if (res.access_token) saveToken(res.access_token);
+    return res;
+}
+
 export function logout() {
     clearToken();
     window.location.href = "/auth/login";

@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { signIn } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { register } from '@/lib/auth'
+import { toast } from '@/components/dashboard/ui/sonner'
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -51,33 +52,33 @@ export default function RegisterPage() {
     e.preventDefault()
 
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword) {
-      alert('Please fill in all required fields')
+      toast.error('Please fill in all required fields')
       return
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
-      alert('Please enter a valid email address')
+      toast.error('Please enter a valid email address')
       return
     }
 
     if (formData.password.length < 8) {
-      alert('Password must be at least 8 characters')
+      toast.error('Password must be at least 8 characters')
       return
     }
 
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match')
+      toast.error('Passwords do not match')
       return
     }
 
     if (!formData.year) {
-      alert('Please select your VCE year')
+      toast.error('Please select your VCE year')
       return
     }
 
     if (!terms) {
-      alert('Please agree to Terms of Service and Privacy Policy')
+      toast.error('Please agree to Terms of Service and Privacy Policy')
       return
     }
 
@@ -89,7 +90,7 @@ export default function RegisterPage() {
       router.push(`/auth/verify-email?registered=true&email=${encodeURIComponent(formData.email)}`)
     } catch (error: any) {
       console.error('Registration error:', error)
-      alert(error.message || 'An error occurred during registration. Please try again.')
+      toast.error(error.message || 'An error occurred during registration. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -101,7 +102,7 @@ export default function RegisterPage() {
       await signIn('google', { callbackUrl })
     } catch (error) {
       console.error('Google sign in error:', error)
-      alert('Failed to sign in with Google')
+      toast.error('Failed to sign in with Google. Please try again.')
     } finally {
       setIsLoading(false)
     }
