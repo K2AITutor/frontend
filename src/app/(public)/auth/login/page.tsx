@@ -54,7 +54,17 @@ export default function LoginPage() {
   }
 
   const handleGoogleSignIn = async () => {
-    alert('Google login is not available yet.')
+    setIsLoading(true)
+    try {
+      await signIn('google', {
+        callbackUrl: callbackUrl || '/student',
+      })
+    } catch (error) {
+      console.error('Google sign in error:', error)
+      alert('Failed to sign in with Google. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

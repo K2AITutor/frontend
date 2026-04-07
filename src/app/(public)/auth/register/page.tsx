@@ -83,26 +83,10 @@ export default function RegisterPage() {
 
     setIsLoading(true)
     try {
-      // 1. Register
       await register(formData.email, formData.password, formData.firstName, formData.lastName, formData.studentId, formData.year)
 
-      // 2. Sign in automatically
-      const res = await signIn('credentials', {
-        email: formData.email,
-        password: formData.password,
-        redirect: false,
-      })
-
-      if (res?.error) {
-        alert('Registration successful but login failed. Please sign in manually.')
-        router.push('/auth/login')
-      } else {
-        const sessionRes = await fetch('/api/auth/session')
-        const session = await sessionRes.json()
-        const role = session?.user?.role
-        const redirectTo = callbackUrl || (role === 'admin' ? '/admin' : '/student')
-        router.push(redirectTo)
-      }
+      // Redirect to verify-email page (no auto-login, user must verify email first)
+      router.push(`/auth/verify-email?registered=true&email=${encodeURIComponent(formData.email)}`)
     } catch (error: any) {
       console.error('Registration error:', error)
       alert(error.message || 'An error occurred during registration. Please try again.')
