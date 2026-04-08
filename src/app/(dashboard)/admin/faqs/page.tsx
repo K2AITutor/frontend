@@ -41,6 +41,7 @@ import {
   updateFaqCategory,
   deleteFaqCategory,
 } from "@/lib/api/admin-faq";
+import { useAdminToken } from "@/lib/api/useAdminToken";
 import { toast } from "@/components/dashboard/ui/sonner";
 import {
   Plus,
@@ -53,6 +54,7 @@ import {
 } from "lucide-react";
 
 export default function AdminFaqPage() {
+  const token = useAdminToken();
   const [categories, setCategories] = useState<FAQCategory[]>([]);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,20 +77,21 @@ export default function AdminFaqPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (token) loadData();
+  }, [token]);
 
   useEffect(() => {
-    loadFaqs();
-  }, [categoryFilter]);
+    if (token) loadFaqs();
+  }, [categoryFilter, token]);
 
   async function loadData() {
+    if (!token) return;
     try {
       setIsLoading(true);
       setError(null);
       const [categoriesData, faqsData] = await Promise.all([
-        fetchAdminFaqCategories(),
-        fetchAdminFaqs(),
+        fetchAdminFaqCategories(token),
+        fetchAdminFaqs(token),
       ]);
       setCategories(categoriesData);
       setFaqs(faqsData);
@@ -101,9 +104,10 @@ export default function AdminFaqPage() {
   }
 
   async function loadFaqs() {
+    if (!token) return;
     try {
       const categoryId = categoryFilter !== "all" ? categoryFilter : undefined;
-      const faqsData = await fetchAdminFaqs(categoryId);
+      const faqsData = await fetchAdminFaqs(token, categoryId);
       setFaqs(faqsData);
     } catch (err) {
       console.error("Failed to load FAQs:", err);
@@ -150,13 +154,13 @@ export default function AdminFaqPage() {
         await updateFaqCategory(editingCategory.id, {
           label: categoryForm.label,
           order: categoryForm.order,
-        });
+        }, token!);
       } else {
         await createFaqCategory({
           id: categoryForm.id,
           label: categoryForm.label,
           order: categoryForm.order,
-        });
+        }, token!);
       }
       setIsCategoryDialogOpen(false);
       loadData();
@@ -174,9 +178,9 @@ export default function AdminFaqPage() {
     setIsSubmitting(true);
     try {
       if (editingFaq) {
-        await updateFaq(editingFaq.id, faqForm);
+        await updateFaq(editingFaq.id, faqForm, token!);
       } else {
-        await createFaq(faqForm);
+        await createFaq(faqForm, token!);
       }
       setIsFaqDialogOpen(false);
       loadFaqs();
@@ -194,10 +198,10 @@ export default function AdminFaqPage() {
     setIsSubmitting(true);
     try {
       if (deletingItem.type === "category") {
-        await deleteFaqCategory(deletingItem.id as string);
+        await deleteFaqCategory(deletingItem.id as string, token!);
         loadData();
       } else {
-        await deleteFaq(deletingItem.id as number);
+        await deleteFaq(deletingItem.id as number, token!);
         loadFaqs();
       }
       setIsDeleteDialogOpen(false);

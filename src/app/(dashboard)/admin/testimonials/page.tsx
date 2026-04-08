@@ -41,9 +41,11 @@ import {
   EyeOff,
 } from "lucide-react";
 import Image from "next/image";
+import { useAdminToken } from "@/lib/api/useAdminToken";
 import { toast } from "@/components/dashboard/ui/sonner";
 
 export default function AdminTestimonialsPage() {
+  const token = useAdminToken();
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,14 +74,15 @@ export default function AdminTestimonialsPage() {
   const [showInactive, setShowInactive] = useState(true);
 
   useEffect(() => {
-    loadData();
-  }, [showInactive]);
+    if (token) loadData();
+  }, [showInactive, token]);
 
   async function loadData() {
+    if (!token) return;
     try {
       setIsLoading(true);
       setError(null);
-      const data = await fetchAdminTestimonials(showInactive);
+      const data = await fetchAdminTestimonials(token, showInactive);
       setTestimonials(data);
     } catch (err) {
       setError("Failed to load testimonials. Please check if the backend is running.");
@@ -142,9 +145,9 @@ export default function AdminTestimonialsPage() {
       };
 
       if (editingTestimonial) {
-        await updateTestimonial(editingTestimonial.id, data);
+        await updateTestimonial(editingTestimonial.id, data, token!);
       } else {
-        await createTestimonial(data);
+        await createTestimonial(data, token!);
       }
       setIsDialogOpen(false);
       loadData();
@@ -161,7 +164,7 @@ export default function AdminTestimonialsPage() {
     if (!deletingId) return;
     setIsSubmitting(true);
     try {
-      await deleteTestimonial(deletingId);
+      await deleteTestimonial(deletingId, token!);
       setIsDeleteDialogOpen(false);
       loadData();
       toast.success("Testimonial deleted successfully");
@@ -176,7 +179,7 @@ export default function AdminTestimonialsPage() {
 
   async function toggleActive(testimonial: Testimonial) {
     try {
-      await updateTestimonial(testimonial.id, { isActive: !testimonial.isActive });
+      await updateTestimonial(testimonial.id, { isActive: !testimonial.isActive }, token!);
       loadData();
       toast.success(testimonial.isActive ? "Testimonial deactivated" : "Testimonial activated");
     } catch (err) {

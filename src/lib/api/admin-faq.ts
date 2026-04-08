@@ -42,40 +42,40 @@ export interface UpdateFaqDto {
 }
 
 // FAQ Categories
-export async function fetchAdminFaqCategories(): Promise<FAQCategory[]> {
-  return apiGet<FAQCategory[]>("/admin/faq-categories");
+export async function fetchAdminFaqCategories(token: string): Promise<FAQCategory[]> {
+  return apiGet<FAQCategory[]>("/admin/faq-categories", token);
 }
 
-export async function createFaqCategory(data: CreateFaqCategoryDto): Promise<FAQCategory> {
-  return apiPost<FAQCategory>("/admin/faq-categories", data);
+export async function createFaqCategory(data: CreateFaqCategoryDto, token: string): Promise<FAQCategory> {
+  return apiPost<FAQCategory>("/admin/faq-categories", data, token);
 }
 
-export async function updateFaqCategory(id: string, data: UpdateFaqCategoryDto): Promise<FAQCategory> {
-  return apiPut<FAQCategory>(`/admin/faq-categories/${id}`, data);
+export async function updateFaqCategory(id: string, data: UpdateFaqCategoryDto, token: string): Promise<FAQCategory> {
+  return apiPut<FAQCategory>(`/admin/faq-categories/${id}`, data, token);
 }
 
-export async function deleteFaqCategory(id: string): Promise<void> {
-  return apiDelete<void>(`/admin/faq-categories/${id}`);
+export async function deleteFaqCategory(id: string, token: string): Promise<void> {
+  return apiDelete<void>(`/admin/faq-categories/${id}`, token);
 }
 
 // FAQs
-export async function fetchAdminFaqs(categoryId?: string): Promise<FAQ[]> {
+export async function fetchAdminFaqs(token: string, categoryId?: string): Promise<FAQ[]> {
   const query = categoryId ? `?category=${encodeURIComponent(categoryId)}` : "";
-  return apiGet<FAQ[]>(`/admin/faqs${query}`);
+  return apiGet<FAQ[]>(`/admin/faqs${query}`, token);
 }
 
-export async function fetchAdminFaqById(id: number): Promise<FAQ> {
-  return apiGet<FAQ>(`/admin/faqs/${id}`);
+export async function fetchAdminFaqById(id: number, token: string): Promise<FAQ> {
+  return apiGet<FAQ>(`/admin/faqs/${id}`, token);
 }
 
-export async function createFaq(data: CreateFaqDto): Promise<FAQ> {
-  return apiPost<FAQ>("/admin/faqs", data);
+export async function createFaq(data: CreateFaqDto, token: string): Promise<FAQ> {
+  return apiPost<FAQ>("/admin/faqs", data, token);
 }
 
-export async function updateFaq(id: number, data: UpdateFaqDto): Promise<FAQ> {
-  return apiPut<FAQ>(`/admin/faqs/${id}`, data);
+export async function updateFaq(id: number, data: UpdateFaqDto, token: string): Promise<FAQ> {
+  return apiPut<FAQ>(`/admin/faqs/${id}`, data, token);
 }
 
-export async function deleteFaq(id: number): Promise<void> {
-  return apiDelete<void>(`/admin/faqs/${id}`);
+export async function deleteFaq(id: number, token: string): Promise<void> {
+  return apiDelete<void>(`/admin/faqs/${id}`, token);
 }

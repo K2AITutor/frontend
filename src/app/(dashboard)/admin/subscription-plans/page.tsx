@@ -38,6 +38,7 @@ import {
   Users,
   DollarSign,
 } from "lucide-react";
+import { useAdminToken } from "@/lib/api/useAdminToken";
 import { toast } from "@/components/dashboard/ui/sonner";
 
 function formatPrice(cents: number): string {
@@ -45,6 +46,7 @@ function formatPrice(cents: number): string {
 }
 
 export default function AdminSubscriptionPlansPage() {
+  const token = useAdminToken();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,14 +69,15 @@ export default function AdminSubscriptionPlansPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    loadPlans();
-  }, []);
+    if (token) loadPlans();
+  }, [token]);
 
   async function loadPlans() {
+    if (!token) return;
     try {
       setIsLoading(true);
       setError(null);
-      const data = await fetchSubscriptionPlans();
+      const data = await fetchSubscriptionPlans(token);
       setPlans(data);
     } catch (err) {
       setError("Failed to load subscription plans. Please check if the backend is running.");
@@ -135,9 +138,9 @@ export default function AdminSubscriptionPlansPage() {
       };
 
       if (editingPlan) {
-        await updateSubscriptionPlan(editingPlan.id, planData);
+        await updateSubscriptionPlan(editingPlan.id, planData, token!);
       } else {
-        await createSubscriptionPlan(planData);
+        await createSubscriptionPlan(planData, token!);
       }
       setIsDialogOpen(false);
       loadPlans();
@@ -154,7 +157,7 @@ export default function AdminSubscriptionPlansPage() {
     if (!deletingPlan) return;
     setIsSubmitting(true);
     try {
-      await deleteSubscriptionPlan(deletingPlan.id);
+      await deleteSubscriptionPlan(deletingPlan.id, token!);
       setIsDeleteDialogOpen(false);
       loadPlans();
       toast.success("Plan deleted successfully");

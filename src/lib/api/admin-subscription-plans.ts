@@ -1,11 +1,4 @@
-const API_BASE_RAW =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:4000";
-
-const API_BASE = (() => {
-  const clean = String(API_BASE_RAW).replace(/\/+$/, "");
-  return clean.endsWith("/api") ? clean : `${clean}/api`;
-})();
+import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/apiClient";
 
 export interface SubscriptionPlan {
   id: number;
@@ -38,41 +31,18 @@ export interface UpdateSubscriptionPlanDto {
   examAccess?: string;
 }
 
-export async function fetchSubscriptionPlans(): Promise<SubscriptionPlan[]> {
-  const res = await fetch(`${API_BASE}/admin/subscription-plans`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch subscription plans");
-  return res.json();
+export async function fetchSubscriptionPlans(token: string): Promise<SubscriptionPlan[]> {
+  return apiGet<SubscriptionPlan[]>("/admin/subscription-plans", token);
 }
 
-export async function createSubscriptionPlan(dto: CreateSubscriptionPlanDto): Promise<SubscriptionPlan> {
-  const res = await fetch(`${API_BASE}/admin/subscription-plans`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(dto),
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error("Failed to create subscription plan");
-  return res.json();
+export async function createSubscriptionPlan(dto: CreateSubscriptionPlanDto, token: string): Promise<SubscriptionPlan> {
+  return apiPost<SubscriptionPlan>("/admin/subscription-plans", dto, token);
 }
 
-export async function updateSubscriptionPlan(id: number, dto: UpdateSubscriptionPlanDto): Promise<SubscriptionPlan> {
-  const res = await fetch(`${API_BASE}/admin/subscription-plans/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(dto),
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error("Failed to update subscription plan");
-  return res.json();
+export async function updateSubscriptionPlan(id: number, dto: UpdateSubscriptionPlanDto, token: string): Promise<SubscriptionPlan> {
+  return apiPut<SubscriptionPlan>(`/admin/subscription-plans/${id}`, dto, token);
 }
 
-export async function deleteSubscriptionPlan(id: number): Promise<void> {
-  const res = await fetch(`${API_BASE}/admin/subscription-plans/${id}`, {
-    method: "DELETE",
-    credentials: "include",
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || "Failed to delete subscription plan");
-  }
+export async function deleteSubscriptionPlan(id: number, token: string): Promise<void> {
+  return apiDelete<void>(`/admin/subscription-plans/${id}`, token);
 }

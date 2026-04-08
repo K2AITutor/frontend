@@ -35,9 +35,10 @@ import {
   useResendVerification,
   useDeleteUser,
 } from "@/lib/api/users";
+import { useAdminToken } from "@/lib/api/useAdminToken";
+import { apiGet } from "@/lib/apiClient";
 import { toast } from "@/components/dashboard/ui/sonner";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
 
 interface UserProfile {
   id: string;
@@ -84,21 +85,22 @@ export default function UserProfilePage() {
   const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const toggleActive = useToggleUserActive();
-  const resendVerification = useResendVerification();
-  const deleteUser = useDeleteUser();
+  const token = useAdminToken();
+  const toggleActive = useToggleUserActive(token);
+  const resendVerification = useResendVerification(token);
+  const deleteUser = useDeleteUser(token);
 
   const fetchUser = useCallback(async () => {
+    if (!token) return;
     try {
-      const res = await fetch(`${API_BASE}/admin/users/${params.id}`);
-      if (!res.ok) throw new Error("User not found");
-      setUser(await res.json());
+      const data = await apiGet<UserProfile>(`/admin/users/${params.id}`, token);
+      setUser(data);
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [params.id]);
+  }, [params.id, token]);
 
   useEffect(() => {
     fetchUser();

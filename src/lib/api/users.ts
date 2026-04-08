@@ -1,8 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
+import { apiGet, apiPost, apiDelete } from "@/lib/apiClient";
 
 export interface User {
     id: string;
@@ -45,46 +44,47 @@ export interface UseUsersParams {
     isActive?: string;
     startDate?: string;
     endDate?: string;
+    token?: string;
 }
 
-export async function toggleUserActive(userId: string): Promise<{ id: number; isActive: boolean }> {
-    const res = await fetch(`${API_BASE}/admin/users/${userId}/toggle-active`, { method: 'PATCH' });
+export async function toggleUserActive(userId: string, token: string): Promise<{ id: number; isActive: boolean }> {
+    const base = getApiBase();
+    const res = await fetch(`${base}/admin/users/${userId}/toggle-active`, {
+        method: 'PATCH',
+        headers: buildAuthHeaders(token),
+    });
     if (!res.ok) throw new Error("Failed to toggle user active status");
     return res.json();
 }
 
-export async function resendVerification(userId: string): Promise<{ message: string }> {
-    const res = await fetch(`${API_BASE}/admin/users/${userId}/resend-verification`, { method: 'POST' });
-    if (!res.ok) throw new Error("Failed to resend verification email");
-    return res.json();
+export async function resendVerification(userId: string, token: string): Promise<{ message: string }> {
+    return apiPost<{ message: string }>(`/admin/users/${userId}/resend-verification`, {}, token);
 }
 
-export async function deleteUser(userId: string): Promise<{ message: string }> {
-    const res = await fetch(`${API_BASE}/admin/users/${userId}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error("Failed to delete user");
-    return res.json();
+export async function deleteUser(userId: string, token: string): Promise<{ message: string }> {
+    return apiDelete<{ message: string }>(`/admin/users/${userId}`, token);
 }
 
-export function useToggleUserActive() {
+export function useToggleUserActive(token?: string) {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: toggleUserActive,
+        mutationFn: (userId: string) => toggleUserActive(userId, token || ""),
         onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["users"] }); },
     });
 }
 
-export function useResendVerification() {
+export function useResendVerification(token?: string) {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: resendVerification,
+        mutationFn: (userId: string) => resendVerification(userId, token || ""),
         onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["users"] }); },
     });
 }
 
-export function useDeleteUser() {
+export function useDeleteUser(token?: string) {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: deleteUser,
+        mutationFn: (userId: string) => deleteUser(userId, token || ""),
         onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["users"] }); },
     });
 }
@@ -96,7 +96,8 @@ export function useUsers({
     verified,
     isActive,
     startDate,
-    endDate
+    endDate,
+    token,
 }: UseUsersParams) {
     return useQuery({
         queryKey: ["users", page, limit, search, verified, isActive, startDate, endDate],
@@ -112,11 +113,22 @@ export function useUsers({
             if (startDate) params.append('startDate', startDate);
             if (endDate) params.append('endDate', endDate);
 
-            const res = await fetch(`${API_BASE}/admin/users?${params.toString()}`);
-            if (!res.ok) {
-                throw new Error("Failed to fetch users");
-            }
-            return res.json();
+            return apiGet<PaginatedUsers>(`/admin/users?${params.toString()}`, token);
         },
+        enabled: !!token,
     });
+}
+
+// Internal helpers
+function getApiBase() {
+    const raw = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
+    const clean = String(raw).trim().replace(/\/+$/, "");
+    return clean.endsWith("/api") ? clean : `${clean}/api`;
+}
+
+function buildAuthHeaders(token: string): Record<string, string> {
+    return {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+    };
 }

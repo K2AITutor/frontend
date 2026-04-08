@@ -41,23 +41,23 @@ export interface UpdateTestimonialDto {
 }
 
 // Testimonials
-export async function fetchAdminTestimonials(includeInactive?: boolean): Promise<Testimonial[]> {
+export async function fetchAdminTestimonials(token: string, includeInactive?: boolean): Promise<Testimonial[]> {
   const query = includeInactive ? "?includeInactive=true" : "";
-  return apiGet<Testimonial[]>(`/admin/testimonials${query}`);
+  return apiGet<Testimonial[]>(`/admin/testimonials${query}`, token);
 }
 
-export async function fetchAdminTestimonialById(id: number): Promise<Testimonial> {
-  return apiGet<Testimonial>(`/admin/testimonials/${id}`);
+export async function fetchAdminTestimonialById(id: number, token: string): Promise<Testimonial> {
+  return apiGet<Testimonial>(`/admin/testimonials/${id}`, token);
 }
 
-export async function createTestimonial(data: CreateTestimonialDto): Promise<Testimonial> {
-  return apiPost<Testimonial>("/admin/testimonials", data);
+export async function createTestimonial(data: CreateTestimonialDto, token: string): Promise<Testimonial> {
+  return apiPost<Testimonial>("/admin/testimonials", data, token);
 }
 
-export async function updateTestimonial(id: number, data: UpdateTestimonialDto): Promise<Testimonial> {
-  return apiPut<Testimonial>(`/admin/testimonials/${id}`, data);
+export async function updateTestimonial(id: number, data: UpdateTestimonialDto, token: string): Promise<Testimonial> {
+  return apiPut<Testimonial>(`/admin/testimonials/${id}`, data, token);
 }
 
-export async function deleteTestimonial(id: number): Promise<void> {
-  return apiDelete<void>(`/admin/testimonials/${id}`);
+export async function deleteTestimonial(id: number, token: string): Promise<void> {
+  return apiDelete<void>(`/admin/testimonials/${id}`, token);
 }

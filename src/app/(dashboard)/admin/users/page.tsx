@@ -34,9 +34,11 @@ import {
   DialogFooter,
 } from "@/components/dashboard/ui/dialog";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { useAdminToken } from "@/lib/api/useAdminToken";
 import { toast } from "@/components/dashboard/ui/sonner";
 
 export default function AdminUsersPage() {
+  const token = useAdminToken();
   const [searchQuery, setSearchQuery] = useState("");
   const [verifiedFilter, setVerifiedFilter] = useState<string>("all");
   const [activeFilter, setActiveFilter] = useState<string>("all");
@@ -58,12 +60,13 @@ export default function AdminUsersPage() {
     verified: verifiedFilter,
     isActive: activeFilter,
     startDate,
-    endDate
+    endDate,
+    token,
   });
 
-  const toggleActive = useToggleUserActive();
-  const resendVerification = useResendVerification();
-  const deleteUser = useDeleteUser();
+  const toggleActive = useToggleUserActive(token);
+  const resendVerification = useResendVerification(token);
+  const deleteUser = useDeleteUser(token);
 
   const users = data?.users || [];
   const totalUsers = data?.total || 0;
