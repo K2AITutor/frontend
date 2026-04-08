@@ -60,6 +60,9 @@ export default function AdminSubscriptionPlansPage() {
     name: "",
     price: "",
     stripePriceId: "",
+    questionsPerDay: "-1",
+    aiExplanationsPerDay: "-1",
+    examAccess: "full",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -88,6 +91,9 @@ export default function AdminSubscriptionPlansPage() {
         name: plan.name,
         price: (plan.price / 100).toString(),
         stripePriceId: plan.stripePriceId || "",
+        questionsPerDay: plan.questionsPerDay.toString(),
+        aiExplanationsPerDay: plan.aiExplanationsPerDay.toString(),
+        examAccess: plan.examAccess,
       });
     } else {
       setEditingPlan(null);
@@ -95,6 +101,9 @@ export default function AdminSubscriptionPlansPage() {
         name: "",
         price: "",
         stripePriceId: "",
+        questionsPerDay: "-1",
+        aiExplanationsPerDay: "-1",
+        examAccess: "full",
       });
     }
     setIsDialogOpen(true);
@@ -116,18 +125,19 @@ export default function AdminSubscriptionPlansPage() {
 
     setIsSubmitting(true);
     try {
+      const planData = {
+        name: planForm.name,
+        price: priceInCents,
+        stripePriceId: planForm.stripePriceId || undefined,
+        questionsPerDay: parseInt(planForm.questionsPerDay),
+        aiExplanationsPerDay: parseInt(planForm.aiExplanationsPerDay),
+        examAccess: planForm.examAccess,
+      };
+
       if (editingPlan) {
-        await updateSubscriptionPlan(editingPlan.id, {
-          name: planForm.name,
-          price: priceInCents,
-          stripePriceId: planForm.stripePriceId || undefined,
-        });
+        await updateSubscriptionPlan(editingPlan.id, planData);
       } else {
-        await createSubscriptionPlan({
-          name: planForm.name,
-          price: priceInCents,
-          stripePriceId: planForm.stripePriceId || undefined,
-        });
+        await createSubscriptionPlan(planData);
       }
       setIsDialogOpen(false);
       loadPlans();
@@ -243,7 +253,9 @@ export default function AdminSubscriptionPlansPage() {
               <TableHead>ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Price</TableHead>
-              <TableHead>Stripe Price ID</TableHead>
+              <TableHead>Questions/Day</TableHead>
+              <TableHead>AI/Day</TableHead>
+              <TableHead>Exam</TableHead>
               <TableHead>Subscribers</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
@@ -256,8 +268,16 @@ export default function AdminSubscriptionPlansPage() {
                 <TableCell>
                   <Badge variant="secondary">{formatPrice(plan.price)}/mo</Badge>
                 </TableCell>
-                <TableCell className="font-mono text-sm text-muted-foreground">
-                  {plan.stripePriceId || <span className="italic">Not set</span>}
+                <TableCell className="text-sm">
+                  {plan.questionsPerDay === -1 ? 'Unlimited' : plan.questionsPerDay}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {plan.aiExplanationsPerDay === -1 ? 'Unlimited' : plan.aiExplanationsPerDay}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={plan.examAccess === 'full' ? 'default' : 'secondary'} className="capitalize">
+                    {plan.examAccess}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline">{plan._count?.subscriptions || 0}</Badge>
@@ -330,8 +350,41 @@ export default function AdminSubscriptionPlansPage() {
                 placeholder="e.g. price_1234abc..."
               />
               <p className="text-xs text-muted-foreground">
-                The Stripe Price ID is required for live payment processing.
+                Required for paid plans. Leave empty for free plans.
               </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Questions / Day</label>
+                <Input
+                  type="number"
+                  value={planForm.questionsPerDay}
+                  onChange={(e) => setPlanForm({ ...planForm, questionsPerDay: e.target.value })}
+                  placeholder="-1 for unlimited"
+                />
+                <p className="text-xs text-muted-foreground">-1 = unlimited</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">AI Explanations / Day</label>
+                <Input
+                  type="number"
+                  value={planForm.aiExplanationsPerDay}
+                  onChange={(e) => setPlanForm({ ...planForm, aiExplanationsPerDay: e.target.value })}
+                  placeholder="-1 for unlimited"
+                />
+                <p className="text-xs text-muted-foreground">-1 = unlimited</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Exam Access</label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={planForm.examAccess}
+                onChange={(e) => setPlanForm({ ...planForm, examAccess: e.target.value })}
+              >
+                <option value="limited">Limited</option>
+                <option value="full">Full</option>
+              </select>
             </div>
           </div>
           <DialogFooter>

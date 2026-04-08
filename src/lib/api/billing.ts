@@ -1,12 +1,24 @@
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
+const API_BASE = (() => {
+    const raw = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
+    const clean = String(raw).trim().replace(/\/+$/, "");
+    return clean.endsWith("/api") ? clean : `${clean}/api`;
+})();
+
+export interface PlanLimits {
+    questionsPerDay: number;
+    aiExplanationsPerDay: number;
+    examAccess: 'limited' | 'full';
+}
 
 export interface SubscriptionPlan {
     id: number;
     name: string;
     price: number;
-    stripePriceId: string;
-    features?: string[];
+    stripePriceId: string | null;
+    questionsPerDay: number;
+    aiExplanationsPerDay: number;
+    examAccess: string;
 }
 
 export interface SubscriptionStatus {
@@ -18,8 +30,15 @@ export interface SubscriptionStatus {
         status: string;
         currentPeriodEnd: Date;
         stripeSubscriptionId: string;
+        limits: PlanLimits;
     };
     message?: string;
+}
+
+export interface UsageStatus {
+    questionsUsed: number;
+    aiExplanationsUsed: number;
+    limits: PlanLimits | null;
 }
 
 export interface Invoice {
@@ -32,7 +51,14 @@ export interface Invoice {
     invoicePdf: string;
 }
 
-/* ---------------- Fetch Plans ---------------- */
+function authHeaders(token: string): Record<string, string> {
+    return {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+    };
+}
+
+/* ---------------- Fetch Plans (public) ---------------- */
 export async function fetchPlans(): Promise<SubscriptionPlan[]> {
     const res = await fetch(`${API_BASE}/billing/plans`, { cache: 'no-store' });
 
@@ -44,8 +70,11 @@ export async function fetchPlans(): Promise<SubscriptionPlan[]> {
 }
 
 /* ---------------- Get My Subscription ---------------- */
-export async function getSubscription(userId: number): Promise<SubscriptionStatus> {
-    const res = await fetch(`${API_BASE}/billing/me/${userId}`, { cache: 'no-store' });
+export async function getSubscription(userId: number, token: string): Promise<SubscriptionStatus> {
+    const res = await fetch(`${API_BASE}/billing/me/${userId}`, {
+        cache: 'no-store',
+        headers: authHeaders(token),
+    });
 
     if (!res.ok) {
         if (res.status === 404) {
@@ -58,10 +87,10 @@ export async function getSubscription(userId: number): Promise<SubscriptionStatu
 }
 
 /* ---------------- Create Checkout Session ---------------- */
-export async function createCheckout(userId: number, planId: number) {
+export async function createCheckout(userId: number, planId: number, token: string) {
     const res = await fetch(`${API_BASE}/billing/checkout`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(token),
         body: JSON.stringify({ userId, planId }),
     });
 
@@ -74,9 +103,10 @@ export async function createCheckout(userId: number, planId: number) {
 }
 
 /* ---------------- Cancel Subscription ---------------- */
-export async function cancelSubscription(userId: number) {
+export async function cancelSubscription(userId: number, token: string) {
     const res = await fetch(`${API_BASE}/billing/cancel/${userId}`, {
         method: "POST",
+        headers: authHeaders(token),
     });
 
     if (!res.ok) {
@@ -88,11 +118,28 @@ export async function cancelSubscription(userId: number) {
 }
 
 /* ---------------- Get Invoices ---------------- */
-export async function getInvoices(userId: number): Promise<{ invoices: Invoice[] }> {
-    const res = await fetch(`${API_BASE}/billing/invoices/${userId}`, { cache: 'no-store' });
+export async function getInvoices(userId: number, token: string): Promise<{ invoices: Invoice[] }> {
+    const res = await fetch(`${API_BASE}/billing/invoices/${userId}`, {
+        cache: 'no-store',
+        headers: authHeaders(token),
+    });
 
     if (!res.ok) {
         throw new Error("Failed to fetch invoices");
+    }
+
+    return res.json();
+}
+
+/* ---------------- Get Daily Usage ---------------- */
+export async function getUsage(userId: number, token: string): Promise<UsageStatus> {
+    const res = await fetch(`${API_BASE}/billing/usage/${userId}`, {
+        cache: 'no-store',
+        headers: authHeaders(token),
+    });
+
+    if (!res.ok) {
+        return { questionsUsed: 0, aiExplanationsUsed: 0, limits: null };
     }
 
     return res.json();
