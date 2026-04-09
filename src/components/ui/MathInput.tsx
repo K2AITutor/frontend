@@ -3,6 +3,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import 'mathlive';
+import { latexToNerdamer } from '@/lib/latexToNerdamer';
 
 // Declare the custom element for TypeScript
 declare global {
@@ -17,16 +18,19 @@ declare global {
 
 interface MathInputProps {
   value: string;
-  onChange: (value: string) => void;
+  /** Called with the raw LaTeX string on every change */
+  onChange: (latex: string) => void;
+  /** Called with the Nerdamer-compatible expression on every change */
+  onNerdamerChange?: (nerdamer: string) => void;
   placeholder?: string;
   className?: string;
 }
 
 /**
  * A professional math input component using MathLive.
- * Captures user input as LaTeX.
+ * Captures user input as LaTeX and also emits a Nerdamer-compatible expression.
  */
-export default function MathInput({ value, onChange, placeholder, className = '' }: MathInputProps) {
+export default function MathInput({ value, onChange, onNerdamerChange, placeholder, className = '' }: MathInputProps) {
   const mfRef = useRef<any>(null);
 
   useEffect(() => {
@@ -40,7 +44,11 @@ export default function MathInput({ value, onChange, placeholder, className = ''
 
     // Handle input events
     const handleInput = (e: any) => {
-      onChange(e.target.value);
+      const latex: string = e.target.value;
+      onChange(latex);
+      if (onNerdamerChange) {
+        onNerdamerChange(latexToNerdamer(latex));
+      }
     };
 
     mf.addEventListener('input', handleInput);

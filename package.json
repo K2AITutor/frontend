@@ -17,6 +17,7 @@
         "katex": "^0.16.33",
         "lucide-react": "^0.575.0",
         "mathlive": "^0.108.3",
+        "nerdamer": "^1.1.13",
         "next": "^14.2.5",
         "passport-jwt": "^4.0.1",
         "pdfjs-dist": "^4.10.38",
