@@ -3,6 +3,7 @@
 import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
+import { ProgressProvider } from "@bprogress/next/app";
 
 export default function Providers({
   children,
@@ -23,7 +24,16 @@ export default function Providers({
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider>{children}</SessionProvider>
+      <SessionProvider>
+        <ProgressProvider
+          height="3px"
+          color="#14b8a6"
+          options={{ showSpinner: false }}
+          shallowRouting
+        >
+          {children}
+        </ProgressProvider>
+      </SessionProvider>
     </QueryClientProvider>
   );
 }
