@@ -173,7 +173,7 @@ export function DashboardSidebar({
                           size="icon"
                           className={cn(
                             "h-10 w-10",
-                            active && "bg-primary/10 text-primary"
+                            active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                           )}
                         >
                           {item.icon}
@@ -191,7 +191,7 @@ export function DashboardSidebar({
                     variant={active ? "secondary" : "ghost"}
                     className={cn(
                       "w-full justify-start gap-3",
-                      active && "bg-primary/10 text-primary"
+                      active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                     )}
                   >
                     {item.icon}
@@ -222,7 +222,7 @@ export function DashboardSidebar({
                         size="icon"
                         className={cn(
                           "h-10 w-10",
-                          active && "bg-primary/10 text-primary"
+                          active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                         )}
                       >
                         {item.icon}
@@ -239,7 +239,7 @@ export function DashboardSidebar({
                   variant={active ? "secondary" : "ghost"}
                   className={cn(
                     "w-full justify-start gap-3",
-                    active && "bg-primary/10 text-primary"
+                    active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                   )}
                 >
                   {item.icon}
