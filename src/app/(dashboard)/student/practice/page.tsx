@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/dashboard/ui/button";
 import { Badge } from "@/components/dashboard/ui/badge";
@@ -9,6 +10,10 @@ import {
   CardFooter,
 } from "@/components/dashboard/ui/card";
 import { ArrowRight, Clock, BookOpen } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Practice Dashboard - VCE AI Tutor",
+};
 
 const SUBJECTS = [
   { name: "Mathematical Methods", slug: "math-methods", status: "active" },

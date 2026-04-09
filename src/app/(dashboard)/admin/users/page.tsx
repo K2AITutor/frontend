@@ -35,9 +35,11 @@ import {
 } from "@/components/dashboard/ui/dialog";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { useAdminToken } from "@/lib/api/useAdminToken";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { toast } from "@/components/dashboard/ui/sonner";
 
 export default function AdminUsersPage() {
+  usePageTitle("User Management");
   const token = useAdminToken();
   const [searchQuery, setSearchQuery] = useState("");
   const [verifiedFilter, setVerifiedFilter] = useState<string>("all");

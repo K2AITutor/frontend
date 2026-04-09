@@ -36,6 +36,7 @@ import {
   useDeleteUser,
 } from "@/lib/api/users";
 import { useAdminToken } from "@/lib/api/useAdminToken";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { apiGet } from "@/lib/apiClient";
 import { toast } from "@/components/dashboard/ui/sonner";
 
@@ -79,6 +80,7 @@ export default function UserProfilePage() {
   const params = useParams();
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
+  usePageTitle(user ? `${user.name} - User Profile` : "User Profile");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

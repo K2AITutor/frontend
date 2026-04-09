@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/a
 import { ArrowLeft, Upload, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { toast } from "@/components/dashboard/ui/sonner";
 
 type UserRole = "student" | "parent" | "teacher" | "admin";
@@ -106,6 +107,7 @@ const mockUsers: User[] = [
 ];
 
 export default function EditUserPage() {
+  usePageTitle("Edit User");
   const router = useRouter();
   const params = useParams();
   const userId = params.id as string;

@@ -10,6 +10,7 @@ import { Label } from "@/components/dashboard/ui/label";
 import { Separator } from "@/components/dashboard/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/dashboard/ui/tabs";
+import { usePageTitle } from "@/lib/usePageTitle";
 import {
   Lock,
   Moon,
@@ -33,6 +34,7 @@ interface ProfileData {
 }
 
 export default function StudentSettingsPage() {
+  usePageTitle("Settings");
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
 

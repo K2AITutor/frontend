@@ -39,6 +39,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { useAdminToken } from "@/lib/api/useAdminToken";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { toast } from "@/components/dashboard/ui/sonner";
 
 function formatPrice(cents: number): string {
@@ -46,6 +47,7 @@ function formatPrice(cents: number): string {
 }
 
 export default function AdminSubscriptionPlansPage() {
+  usePageTitle("Subscription Plans");
   const token = useAdminToken();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);

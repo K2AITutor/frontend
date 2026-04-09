@@ -42,6 +42,7 @@ import {
   deleteFaqCategory,
 } from "@/lib/api/admin-faq";
 import { useAdminToken } from "@/lib/api/useAdminToken";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { toast } from "@/components/dashboard/ui/sonner";
 import {
   Plus,
@@ -54,6 +55,7 @@ import {
 } from "lucide-react";
 
 export default function AdminFaqPage() {
+  usePageTitle("FAQ Management");
   const token = useAdminToken();
   const [categories, setCategories] = useState<FAQCategory[]>([]);
   const [faqs, setFaqs] = useState<FAQ[]>([]);

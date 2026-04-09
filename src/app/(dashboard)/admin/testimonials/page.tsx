@@ -42,9 +42,11 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useAdminToken } from "@/lib/api/useAdminToken";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { toast } from "@/components/dashboard/ui/sonner";
 
 export default function AdminTestimonialsPage() {
+  usePageTitle("Testimonials Management");
   const token = useAdminToken();
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [isLoading, setIsLoading] = useState(true);

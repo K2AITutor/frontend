@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/dashboard/ui/skeleton";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { UserTable } from "@/components/dashboard/UserTable";
 import { useAdminDashboardData } from "@/lib/api/dashboard";
+import { usePageTitle } from "@/lib/usePageTitle";
 import {
   GraduationCap,
   BookOpen,
@@ -18,6 +19,7 @@ import {
 import Link from "next/link";
 
 export default function AdminDashboardPage() {
+  usePageTitle("Admin Dashboard");
   const { data, isLoading, isError } = useAdminDashboardData();
 
   if (isLoading) {

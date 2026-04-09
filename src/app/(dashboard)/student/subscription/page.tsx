@@ -19,6 +19,7 @@ import { Badge } from '@/components/dashboard/ui/badge';
 import { FileText, CreditCard, Zap, TrendingUp, AlertTriangle, Clock } from 'lucide-react';
 import { toast } from '@/components/dashboard/ui/sonner';
 import { ConfirmDialog } from '@/components/dashboard/ui/confirm-dialog';
+import { usePageTitle } from '@/lib/usePageTitle';
 import { cn } from '@/lib/utils';
 
 function UsageBar({ label, used, limit }: { label: string; used: number; limit: number }) {
@@ -45,6 +46,7 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
 }
 
 export default function SubscriptionPage() {
+    usePageTitle('Subscription & Billing');
     const { data: session } = useSession();
     const searchParams = useSearchParams();
     const [status, setStatus] = useState<SubscriptionStatus | null>(null);

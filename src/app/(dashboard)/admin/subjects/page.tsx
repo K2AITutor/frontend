@@ -45,9 +45,11 @@ import {
   HelpCircle,
   Folder,
 } from "lucide-react";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { toast } from "@/components/dashboard/ui/sonner";
 
 export default function AdminSubjectsPage() {
+  usePageTitle("Subjects Management");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

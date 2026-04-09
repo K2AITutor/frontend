@@ -13,6 +13,7 @@ import { CourseCard } from "@/components/dashboard/CourseCard";
 import { AssignmentItem } from "@/components/dashboard/AssignmentItem";
 import { ActivityItem } from "@/components/dashboard/ActivityItem";
 import { useStudentDashboardData } from "@/lib/api/dashboard";
+import { usePageTitle } from "@/lib/usePageTitle";
 import {
   BookOpen,
   Clock,
@@ -84,6 +85,7 @@ interface DashboardData {
 }
 
 export default function StudentDashboardPage() {
+  usePageTitle("Student Dashboard");
   const { data, isLoading, isError } = useStudentDashboardData();
 
   if (isLoading) {
