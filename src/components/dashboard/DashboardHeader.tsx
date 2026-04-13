@@ -26,6 +26,7 @@ import {
   SheetTrigger,
 } from "@/components/dashboard/ui/sheet";
 import { DashboardSidebar, UserRole } from "./DashboardSidebar";
+import { NotificationBell } from "./NotificationBell";
 import {
   Menu,
   Search,
@@ -95,6 +96,9 @@ export function DashboardHeader({ role }: DashboardHeaderProps) {
           <Search className="h-5 w-5" />
           <span className="sr-only">Search</span>
         </Button>
+
+        {/* Notifications */}
+        <NotificationBell />
 
         {/* User Menu */}
         <DropdownMenu>

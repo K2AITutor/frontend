@@ -6,18 +6,24 @@ import {
   Trophy,
   MessageSquare,
   Bell,
+  XCircle,
+  AlertTriangle,
+  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type NotificationType = "grade" | "assignment" | "achievement" | "message";
+export type ApiNotificationType = "info" | "success" | "warning" | "error";
 
 interface NotificationItemProps {
-  type: NotificationType;
+  type?: NotificationType;
+  apiType?: ApiNotificationType;
   title: string;
   message: string;
   timestamp: string;
   read: boolean;
   className?: string;
+  onClick?: () => void;
 }
 
 const notificationConfig: Record<
@@ -46,6 +52,32 @@ const notificationConfig: Record<
   },
 };
 
+const apiNotificationConfig: Record<
+  ApiNotificationType,
+  { icon: React.ReactNode; bgColor: string; iconColor: string }
+> = {
+  success: {
+    icon: <CheckCircle className="h-4 w-4" />,
+    bgColor: "bg-green-100 dark:bg-green-900/30",
+    iconColor: "text-green-600 dark:text-green-400",
+  },
+  error: {
+    icon: <XCircle className="h-4 w-4" />,
+    bgColor: "bg-red-100 dark:bg-red-900/30",
+    iconColor: "text-red-600 dark:text-red-400",
+  },
+  warning: {
+    icon: <AlertTriangle className="h-4 w-4" />,
+    bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
+    iconColor: "text-yellow-600 dark:text-yellow-400",
+  },
+  info: {
+    icon: <Info className="h-4 w-4" />,
+    bgColor: "bg-blue-100 dark:bg-blue-900/30",
+    iconColor: "text-blue-600 dark:text-blue-400",
+  },
+};
+
 function formatRelativeTime(timestamp: string): string {
   const now = new Date();
   const date = new Date(timestamp);
@@ -62,21 +94,27 @@ function formatRelativeTime(timestamp: string): string {
 
 export function NotificationItem({
   type,
+  apiType,
   title,
   message,
   timestamp,
   read,
   className,
+  onClick,
 }: NotificationItemProps) {
-  const config = notificationConfig[type];
+  const config = apiType
+    ? apiNotificationConfig[apiType]
+    : notificationConfig[type ?? "message"];
 
   return (
     <div
       className={cn(
         "flex items-start gap-3 rounded-lg p-3 transition-colors",
         !read && "bg-primary/5",
+        onClick && "cursor-pointer hover:bg-muted/50",
         className
       )}
+      onClick={onClick}
     >
       <div
         className={cn(

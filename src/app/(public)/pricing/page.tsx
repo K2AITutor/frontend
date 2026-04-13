@@ -133,7 +133,7 @@ export default function PricingPage() {
             </Button>
           </div>
         ) : (
-          <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
             {plans.length === 0 ? (
               <div className="col-span-3 text-center py-10">
                 <p className="text-text-secondary">No plans available at the moment.</p>
