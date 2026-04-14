@@ -6,12 +6,15 @@ import AuthBanner from '@/components/auth/AuthBanner'
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { toast } from '@/components/dashboard/ui/sonner'
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
+  const [error, setError] = useState('')
 
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || ''
@@ -19,8 +22,10 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
+
     if (!email || !password) {
-      alert('Please fill in all fields')
+      toast.error('Please fill in all fields')
       return
     }
 
@@ -29,11 +34,12 @@ export default function LoginPage() {
       const res = await signIn('credentials', {
         email,
         password,
+        rememberMe: String(rememberMe),
         redirect: false,
       })
 
       if (res?.error) {
-        alert('Invalid email or password. Please try again.')
+        setError('Invalid email or password. Please try again.')
         return
       }
 
@@ -47,14 +53,24 @@ export default function LoginPage() {
       router.refresh()
     } catch (error) {
       console.error('Login error:', error)
-      alert('An error occurred. Please try again.')
+      toast.error('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleGoogleSignIn = async () => {
-    alert('Google login is not available yet.')
+    setIsLoading(true)
+    try {
+      await signIn('google', {
+        callbackUrl: callbackUrl || '/student',
+      })
+    } catch (error) {
+      console.error('Google sign in error:', error)
+      toast.error('Failed to sign in with Google. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -147,20 +163,25 @@ export default function LoginPage() {
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-[18px] h-[18px] border border-border-subtle rounded bg-bg-tertiary cursor-pointer accent-accent-teal"
                 />
                 <span className="text-[0.875rem] text-text-secondary">Remember me</span>
               </label>
-              <button
-                type="button"
+              <Link
+                href="/auth/forgot-password"
                 className="inline-flex items-center gap-1.5 text-[0.875rem] text-accent-teal hover:underline transition-all duration-200"
               >
                 <Lock className="w-4 h-4" />
                 Forgot password?
-              </button>
+              </Link>
             </div>
 
-            {/* ✅ REAL submit button (guaranteed to trigger form submit) */}
+            {error && (
+              <p className="text-[0.875rem] text-accent-coral">{error}</p>
+            )}
+
             <button
               type="submit"
               disabled={isLoading}

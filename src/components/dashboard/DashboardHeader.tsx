@@ -4,7 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/dashboard/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/dashboard/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,9 +20,22 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "@/components/dashboard/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/dashboard/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/dashboard/ui/sheet";
 import { DashboardSidebar, UserRole } from "./DashboardSidebar";
-import { Menu, Search, Settings, LogOut, Sun, Moon, Monitor, Check } from "lucide-react";
+import {
+  Menu,
+  Search,
+  Settings,
+  LogOut,
+  Sun,
+  Moon,
+  Monitor,
+  Check,
+} from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
 interface DashboardHeaderProps {
@@ -31,10 +48,7 @@ interface DashboardHeaderProps {
 }
 
 function getInitials(value: string): string {
-  const parts = value
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+  const parts = value.trim().split(/\s+/).filter(Boolean);
 
   if (parts.length === 0) return "ST";
 
@@ -53,10 +67,7 @@ export function DashboardHeader({ role }: DashboardHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, setTheme } = useTheme();
 
-  const displayName =
-    session?.user?.name ||
-    session?.user?.email ||
-    "Student";
+  const displayName = session?.user?.name || session?.user?.email || "Student";
 
   const displayEmail = session?.user?.email || "";
 
@@ -108,13 +119,14 @@ export function DashboardHeader({ role }: DashboardHeaderProps) {
             </DropdownMenuLabel>
 
             <DropdownMenuSeparator />
-
-            <DropdownMenuItem asChild>
-              <Link href={`/${role}/settings`} className="flex items-center">
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </Link>
-            </DropdownMenuItem>
+            {role === "student" ? (
+              <DropdownMenuItem asChild>
+                <Link href={`/${role}/settings`} className="flex items-center">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
 
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>

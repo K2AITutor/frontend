@@ -1,24 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { Button } from "@/components/dashboard/ui/button";
 import { Input } from "@/components/dashboard/ui/input";
 import { UserTable } from "@/components/dashboard/UserTable";
-import { useUsers } from "@/lib/api/users";
+import { useUsers, useToggleUserActive, useResendVerification, useDeleteUser } from "@/lib/api/users";
 import {
   Users,
   Search,
-  Filter,
-  Plus,
   ChevronLeft,
   ChevronRight,
   Loader2,
   Calendar,
   UserCheck,
-  UserPlus,
   UserX,
+  ShieldCheck,
+  ShieldOff,
 } from "lucide-react";
 import {
   Select,
@@ -27,35 +25,118 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/dashboard/ui/select";
-import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/dashboard/ui/dialog";
 import { StatsCard } from "@/components/dashboard/StatsCard";
-
-type UserRole = "student" | "admin";
-type UserStatus = "active" | "pending" | "suspended";
+import { useAdminToken } from "@/lib/api/useAdminToken";
+import { usePageTitle } from "@/lib/usePageTitle";
+import { toast } from "@/components/dashboard/ui/sonner";
 
 export default function AdminUsersPage() {
+  usePageTitle("User Management");
+  const token = useAdminToken();
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [verifiedFilter, setVerifiedFilter] = useState<string>("all");
+  const [activeFilter, setActiveFilter] = useState<string>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
+  const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
+
   const { data, isLoading, isError } = useUsers({
     page,
     limit,
-    role: roleFilter,
-    status: statusFilter,
     search: searchQuery,
+    verified: verifiedFilter,
+    isActive: activeFilter,
     startDate,
-    endDate
+    endDate,
+    token,
   });
+
+  const toggleActive = useToggleUserActive(token);
+  const resendVerification = useResendVerification(token);
+  const deleteUser = useDeleteUser(token);
 
   const users = data?.users || [];
   const totalUsers = data?.total || 0;
   const totalPages = data?.totalPages || 1;
-  const globalStats = data?.stats || { total: 0, active: 0, pending: 0, suspended: 0 };
+  const globalStats = data?.stats || { total: 0, active: 0, inactive: 0, verified: 0, unverified: 0 };
+
+  const handleToggleActive = (userId: string) => {
+    setPendingToggleId(userId);
+    setToggleDialogOpen(true);
+  };
+
+  const confirmToggle = () => {
+    if (!pendingToggleId) return;
+    const isActive = pendingToggleUser?.isActive;
+    setLoadingUserId(pendingToggleId);
+    toggleActive.mutate(pendingToggleId, {
+      onSuccess: () => {
+        toast.success(isActive ? "User deactivated successfully" : "User activated successfully");
+      },
+      onError: () => {
+        toast.error("Failed to update user status");
+      },
+      onSettled: () => {
+        setLoadingUserId(null);
+        setToggleDialogOpen(false);
+        setPendingToggleId(null);
+      },
+    });
+  };
+
+  const handleResendVerification = (userId: string) => {
+    setLoadingUserId(userId);
+    resendVerification.mutate(userId, {
+      onSuccess: () => {
+        toast.success("Verification email sent successfully");
+      },
+      onError: () => {
+        toast.error("Failed to send verification email");
+      },
+      onSettled: () => setLoadingUserId(null),
+    });
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    setPendingDeleteId(userId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!pendingDeleteId) return;
+    setLoadingUserId(pendingDeleteId);
+    deleteUser.mutate(pendingDeleteId, {
+      onSuccess: () => {
+        toast.success("User deleted successfully");
+      },
+      onError: () => {
+        toast.error("Failed to delete user");
+      },
+      onSettled: () => {
+        setLoadingUserId(null);
+        setDeleteDialogOpen(false);
+        setPendingDeleteId(null);
+      },
+    });
+  };
+
+  const pendingDeleteUser = users.find(u => u.id === pendingDeleteId);
+  const pendingToggleUser = users.find(u => u.id === pendingToggleId);
 
   if (isLoading) {
     return (
@@ -78,118 +159,85 @@ export default function AdminUsersPage() {
     );
   }
 
-  // Cast for component
-  const formattedUsers = users.map(user => ({
-    ...user,
-    role: user.role as any,
-    status: user.status as any
-  }));
-
   return (
     <div className="space-y-6 p-6 pb-20">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
-          <p className="text-muted-foreground">
-            Manage your platform's user base, monitoring growth and activity.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href="/admin/users/create">
-            <Button className="shadow-sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Add New User
-            </Button>
-          </Link>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
+        <p className="text-muted-foreground">
+          Monitor your platform's student base, growth and activity.
+        </p>
       </div>
 
       {/* Stats Cards Overview */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <StatsCard
-          title="Total Users"
+          title="Total Students"
           value={globalStats.total}
           subtitle="Registered Accounts"
           icon={Users}
-          trend={{ value: 5.2, isPositive: true }}
         />
 
-        <StatsCard
-          title="Active Users"
-          value={globalStats.active}
-          subtitle="Working Accounts"
-          icon={UserCheck}
-          trend={{ value: 5.2, isPositive: true }}
-        />
-
-        <StatsCard
-          title="Pending Users"
-          value={globalStats.pending}
-          subtitle="Awaiting Verification"
-          icon={UserPlus}
-          trend={{ value: 5.2, isPositive: true }}
-        />
-
-        <StatsCard
-          title="Suspended Users"
-          value={globalStats.suspended}
-          subtitle="Inactive Accounts"
-          icon={UserX}
-          trend={{ value: 5.2, isPositive: true }}
-        />
-        {/* 
-        <Card className="shadow-sm overflow-hidden border-none bg-green-50/30 dark:bg-green-900/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-green-500" />
-              Active
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600">{globalStats.active}</div>
-            <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
-              Working Accounts
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm font-medium text-muted-foreground mb-3">Account Status</p>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                  <UserCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{globalStats.active}</p>
+                  <p className="text-xs text-muted-foreground">Active</p>
+                </div>
+              </div>
+              <div className="h-10 w-px bg-slate-200 dark:bg-slate-700" />
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                  <UserX className="h-5 w-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{globalStats.inactive}</p>
+                  <p className="text-xs text-muted-foreground">Inactive</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm overflow-hidden border-none bg-amber-50/30 dark:bg-amber-900/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <UserPlus className="h-4 w-4 text-amber-500" />
-              Pending
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-amber-600">{globalStats.pending}</div>
-            <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
-              Awaiting Verification
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm font-medium text-muted-foreground mb-3">Email Verification</p>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                  <ShieldCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{globalStats.verified}</p>
+                  <p className="text-xs text-muted-foreground">Verified</p>
+                </div>
+              </div>
+              <div className="h-10 w-px bg-slate-200 dark:bg-slate-700" />
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                  <ShieldOff className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{globalStats.unverified}</p>
+                  <p className="text-xs text-muted-foreground">Unverified</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
-
-        <Card className="shadow-sm overflow-hidden border-none bg-red-50/30 dark:bg-red-900/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <UserX className="h-4 w-4 text-red-500" />
-              Suspended
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-600">{globalStats.suspended}</div>
-            <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
-              Access Restricted
-            </div>
-          </CardContent>
-        </Card> */}
       </div>
 
       <Card className="shadow-sm border-slate-200/60 dark:border-slate-800">
         <CardHeader className="border-b border-slate-100 dark:border-slate-800 pb-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-1">
-              <CardTitle className="text-lg">User Directory</CardTitle>
-              <p className="text-sm text-muted-foreground">Search and filter your platform members.</p>
+              <CardTitle className="text-lg">Student Directory</CardTitle>
+              <p className="text-sm text-muted-foreground">Search and filter your platform students.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:flex items-center gap-3">
@@ -206,26 +254,25 @@ export default function AdminUsersPage() {
                 />
               </div>
 
-              <Select value={roleFilter} onValueChange={(v) => { setRoleFilter(v); setPage(1); }}>
-                <SelectTrigger className="w-full lg:w-[130px] bg-slate-50/50 dark:bg-slate-900">
-                  <SelectValue placeholder="All Roles" />
+              <Select value={activeFilter} onValueChange={(v) => { setActiveFilter(v); setPage(1); }}>
+                <SelectTrigger className="w-full lg:w-[140px] bg-slate-50/50 dark:bg-slate-900">
+                  <SelectValue placeholder="Active Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Every Role</SelectItem>
-                  <SelectItem value="student">Students</SelectItem>
-                  <SelectItem value="admin">Admins</SelectItem>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="true">Active</SelectItem>
+                  <SelectItem value="false">Inactive</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-                <SelectTrigger className="w-full lg:w-[130px] bg-slate-50/50 dark:bg-slate-900">
-                  <SelectValue placeholder="All Status" />
+              <Select value={verifiedFilter} onValueChange={(v) => { setVerifiedFilter(v); setPage(1); }}>
+                <SelectTrigger className="w-full lg:w-[150px] bg-slate-50/50 dark:bg-slate-900">
+                  <SelectValue placeholder="Verification" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Every Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
+                  <SelectItem value="all">All Verified</SelectItem>
+                  <SelectItem value="true">Verified</SelectItem>
+                  <SelectItem value="false">Unverified</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -255,7 +302,14 @@ export default function AdminUsersPage() {
           </div>
         </CardHeader>
         <CardContent className="pt-6">
-          <UserTable users={formattedUsers} className="border-none shadow-none" />
+          <UserTable
+            users={users}
+            className="border-none shadow-none"
+            onToggleActive={handleToggleActive}
+            onResendVerification={handleResendVerification}
+            onDeleteUser={handleDeleteUser}
+            loadingUserId={loadingUserId}
+          />
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-4 border-t border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-4 order-2 sm:order-1">
@@ -313,6 +367,52 @@ export default function AdminUsersPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Toggle Active Confirmation Dialog */}
+      <Dialog open={toggleDialogOpen} onOpenChange={setToggleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{pendingToggleUser?.isActive ? "Deactivate" : "Activate"} User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to {pendingToggleUser?.isActive ? "deactivate" : "activate"}{" "}
+              <span className="font-semibold text-foreground">{pendingToggleUser?.name}</span> ({pendingToggleUser?.email})?
+              {pendingToggleUser?.isActive
+                ? " They will no longer be able to access the platform."
+                : " They will regain access to the platform."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setToggleDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmToggle} disabled={toggleActive.isPending}>
+              {toggleActive.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {pendingToggleUser?.isActive ? "Deactivate" : "Activate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <span className="font-semibold text-foreground">{pendingDeleteUser?.name}</span> ({pendingDeleteUser?.email})? This action cannot be undone and will remove all associated data.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteUser.isPending}>
+              {deleteUser.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

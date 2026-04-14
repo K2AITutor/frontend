@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
+import { apiGet } from "@/lib/apiClient";
 
 const API_BASE_RAW =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -140,12 +141,13 @@ export function useStudentDashboardData() {
 }
 
 export function useAdminDashboardData() {
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken;
+
   return useQuery({
-    queryKey: ["adminDashboard"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE}/admin/dashboard`);
-      return res.json();
-    },
+    queryKey: ["adminDashboard", accessToken],
+    queryFn: () => apiGet("/admin/dashboard", accessToken),
+    enabled: !!accessToken,
   });
 }
 

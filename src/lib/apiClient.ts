@@ -62,13 +62,19 @@ async function safeJsonFromResponse<T>(
   return data as T;
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
+function buildHeaders(token?: string): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+export async function apiGet<T>(path: string, token?: string): Promise<T> {
   const base = getApiBase();
   const url = `${base}${path}`;
 
   const res = await fetch(url, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
+    headers: buildHeaders(token),
     credentials: "include",
     cache: "no-store",
   });
@@ -76,18 +82,41 @@ export async function apiGet<T>(path: string): Promise<T> {
   return safeJsonFromResponse<T>(res, url);
 }
 
-export async function apiPost<T>(path: string, body: any): Promise<T> {
+export async function apiPost<T>(path: string, body: any, token?: string): Promise<T> {
   const base = getApiBase();
   const url = `${base}${path}`;
 
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildHeaders(token),
     credentials: "include",
     cache: "no-store",
     body: JSON.stringify(body),
   });
 
+  return safeJsonFromResponse<T>(res, url);
+}
+
+export async function apiPut<T>(path: string, body: any, token?: string): Promise<T> {
+  const base = getApiBase();
+  const url = `${base}${path}`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: buildHeaders(token),
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  return safeJsonFromResponse<T>(res, url);
+}
+
+export async function apiDelete<T>(path: string, token?: string): Promise<T> {
+  const base = getApiBase();
+  const url = `${base}${path}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: buildHeaders(token),
+    credentials: "include",
+  });
   return safeJsonFromResponse<T>(res, url);
 }
 

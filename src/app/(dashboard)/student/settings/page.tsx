@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { Button } from "@/components/dashboard/ui/button";
@@ -9,6 +10,7 @@ import { Label } from "@/components/dashboard/ui/label";
 import { Separator } from "@/components/dashboard/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/dashboard/ui/tabs";
+import { usePageTitle } from "@/lib/usePageTitle";
 import {
   Lock,
   Moon,
@@ -19,34 +21,96 @@ import {
   Save,
   User,
   Palette,
+  Loader2,
 } from "lucide-react";
 
 interface ProfileData {
   firstName: string;
   lastName: string;
   email: string;
-  grade: string;
-  school: string;
-  bio: string;
+  yearLevel: string;
+  vcaaStudentNumber: string;
   avatar: string;
 }
 
 export default function StudentSettingsPage() {
+  usePageTitle("Settings");
+  const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
 
-  // Profile State
   const [profile, setProfile] = useState<ProfileData>({
-    firstName: "Emma",
-    lastName: "Johnson",
-    email: "emma.johnson@example.com",
-    grade: "8th Grade",
-    school: "Lincoln Middle School",
-    bio: "Passionate about mathematics and science. Love solving challenging problems!",
+    firstName: "",
+    lastName: "",
+    email: "",
+    yearLevel: "",
+    vcaaStudentNumber: "",
     avatar: "",
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState("");
+  const [saveError, setSaveError] = useState("");
 
-  const handleSaveProfile = () => {
-    console.log("Saving profile:", profile);
+  const accessToken = (session?.user as any)?.accessToken;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
+
+  // Fetch profile from backend
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`${apiBase}/auth/me`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch profile");
+        const data = await res.json();
+        setProfile({
+          firstName: data.firstName || "",
+          lastName: data.lastName || "",
+          email: data.email || "",
+          yearLevel: data.yearLevel || "",
+          vcaaStudentNumber: data.vcaaStudentNumber || "",
+          avatar: data.avatar || "",
+        });
+      } catch (err) {
+        console.error("Failed to fetch profile:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [accessToken, apiBase]);
+
+  const handleSaveProfile = async () => {
+    setSaveSuccess("");
+    setSaveError("");
+    setIsSaving(true);
+
+    try {
+      const res = await fetch(`${apiBase}/auth/me`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          yearLevel: profile.yearLevel || undefined,
+          vcaaStudentNumber: profile.vcaaStudentNumber || undefined,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update profile");
+
+      setSaveSuccess("Profile updated successfully");
+    } catch (err) {
+      setSaveError("Failed to update profile. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Password State
@@ -74,23 +138,21 @@ export default function StudentSettingsPage() {
     }
 
     try {
-      const API_BASE = typeof window === "undefined"
-        ? process.env.INTERNAL_API_BASE_URL || "http://backend:4000/api"
-        : process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
-
-      const res = await fetch(`${API_BASE}/auth/change-password`, {
+      const res = await fetch(`${apiBase}/auth/change-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
           currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword,
         }),
-        credentials: "include",
       });
 
       if (!res.ok) {
-        const error = await res.text();
-        setPasswordError(error || "Failed to change password");
+        const error = await res.json().catch(() => null);
+        setPasswordError(error?.message || "Failed to change password");
         return;
       }
 
@@ -100,6 +162,16 @@ export default function StudentSettingsPage() {
       setPasswordError("An error occurred. Please try again.");
     }
   };
+
+  const initials = `${profile.firstName?.[0] || ""}${profile.lastName?.[0] || ""}`.toUpperCase() || "?";
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen p-6 md:p-8 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-6 md:p-8">
@@ -136,11 +208,8 @@ export default function StudentSettingsPage() {
                 <div className="flex flex-col items-center gap-4">
                   <Avatar className="h-24 w-24">
                     <AvatarImage src={profile.avatar} alt={profile.firstName} />
-                    <AvatarFallback className="text-2xl">
-                      {profile.firstName[0]}{profile.lastName[0]}
-                    </AvatarFallback>
+                    <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
                   </Avatar>
-                  <Button variant="outline" size="sm">Change Avatar</Button>
                 </div>
 
                 <Separator />
@@ -170,41 +239,57 @@ export default function StudentSettingsPage() {
                     id="email"
                     type="email"
                     value={profile.email}
-                    onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                    disabled
+                    className="bg-muted"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="grade">Grade</Label>
-                    <Input
-                      id="grade"
-                      value={profile.grade}
-                      onChange={(e) => setProfile({ ...profile, grade: e.target.value })}
-                    />
+                    <Label htmlFor="yearLevel">VCE Year Level</Label>
+                    <select
+                      id="yearLevel"
+                      value={profile.yearLevel}
+                      onChange={(e) => setProfile({ ...profile, yearLevel: e.target.value })}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">Select year level</option>
+                      <option value="11">Year 11</option>
+                      <option value="12">Year 12</option>
+                    </select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="school">School</Label>
+                    <Label htmlFor="studentId">Student ID</Label>
                     <Input
-                      id="school"
-                      value={profile.school}
-                      onChange={(e) => setProfile({ ...profile, school: e.target.value })}
+                      id="studentId"
+                      value={profile.vcaaStudentNumber}
+                      onChange={(e) => setProfile({ ...profile, vcaaStudentNumber: e.target.value })}
+                      placeholder="Enter your student ID"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <Input
-                    id="bio"
-                    value={profile.bio}
-                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                  />
-                </div>
+                {saveSuccess && (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <Check className="h-4 w-4" />
+                    <span>{saveSuccess}</span>
+                  </div>
+                )}
 
-                <Button onClick={handleSaveProfile} className="w-full">
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Changes
+                {saveError && (
+                  <div className="flex items-center gap-2 text-sm text-red-500">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>{saveError}</span>
+                  </div>
+                )}
+
+                <Button onClick={handleSaveProfile} className="w-full" disabled={isSaving}>
+                  {isSaving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  {isSaving ? "Saving..." : "Save Changes"}
                 </Button>
               </CardContent>
             </Card>

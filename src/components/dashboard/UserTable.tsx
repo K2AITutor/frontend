@@ -13,11 +13,15 @@ import {
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
 import { Button } from "@/components/dashboard/ui/button";
-import { MoreHorizontal, GraduationCap, Users, BookUser, ArrowUpDown, CreditCard } from "lucide-react";
+import {
+  ArrowUpDown, CreditCard, ShieldCheck, Clock, CircleCheck, CircleX,
+  MoreHorizontal, Eye, Power, Mail, Trash2, Loader2,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/dashboard/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -30,64 +34,32 @@ import {
   getSortedRowModel,
 } from "@tanstack/react-table";
 
-type UserRole = "student" | "parent" | "teacher" | "admin";
-type UserStatus = "active" | "pending" | "suspended";
-
 interface User {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  role: string;
+  phone?: string | null;
+  yearLevel?: string | null;
+  isActive?: boolean;
+  emailVerified?: boolean;
+  lastLoginAt?: string | null;
   joinedDate: string;
-  status: UserStatus;
-  avatar?: string;
+  status: string;
+  avatar?: string | null;
   subscriptionStatus?: string | null;
 }
 
 interface UserTableProps {
   users: User[];
   className?: string;
+  onToggleActive?: (userId: string) => void;
+  onResendVerification?: (userId: string) => void;
+  onDeleteUser?: (userId: string) => void;
+  loadingUserId?: string | null;
 }
 
 const columnHelper = createColumnHelper<User>();
-
-const roleConfig: Record<
-  UserRole,
-  { icon: React.ReactNode; label: string; className: string }
-> = {
-  student: {
-    icon: <GraduationCap className="h-3 w-3" />,
-    label: "Student",
-    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  },
-  parent: {
-    icon: <Users className="h-3 w-3" />,
-    label: "Parent",
-    className: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-  },
-  teacher: {
-    icon: <BookUser className="h-3 w-3" />,
-    label: "Teacher",
-    className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  },
-  admin: {
-    icon: null,
-    label: "Admin",
-    className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  },
-};
-
-const statusConfig: Record<UserStatus, { className: string }> = {
-  active: {
-    className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  },
-  pending: {
-    className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  },
-  suspended: {
-    className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  },
-};
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString("en-US", {
@@ -97,7 +69,14 @@ function formatDate(dateString: string): string {
   });
 }
 
-export function UserTable({ users, className }: UserTableProps) {
+export function UserTable({
+  users,
+  className,
+  onToggleActive,
+  onResendVerification,
+  onDeleteUser,
+  loadingUserId,
+}: UserTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const columns = [
@@ -117,7 +96,7 @@ export function UserTable({ users, className }: UserTableProps) {
         return (
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarImage src={user.avatar ?? undefined} alt={user.name} />
               <AvatarFallback className="text-xs">
                 {user.name.split(" ").map((n) => n[0]).join("")}
               </AvatarFallback>
@@ -127,48 +106,6 @@ export function UserTable({ users, className }: UserTableProps) {
               <p className="text-xs text-muted-foreground">{user.email}</p>
             </div>
           </div>
-        );
-      },
-    }),
-    columnHelper.accessor("role", {
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-8 px-0"
-        >
-          Role
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: (info) => {
-        const roleConf = roleConfig[info.getValue()];
-        return (
-          <Badge className={cn("gap-1", roleConf.className)}>
-            {roleConf.icon}
-            {roleConf.label}
-          </Badge>
-        );
-      },
-    }),
-    columnHelper.accessor("status", {
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-8 px-0"
-        >
-          Status
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: (info) => {
-        const statusConf = statusConfig[info.getValue()];
-        const status = info.getValue();
-        return (
-          <Badge variant="secondary" className={statusConf.className}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </Badge>
         );
       },
     }),
@@ -201,6 +138,53 @@ export function UserTable({ users, className }: UserTableProps) {
         );
       },
     }),
+    columnHelper.accessor("yearLevel", {
+      header: "Year Level",
+      cell: (info) => {
+        const val = info.getValue();
+        if (!val) return <span className="text-xs text-muted-foreground italic">-</span>;
+        return <span className="text-sm">{val}</span>;
+      },
+    }),
+    columnHelper.accessor("isActive", {
+      header: "Active",
+      cell: (info) => {
+        const active = info.getValue();
+        return active ? (
+          <CircleCheck className="h-4 w-4 text-green-500" />
+        ) : (
+          <CircleX className="h-4 w-4 text-red-500" />
+        );
+      },
+    }),
+    columnHelper.accessor("emailVerified", {
+      header: "Verified",
+      cell: (info) => {
+        const verified = info.getValue();
+        return verified ? (
+          <ShieldCheck className="h-4 w-4 text-green-500" />
+        ) : (
+          <Clock className="h-4 w-4 text-amber-500" />
+        );
+      },
+    }),
+    columnHelper.accessor("lastLoginAt", {
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="h-8 px-0"
+        >
+          Last Login
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: (info) => {
+        const val = info.getValue();
+        if (!val) return <span className="text-xs text-muted-foreground italic">Never</span>;
+        return <span className="text-sm text-muted-foreground">{formatDate(val)}</span>;
+      },
+    }),
     columnHelper.accessor("joinedDate", {
       header: ({ column }) => (
         <Button
@@ -220,24 +204,50 @@ export function UserTable({ users, className }: UserTableProps) {
     }),
     columnHelper.display({
       id: "actions",
-      cell: (info) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>View Profile</DropdownMenuItem>
-            <Link href={`/admin/users/${info.row.original.id}/edit`}>
-              <DropdownMenuItem>Edit User</DropdownMenuItem>
-            </Link>
-            <DropdownMenuItem className="text-red-600">
-              Suspend User
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
+      cell: (info) => {
+        const user = info.row.original;
+        const isLoading = loadingUserId === user.id;
+
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MoreHorizontal className="h-4 w-4" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <Link href={`/admin/users/${user.id}`}>
+                <DropdownMenuItem>
+                  <Eye className="mr-2 h-4 w-4" />
+                  View Profile
+                </DropdownMenuItem>
+              </Link>
+              <DropdownMenuItem onClick={() => onToggleActive?.(user.id)}>
+                <Power className="mr-2 h-4 w-4" />
+                {user.isActive ? "Deactivate" : "Activate"}
+              </DropdownMenuItem>
+              {!user.emailVerified && (
+                <DropdownMenuItem onClick={() => onResendVerification?.(user.id)}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Resend Verification
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-red-600 focus:text-red-600"
+                onClick={() => onDeleteUser?.(user.id)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete User
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
     }),
   ];
 

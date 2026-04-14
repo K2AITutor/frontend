@@ -24,6 +24,8 @@ import {
   ChevronRight,
   Sparkles,
   CreditCard,
+  Quote,
+  HelpCircle,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -65,6 +67,7 @@ const studentBottomNavItems: NavItem[] = [
     title: "Subscription",
     href: "/student/subscription",
     icon: <CreditCard className="h-5 w-5" />,
+    badge: "Plan",
   },
 ];
 
@@ -78,6 +81,26 @@ const adminNavItems: NavItem[] = [
     title: "Users",
     href: "/admin/users",
     icon: <UserCog className="h-5 w-5" />,
+  },
+  {
+    title: "Subjects",
+    href: "/admin/subjects",
+    icon: <BookOpen className="h-5 w-5" />,
+  },
+  {
+    title: "FAQs",
+    href: "/admin/faqs",
+    icon: <HelpCircle className="h-5 w-5" />,
+  },
+  {
+    title: "Testimonials",
+    href: "/admin/testimonials",
+    icon: <Quote className="h-5 w-5" />,
+  },
+  {
+    title: "Subscription Plans",
+    href: "/admin/subscription-plans",
+    icon: <CreditCard className="h-5 w-5" />,
   },
 ];
 
@@ -150,7 +173,7 @@ export function DashboardSidebar({
                           size="icon"
                           className={cn(
                             "h-10 w-10",
-                            active && "bg-primary/10 text-primary"
+                            active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                           )}
                         >
                           {item.icon}
@@ -168,7 +191,7 @@ export function DashboardSidebar({
                     variant={active ? "secondary" : "ghost"}
                     className={cn(
                       "w-full justify-start gap-3",
-                      active && "bg-primary/10 text-primary"
+                      active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                     )}
                   >
                     {item.icon}
@@ -199,7 +222,7 @@ export function DashboardSidebar({
                         size="icon"
                         className={cn(
                           "h-10 w-10",
-                          active && "bg-primary/10 text-primary"
+                          active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                         )}
                       >
                         {item.icon}
@@ -216,7 +239,7 @@ export function DashboardSidebar({
                   variant={active ? "secondary" : "ghost"}
                   className={cn(
                     "w-full justify-start gap-3",
-                    active && "bg-primary/10 text-primary"
+                    active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                   )}
                 >
                   {item.icon}
