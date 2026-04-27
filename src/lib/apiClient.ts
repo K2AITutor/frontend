@@ -135,6 +135,9 @@ export type SubmitAnswerResponse = {
   errorTags?: string[];
   skillGaps?: string[];
   diagnostics?: Record<string, unknown>;
+  submissionId?: string;
+  humanReviewPending?: boolean;
+  aiMarking?: Record<string, any>; // any: shape varies by question type
 };
 
 export type AiExplainResponse = {

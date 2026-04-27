@@ -1,6 +1,13 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
+const roleHomeMap: Record<string, string> = {
+  admin: "/admin",
+  student: "/student",
+  parent: "/parent",
+  teacher: "/teacher",
+};
+
 export default withAuth(
   function middleware(req) {
     const { pathname } = req.nextUrl;
@@ -11,34 +18,31 @@ export default withAuth(
     const isAuthPage = pathname.startsWith("/auth");
     const isCompleteProfile = pathname === "/auth/complete-profile";
 
-    const isProfileIncomplete = token && profileCompleted !== true && role !== 'admin';
+    const isProfileIncomplete = token && profileCompleted !== true && role !== "admin";
 
-    // Allow access to complete-profile page if profile is incomplete
     if (isCompleteProfile) {
       if (!token) return NextResponse.redirect(new URL("/auth/login", req.url));
       if (!isProfileIncomplete) {
-        return NextResponse.redirect(new URL(role === "admin" ? "/admin" : "/student", req.url));
+        return NextResponse.redirect(new URL(roleHomeMap[role ?? ""] ?? "/student", req.url));
       }
       return NextResponse.next();
     }
 
-    // Redirect incomplete profiles to complete-profile page
     if (isProfileIncomplete && !isAuthPage) {
       return NextResponse.redirect(new URL("/auth/complete-profile", req.url));
     }
 
     if (token && isAuthPage) {
-      if (role === 'admin') return NextResponse.redirect(new URL("/admin", req.url));
-      return NextResponse.redirect(new URL("/student", req.url));
+      return NextResponse.redirect(new URL(roleHomeMap[role ?? ""] ?? "/student", req.url));
     }
 
-    if (pathname.startsWith("/admin") && role !== "admin") {
-      return NextResponse.redirect(new URL("/student", req.url));
-    }
-
-    if (pathname.startsWith("/student") && role !== "student") {
-      if (role === "admin") return NextResponse.redirect(new URL("/admin", req.url));
-      return NextResponse.redirect(new URL("/auth/login", req.url));
+    const roleRoutes = ["admin", "student", "parent", "teacher"];
+    for (const routeRole of roleRoutes) {
+      if (pathname.startsWith(`/${routeRole}`) && role !== routeRole) {
+        return NextResponse.redirect(
+          new URL(roleHomeMap[role ?? ""] ?? "/auth/login", req.url)
+        );
+      }
     }
 
     return NextResponse.next();
@@ -58,5 +62,11 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/admin/:path*", "/student/:path*", "/auth/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/student/:path*",
+    "/parent/:path*",
+    "/teacher/:path*",
+    "/auth/:path*",
+  ],
 };

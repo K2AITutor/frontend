@@ -54,6 +54,30 @@ export const authOptions: NextAuthOptions = {
                 };
             },
         }),
+        ...(process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === "true"
+            ? [
+                  CredentialsProvider({
+                      id: "dev-role",
+                      name: "Dev Role Switcher",
+                      credentials: { role: { label: "Role", type: "text" } },
+                      async authorize(credentials) {
+                          const validRoles = ["student", "parent", "teacher", "admin"];
+                          const role = validRoles.includes(credentials?.role ?? "")
+                              ? credentials!.role
+                              : "student";
+                          return {
+                              id: `dev-${role}`,
+                              email: `${role}@dev.local`,
+                              name: role,
+                              role,
+                              accessToken: `dev-${role}-token`,
+                              profileCompleted: true,
+                              rememberMe: false,
+                          };
+                      },
+                  }),
+              ]
+            : []),
     ],
 
     secret: process.env.NEXTAUTH_SECRET,

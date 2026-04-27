@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Lock, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import AuthBanner from '@/components/auth/AuthBanner'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from '@/components/dashboard/ui/sonner'
@@ -19,6 +19,21 @@ export default function LoginPage() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || ''
   const router = useRouter()
+
+  const roleHomeMap: Record<string, string> = {
+    student: '/student',
+    parent: '/parent',
+    teacher: '/teacher',
+    admin: '/admin',
+  }
+
+  useEffect(() => {
+    const role = searchParams.get('role')
+    if (role && Object.keys(roleHomeMap).includes(role) && process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === 'true') {
+      signIn('dev-role', { role, callbackUrl: roleHomeMap[role] })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -208,6 +223,29 @@ export default function LoginPage() {
               </Link>
             </p>
           </div>
+
+          {process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === 'true' && (
+            <div className="mt-6 pt-6 border-t border-border-subtle">
+              <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+                Dev Sign-in
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {(['student', 'parent', 'teacher', 'admin'] as const).map((devRole) => (
+                  <button
+                    key={devRole}
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() =>
+                      signIn('dev-role', { role: devRole, callbackUrl: roleHomeMap[devRole] })
+                    }
+                    className="p-2 rounded-lg border border-border-subtle bg-bg-tertiary text-text-primary text-[0.8125rem] font-medium hover:bg-bg-secondary hover:border-accent-teal transition-all duration-200 capitalize disabled:opacity-50"
+                  >
+                    {devRole}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <AuthBanner />
