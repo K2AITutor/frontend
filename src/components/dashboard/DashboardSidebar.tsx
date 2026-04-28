@@ -17,19 +17,18 @@ import {
   FileText,
   Settings,
   LogOut,
-  Users,
   BarChart3,
   UserCog,
-  ChevronLeft,
-  ChevronRight,
   Sparkles,
   CreditCard,
   Quote,
   HelpCircle,
+  ClipboardList,
+  Library,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
-export type UserRole = "student" | "admin";
+export type UserRole = "student" | "admin" | "contributor";
 
 interface NavItem {
   title: string;
@@ -104,20 +103,44 @@ const adminNavItems: NavItem[] = [
   },
 ];
 
+const contributorNavItems: NavItem[] = [
+  {
+    title: "Dashboard",
+    href: "/contributor",
+    icon: <LayoutDashboard className="h-5 w-5" />,
+  },
+  {
+    title: "Tasks",
+    href: "/contributor/tasks",
+    icon: <ClipboardList className="h-5 w-5" />,
+  },
+  {
+    title: "Question Drafts",
+    href: "/contributor/questions",
+    icon: <BookOpen className="h-5 w-5" />,
+  },
+  {
+    title: "Rubric Drafts",
+    href: "/contributor/rubrics",
+    icon: <Library className="h-5 w-5" />,
+  },
+];
+
 const navItemsByRole: Record<UserRole, NavItem[]> = {
   student: studentNavItems,
   admin: adminNavItems,
+  contributor: contributorNavItems,
 };
 
 const roleLabels: Record<UserRole, string> = {
   student: "Student Portal",
   admin: "Admin Portal",
+  contributor: "Contributor Portal",
 };
 
 export function DashboardSidebar({
   role,
   collapsed = false,
-  onToggle,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const navItems = navItemsByRole[role];
@@ -138,7 +161,6 @@ export function DashboardSidebar({
           collapsed ? "w-[70px]" : "w-[240px]"
         )}
       >
-        {/* Logo */}
         <div className="flex h-16 items-center border-b px-4">
           <Link href={`/${role}`} className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
@@ -157,7 +179,6 @@ export function DashboardSidebar({
           </Link>
         </div>
 
-        {/* Navigation */}
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="flex flex-col gap-1">
             {navItems.map((item) => {
@@ -173,7 +194,8 @@ export function DashboardSidebar({
                           size="icon"
                           className={cn(
                             "h-10 w-10",
-                            active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                            active &&
+                            "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                           )}
                         >
                           {item.icon}
@@ -191,7 +213,8 @@ export function DashboardSidebar({
                     variant={active ? "secondary" : "ghost"}
                     className={cn(
                       "w-full justify-start gap-3",
-                      active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                      active &&
+                      "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                     )}
                   >
                     {item.icon}
@@ -208,10 +231,10 @@ export function DashboardSidebar({
           </nav>
         </ScrollArea>
 
-        {/* Footer */}
         <div className="border-t p-3 flex flex-col gap-1">
           {bottomNavItems.map((item) => {
             const active = isActive(item.href);
+
             if (collapsed) {
               return (
                 <Tooltip key={item.href}>
@@ -222,7 +245,8 @@ export function DashboardSidebar({
                         size="icon"
                         className={cn(
                           "h-10 w-10",
-                          active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                          active &&
+                          "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                         )}
                       >
                         {item.icon}
@@ -233,13 +257,15 @@ export function DashboardSidebar({
                 </Tooltip>
               );
             }
+
             return (
               <Link key={item.href} href={item.href}>
                 <Button
                   variant={active ? "secondary" : "ghost"}
                   className={cn(
                     "w-full justify-start gap-3",
-                    active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                    active &&
+                    "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                   )}
                 >
                   {item.icon}
@@ -248,53 +274,30 @@ export function DashboardSidebar({
               </Link>
             );
           })}
+
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link href="/auth/login">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-10 w-10 text-red-500 hover:text-red-600 hover:bg-red-50"
-                  >
-                    <LogOut className="h-5 w-5" />
-                  </Button>
-                </Link>
+                <button
+                  onClick={() => signOut({ callbackUrl: "/auth/login" })}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-md text-red-500 hover:bg-red-50 hover:text-red-600"
+                >
+                  <LogOut className="h-5 w-5" />
+                </button>
               </TooltipTrigger>
               <TooltipContent side="right">Logout</TooltipContent>
             </Tooltip>
           ) : (
             <Button
-              onClick={() => signOut()}
               variant="ghost"
-              className="w-full justify-start gap-3 text-red-500 hover:text-red-600 hover:bg-red-50"
+              className="w-full justify-start gap-3 text-red-500 hover:bg-red-50 hover:text-red-600"
+              onClick={() => signOut({ callbackUrl: "/auth/login" })}
             >
               <LogOut className="h-5 w-5" />
               <span>Logout</span>
             </Button>
           )}
         </div>
-
-        {/* Collapse Toggle */}
-        {onToggle && (
-          <div className="border-t p-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onToggle}
-              className="w-full"
-            >
-              {collapsed ? (
-                <ChevronRight className="h-4 w-4" />
-              ) : (
-                <>
-                  <ChevronLeft className="h-4 w-4 mr-2" />
-                  <span>Collapse</span>
-                </>
-              )}
-            </Button>
-          </div>
-        )}
       </div>
     </TooltipProvider>
   );
