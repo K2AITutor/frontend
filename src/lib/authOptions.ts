@@ -3,7 +3,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
 const SESSION_MAX_AGE = Number(process.env.SESSION_MAX_AGE_SECONDS) || 3600; // 1 hour
-const SESSION_REMEMBER_ME_MAX_AGE = Number(process.env.SESSION_REMEMBER_ME_MAX_AGE_SECONDS) || 604800; // 7 days
+const SESSION_REMEMBER_ME_MAX_AGE =
+    Number(process.env.SESSION_REMEMBER_ME_MAX_AGE_SECONDS) || 604800; // 7 days
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -46,7 +47,7 @@ export const authOptions: NextAuthOptions = {
                 return {
                     id: String(data.userId),
                     email: data.email,
-                    name: data.email.split("@")[0],
+                    name: data.email?.split("@")[0] || data.email,
                     role: data.role,
                     accessToken: data.access_token,
                     profileCompleted: true,
@@ -84,7 +85,7 @@ export const authOptions: NextAuthOptions = {
                     if (!res.ok) return false;
 
                     const data = await res.json();
-                    // Attach backend data to user object for jwt callback
+
                     (user as any).id = String(data.userId);
                     (user as any).role = data.role;
                     (user as any).accessToken = data.access_token;
@@ -95,6 +96,7 @@ export const authOptions: NextAuthOptions = {
                     return false;
                 }
             }
+
             return true;
         },
 
@@ -105,21 +107,12 @@ export const authOptions: NextAuthOptions = {
                 token.accessToken = (user as any).accessToken;
                 token.profileCompleted = (user as any).profileCompleted;
                 token.rememberMe = (user as any).rememberMe ?? false;
-                token.loginAt = Date.now();
             }
 
-            // Expire non-rememberMe sessions after SESSION_MAX_AGE
-            if (!token.rememberMe && token.loginAt) {
-                const elapsed = Date.now() - (token.loginAt as number);
-                if (elapsed > SESSION_MAX_AGE * 1000) {
-                    return { ...token, accessToken: null };
-                }
-            }
-
-            // Handle session.update() from client
             if (trigger === "update" && session?.profileCompleted !== undefined) {
                 token.profileCompleted = session.profileCompleted;
             }
+
             return token;
         },
 

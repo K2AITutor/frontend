@@ -11,33 +11,44 @@ export default withAuth(
     const isAuthPage = pathname.startsWith("/auth");
     const isCompleteProfile = pathname === "/auth/complete-profile";
 
-    const isProfileIncomplete = token && profileCompleted !== true && role !== 'admin';
+    const isProfileIncomplete =
+      token &&
+      profileCompleted !== true &&
+      !["admin", "contributor"].includes(String(role));
 
-    // Allow access to complete-profile page if profile is incomplete
     if (isCompleteProfile) {
       if (!token) return NextResponse.redirect(new URL("/auth/login", req.url));
       if (!isProfileIncomplete) {
-        return NextResponse.redirect(new URL(role === "admin" ? "/admin" : "/student", req.url));
+        if (role === "admin") return NextResponse.redirect(new URL("/admin", req.url));
+        if (role === "contributor") return NextResponse.redirect(new URL("/contributor", req.url));
+        return NextResponse.redirect(new URL("/student", req.url));
       }
       return NextResponse.next();
     }
 
-    // Redirect incomplete profiles to complete-profile page
     if (isProfileIncomplete && !isAuthPage) {
       return NextResponse.redirect(new URL("/auth/complete-profile", req.url));
     }
 
     if (token && isAuthPage) {
-      if (role === 'admin') return NextResponse.redirect(new URL("/admin", req.url));
+      if (role === "admin") return NextResponse.redirect(new URL("/admin", req.url));
+      if (role === "contributor") return NextResponse.redirect(new URL("/contributor", req.url));
       return NextResponse.redirect(new URL("/student", req.url));
     }
 
     if (pathname.startsWith("/admin") && role !== "admin") {
+      if (role === "contributor") return NextResponse.redirect(new URL("/contributor", req.url));
       return NextResponse.redirect(new URL("/student", req.url));
+    }
+
+    if (pathname.startsWith("/contributor") && !["contributor", "teacher", "admin"].includes(String(role))) {
+      if (role === "admin") return NextResponse.redirect(new URL("/admin", req.url));
+      return NextResponse.redirect(new URL("/auth/login", req.url));
     }
 
     if (pathname.startsWith("/student") && role !== "student") {
       if (role === "admin") return NextResponse.redirect(new URL("/admin", req.url));
+      if (role === "contributor") return NextResponse.redirect(new URL("/contributor", req.url));
       return NextResponse.redirect(new URL("/auth/login", req.url));
     }
 
@@ -58,5 +69,5 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/admin/:path*", "/student/:path*", "/auth/:path*"],
+  matcher: ["/admin/:path*", "/student/:path*", "/contributor/:path*", "/auth/:path*"],
 };

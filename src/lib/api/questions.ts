@@ -1,6 +1,8 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { getSession } from "next-auth/react";
+import { apiGet, apiPost, apiPut } from "@/lib/apiClient";
 
 const API_BASE_RAW =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -10,6 +12,54 @@ const API_BASE = (() => {
   const clean = String(API_BASE_RAW).replace(/\/+$/, "");
   return clean.endsWith("/api") ? clean : `${clean}/api`;
 })();
+
+export type QuestionDraftDTO = {
+  id: number;
+  subjectCode?: string | null;
+  topicCode?: string | null;
+  skillCode?: string | null;
+  prompt: string;
+  questionText?: string | null;
+  answerType?: string | null;
+  marks?: number | null;
+  status: "DRAFT" | "REVIEW" | "ACTIVE" | "ARCHIVED";
+  sourceBook?: string | null;
+  sourceChapter?: string | null;
+  sourceQuestionRef?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type CreateQuestionDraftPayload = {
+  subject?: string;
+  subjectCode?: string;
+  topicCode: string;
+  skillCode: string;
+  subtopicCode?: string;
+  prompt: string;
+  questionText?: string;
+  answerType?: string;
+  marks?: number;
+  correctAnswer?: string;
+  solutionSteps?: string;
+  misconceptions?: string;
+  sourceBook?: string;
+  sourceChapter?: string;
+  sourceSection?: string;
+  sourceExercise?: string;
+  sourceQuestionRef?: string;
+  questionType?: string;
+  difficultyLevel?: string;
+  examStyleType?: string;
+  tags?: string[];
+};
+
+export type UpdateQuestionDraftPayload = Partial<CreateQuestionDraftPayload>;
+
+async function getAccessToken() {
+  const session = await getSession();
+  return (session?.user as any)?.accessToken as string | undefined;
+}
 
 export function usePracticeQuestions(topic: string) {
   return useQuery({
@@ -41,4 +91,37 @@ export function useSubmitAnswer() {
       return res.json();
     },
   });
+}
+
+export function useContributorQuestionDrafts() {
+  return useQuery({
+    queryKey: ["contributorQuestionDrafts"],
+    queryFn: async () => {
+      const token = await getAccessToken();
+      return apiGet<QuestionDraftDTO[]>("/questions/drafts/mine", token);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export async function createQuestionDraft(payload: CreateQuestionDraftPayload) {
+  const token = await getAccessToken();
+  return apiPost<QuestionDraftDTO>("/questions/drafts", payload, token);
+}
+
+export async function updateQuestionDraft(
+  questionId: number | string,
+  payload: UpdateQuestionDraftPayload
+) {
+  const token = await getAccessToken();
+  return apiPut<QuestionDraftDTO>(`/questions/drafts/${questionId}`, payload, token);
+}
+
+export async function submitQuestionDraftForReview(questionId: number | string) {
+  const token = await getAccessToken();
+  return apiPost<{ id: number; status: string; updatedAt: string }>(
+    `/questions/drafts/${questionId}/submit-review`,
+    {},
+    token
+  );
 }
