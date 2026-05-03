@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import ExamSessionClient from "@/components/exam/ExamSessionClient";
 import {
   fetchExam,
@@ -11,6 +12,7 @@ import {
 
 export default function Exam1SessionPage() {
   const examKey = "VCE_MM_EXAM1_2025";
+  const { data: session, status } = useSession();
 
   const [exam, setExam] = useState<ExamDTO | null>(null);
   const [questions, setQuestions] = useState<ExamQuestionDTO[]>([]);
@@ -18,12 +20,23 @@ export default function Exam1SessionPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (status === "loading") return;
+    if (status === "unauthenticated") {
+      setError("Please log in again to start this examination.");
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     (async () => {
       try {
-        const meta = await fetchExam(examKey);
-        const qs = await fetchExamQuestionsByExamKey(examKey);
+        const token = (session?.user as any)?.accessToken;
+        if (!token) {
+          throw new Error("Your login session is missing an API token. Please log out and log in again.");
+        }
+        const meta = await fetchExam(examKey, token);
+        const qs = await fetchExamQuestionsByExamKey(examKey, token);
 
         if (!cancelled) {
           setExam(meta);
@@ -41,7 +54,7 @@ export default function Exam1SessionPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [session, status]);
 
   if (loading) {
     return (
