@@ -20,8 +20,21 @@ import {
   TableRow,
 } from "@/components/dashboard/ui/table";
 import { Badge } from "@/components/dashboard/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/dashboard/ui/tooltip";
 import { toast } from "@/components/dashboard/ui/sonner";
-import { Loader2, AlertCircle, Save, Network } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  Save,
+  Network,
+  HelpCircle,
+  RotateCcw,
+} from "lucide-react";
 import {
   useRoutingConfig,
   useUpdateRoutingConfig,
@@ -31,6 +44,10 @@ import {
 import { RoutingDistributionChart } from "@/components/marking/RoutingDistributionChart";
 
 const SOURCES = ["rule", "llm", "ml", "human"];
+
+function isRouteInvalid(route: RoutingRoute) {
+  return route.escalateBelow > route.confidenceFloor;
+}
 
 export default function AdminMarkingRoutingPage() {
   const { data, isLoading, error } = useRoutingConfig();
@@ -75,6 +92,15 @@ export default function AdminMarkingRoutingPage() {
     );
   }
 
+  function handleDiscard() {
+    if (data) {
+      setRoutes(data.routes);
+      setDirty(false);
+    }
+  }
+
+  const hasErrors = routes.some(isRouteInvalid);
+
   if (isLoading)
     return (
       <div className="flex items-center justify-center h-64">
@@ -99,15 +125,38 @@ export default function AdminMarkingRoutingPage() {
             Configure which marking engine handles each question type.
           </p>
         </div>
-        <Button onClick={handleSave} disabled={!dirty || update.isPending}>
-          {update.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="mr-2 h-4 w-4" />
-          )}
-          Save Changes
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleDiscard}
+            disabled={!dirty || update.isPending}
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Discard Changes
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={!dirty || hasErrors || update.isPending}
+          >
+            {update.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Save Changes
+          </Button>
+        </div>
       </div>
+
+      {hasErrors && (
+        <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>
+            One or more routes have <strong>Escalate Below</strong> greater than
+            their <strong>Confidence Floor</strong>. Fix these before saving.
+          </span>
+        </div>
+      )}
 
       {stats && (
         <Card>
@@ -125,90 +174,150 @@ export default function AdminMarkingRoutingPage() {
 
       <Card>
         <CardContent className="pt-6 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Subject</TableHead>
-                <TableHead>Question Type</TableHead>
-                <TableHead>Primary</TableHead>
-                <TableHead>Fallback</TableHead>
-                <TableHead>Confidence Floor</TableHead>
-                <TableHead>Escalate Below</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {routes.map((route, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <Badge variant="outline">{route.subject}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{route.questionType}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={route.primary}
-                      onValueChange={(v) => updateRoute(i, "primary", v)}
-                    >
-                      <SelectTrigger className="w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SOURCES.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={route.fallback}
-                      onValueChange={(v) => updateRoute(i, "fallback", v)}
-                    >
-                      <SelectTrigger className="w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SOURCES.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={route.confidenceFloor}
-                      onChange={(e) =>
-                        updateRoute(i, "confidenceFloor", parseFloat(e.target.value) || 0)
-                      }
-                      className="w-24"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={route.escalateBelow}
-                      onChange={(e) =>
-                        updateRoute(i, "escalateBelow", parseFloat(e.target.value) || 0)
-                      }
-                      className="w-24"
-                    />
-                  </TableCell>
+          <TooltipProvider delayDuration={200}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Question Type</TableHead>
+                  <TableHead>Primary</TableHead>
+                  <TableHead>Fallback</TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Confidence Floor
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground"
+                            aria-label="Confidence Floor info"
+                          >
+                            <HelpCircle className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          Minimum confidence (0–1) for the Primary engine&apos;s
+                          result to be accepted. Below this, the Fallback engine
+                          runs.
+                        </TooltipContent>
+                      </Tooltip>
+                    </span>
+                  </TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1">
+                      Escalate Below
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground"
+                            aria-label="Escalate Below info"
+                          >
+                            <HelpCircle className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          Confidence threshold (0–1) below which the submission
+                          is escalated to a human marker. Should be ≤ Confidence
+                          Floor.
+                        </TooltipContent>
+                      </Tooltip>
+                    </span>
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {routes.map((route, i) => {
+                  const invalid = isRouteInvalid(route);
+                  return (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <Badge variant="outline">{route.subject}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{route.questionType}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={route.primary}
+                          onValueChange={(v) => updateRoute(i, "primary", v)}
+                        >
+                          <SelectTrigger className="w-28 uppercase">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SOURCES.map((s) => (
+                              <SelectItem key={s} value={s} className="uppercase">
+                                {s}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={route.fallback}
+                          onValueChange={(v) => updateRoute(i, "fallback", v)}
+                        >
+                          <SelectTrigger className="w-28 uppercase">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SOURCES.map((s) => (
+                              <SelectItem key={s} value={s} className="uppercase">
+                                {s}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={route.confidenceFloor}
+                          onChange={(e) =>
+                            updateRoute(
+                              i,
+                              "confidenceFloor",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
+                          className={`w-24 ${invalid ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                          aria-invalid={invalid}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={route.escalateBelow}
+                          onChange={(e) =>
+                            updateRoute(
+                              i,
+                              "escalateBelow",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
+                          className={`w-24 ${invalid ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                          aria-invalid={invalid}
+                        />
+                        {invalid && (
+                          <p className="mt-1 text-xs text-red-600">
+                            Must be ≤ Confidence Floor
+                          </p>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TooltipProvider>
         </CardContent>
       </Card>
     </div>

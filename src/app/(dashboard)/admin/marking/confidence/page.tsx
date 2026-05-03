@@ -10,7 +10,7 @@ import {
 } from "@/components/dashboard/ui/card";
 import { Button } from "@/components/dashboard/ui/button";
 import { toast } from "@/components/dashboard/ui/sonner";
-import { Loader2, AlertCircle, Save, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, AlertCircle, Save, TrendingUp, TrendingDown, RotateCcw } from "lucide-react";
 import {
   useConfidenceThresholds,
   useUpdateConfidenceThresholds,
@@ -20,8 +20,8 @@ import {
 import { Slider } from "@/components/dashboard/ui/slider";
 
 export default function AdminMarkingConfidencePage() {
-  const { data, isLoading, error } = useConfidenceThresholds();
-  const { data: stats } = useMarkingStats();
+  const { data, isLoading, error, refetch } = useConfidenceThresholds();
+  const { data: stats, error: statsError } = useMarkingStats();
   const update = useUpdateConfidenceThresholds();
 
   const [thresholds, setThresholds] = useState<ConfidenceThresholds>({
@@ -39,20 +39,18 @@ export default function AdminMarkingConfidencePage() {
   }, [data]);
 
   function setAcceptAbove(v: number) {
-    setThresholds((prev) => ({
-      ...prev,
-      acceptAbove: v,
-      reviewBetween: [prev.reviewBetween[0], v],
-    }));
+    setThresholds((prev) => {
+      const acceptAbove = Math.max(v, prev.rejectBelow + 0.05);
+      return { ...prev, acceptAbove, reviewBetween: [prev.rejectBelow, acceptAbove] };
+    });
     setDirty(true);
   }
 
   function setRejectBelow(v: number) {
-    setThresholds((prev) => ({
-      ...prev,
-      rejectBelow: v,
-      reviewBetween: [v, prev.reviewBetween[1]],
-    }));
+    setThresholds((prev) => {
+      const rejectBelow = Math.min(v, prev.acceptAbove - 0.05);
+      return { ...prev, rejectBelow, reviewBetween: [rejectBelow, prev.acceptAbove] };
+    });
     setDirty(true);
   }
 
@@ -68,6 +66,13 @@ export default function AdminMarkingConfidencePage() {
     });
   }
 
+  function handleDiscard() {
+    if (data) {
+      setThresholds(data);
+      setDirty(false);
+    }
+  }
+
   if (isLoading)
     return (
       <div className="flex items-center justify-center h-64">
@@ -80,6 +85,7 @@ export default function AdminMarkingConfidencePage() {
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <AlertCircle className="h-10 w-10 text-red-500" />
         <p className="text-muted-foreground">Failed to load confidence thresholds</p>
+        <Button variant="outline" onClick={() => refetch()}>Try again</Button>
       </div>
     );
 
@@ -93,16 +99,27 @@ export default function AdminMarkingConfidencePage() {
           <h1 className="text-2xl font-bold tracking-tight">Confidence Thresholds</h1>
           <p className="text-muted-foreground">
             Tune when submissions are auto-accepted, sent for review, or rejected.
+            Changes apply to all pending submissions.
           </p>
         </div>
-        <Button onClick={handleSave} disabled={!dirty || update.isPending}>
-          {update.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="mr-2 h-4 w-4" />
-          )}
-          Save Changes
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleDiscard}
+            disabled={!dirty || update.isPending}
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Discard
+          </Button>
+          <Button onClick={handleSave} disabled={!dirty || update.isPending}>
+            {update.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Save Changes
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -118,26 +135,32 @@ export default function AdminMarkingConfidencePage() {
                 <span>0.00</span>
                 <span>1.00</span>
               </div>
-              <div className="flex h-5 w-full overflow-hidden rounded-full">
+              <div className="flex h-5 w-full overflow-hidden rounded-full" aria-hidden="true">
                 <div
                   className="bg-red-400 flex items-center justify-center text-white text-xs font-medium"
                   style={{ width: `${thresholds.rejectBelow * 100}%` }}
                 >
-                  {thresholds.rejectBelow >= 0.15 && "Reject"}
+                  {thresholds.rejectBelow >= 0.1 && "Reject"}
                 </div>
                 <div
-                  className="bg-yellow-400 flex items-center justify-center text-white text-xs font-medium"
+                  className="bg-yellow-400 flex items-center justify-center text-yellow-900 text-xs font-medium"
                   style={{ width: `${reviewWidth * 100}%` }}
                 >
-                  {reviewWidth >= 0.15 && "Review"}
+                  {reviewWidth >= 0.1 && "Review"}
                 </div>
                 <div
                   className="bg-green-500 flex items-center justify-center text-white text-xs font-medium"
                   style={{ width: `${(1 - thresholds.acceptAbove) * 100}%` }}
                 >
-                  {1 - thresholds.acceptAbove >= 0.15 && "Accept"}
+                  {1 - thresholds.acceptAbove >= 0.1 && "Accept"}
                 </div>
               </div>
+              <p className="sr-only">
+                Current zones: Reject below {thresholds.rejectBelow.toFixed(2)}, Review
+                between {thresholds.rejectBelow.toFixed(2)} and{" "}
+                {thresholds.acceptAbove.toFixed(2)}, Accept above{" "}
+                {thresholds.acceptAbove.toFixed(2)}.
+              </p>
             </div>
 
             <div className="space-y-6">
@@ -149,8 +172,9 @@ export default function AdminMarkingConfidencePage() {
                   </span>
                 </div>
                 <Slider
+                  ariaLabel="Auto-Accept Threshold"
                   value={thresholds.acceptAbove}
-                  min={thresholds.rejectBelow + 0.05}
+                  min={0}
                   max={1}
                   step={0.01}
                   onChange={setAcceptAbove}
@@ -168,9 +192,10 @@ export default function AdminMarkingConfidencePage() {
                   </span>
                 </div>
                 <Slider
+                  ariaLabel="Auto-Reject Threshold"
                   value={thresholds.rejectBelow}
                   min={0}
-                  max={thresholds.acceptAbove - 0.05}
+                  max={1}
                   step={0.01}
                   onChange={setRejectBelow}
                 />
@@ -198,13 +223,15 @@ export default function AdminMarkingConfidencePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Simulated Impact</CardTitle>
+            <CardTitle>Last Saved Impact</CardTitle>
             <CardDescription>
-              Projected effect of current settings on the system
+              Projected effect of last saved settings · Save to update
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {simulated ? (
+            {statsError ? (
+              <p className="text-sm text-red-500">Failed to load stats.</p>
+            ) : simulated ? (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-6">
                   <StatImpact

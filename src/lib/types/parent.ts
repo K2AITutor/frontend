@@ -2,6 +2,7 @@ export interface SubjectMastery {
   code: string;
   name: string;
   mastery: number;
+  trend?: "up" | "down" | "stable";
 }
 
 export interface ParentChild {
@@ -58,6 +59,7 @@ export interface ParentAlert {
   message: string;
   severity: 'info' | 'warning' | 'critical';
   createdAt: string;
+  dismissed?: boolean;
 }
 
 export interface ChildReportTrend {

@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { apiGet } from "@/lib/apiClient";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiGet, apiPost } from "@/lib/apiClient";
 import type {
   ParentChild,
   ParentChildDetail,
@@ -44,5 +44,17 @@ export function useParentAlerts() {
   return useQuery({
     queryKey: ["parent", "alerts"],
     queryFn: () => apiGet<ParentAlert[]>("/parent/alerts"),
+  });
+}
+
+export function useDismissParentAlert() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiPost<{ ok: boolean; id: string }>(`/parent/alerts/${id}/dismiss`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["parent", "alerts"] });
+      qc.invalidateQueries({ queryKey: ["parent", "children"] });
+    },
   });
 }

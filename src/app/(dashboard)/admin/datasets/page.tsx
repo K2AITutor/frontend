@@ -37,7 +37,7 @@ const STATUS_VARIANT: Record<
 };
 
 export default function AdminDatasetsPage() {
-  const { data, isLoading, error } = useDatasets();
+  const { data, isLoading, error, refetch } = useDatasets();
   const build = useBuildDataset();
 
   const [buildDialog, setBuildDialog] = useState(false);
@@ -75,6 +75,7 @@ export default function AdminDatasetsPage() {
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <AlertCircle className="h-10 w-10 text-red-500" />
         <p className="text-muted-foreground">Failed to load datasets</p>
+        <Button variant="outline" onClick={() => refetch()}>Retry</Button>
       </div>
     );
 

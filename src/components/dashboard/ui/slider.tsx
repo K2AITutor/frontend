@@ -11,6 +11,7 @@ export interface SliderProps {
   onChange: (value: number) => void;
   className?: string;
   disabled?: boolean;
+  ariaLabel?: string;
 }
 
 export function Slider({
@@ -21,6 +22,7 @@ export function Slider({
   onChange,
   className,
   disabled,
+  ariaLabel,
 }: SliderProps) {
   return (
     <SliderPrimitive.Root
@@ -35,6 +37,7 @@ export function Slider({
       step={step}
       disabled={disabled}
       onValueChange={([v]) => onChange(v)}
+      aria-label={ariaLabel}
     >
       <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-muted">
         <SliderPrimitive.Range className="absolute h-full bg-primary" />

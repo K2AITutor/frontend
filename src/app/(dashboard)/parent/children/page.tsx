@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Loader2, AlertCircle, Search } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
+import { useEffect, useState } from "react";
+import { Loader2, AlertCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/dashboard/ui/card";
 import { Button } from "@/components/dashboard/ui/button";
 import { Input } from "@/components/dashboard/ui/input";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Progress } from "@/components/dashboard/ui/progress";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/dashboard/ui/avatar";
 import {
   Table,
   TableBody,
@@ -26,12 +27,36 @@ import {
 import { useParentChildren } from "@/lib/api/parent";
 import { usePageTitle } from "@/lib/usePageTitle";
 
+const PAGE_SIZE = 10;
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+}
+
+function formatLastActive(iso: string) {
+  return new Date(iso).toLocaleDateString("en-AU", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function ParentChildrenPage() {
   usePageTitle("My Children");
 
   const { data: children, isLoading, error, refetch } = useParentChildren();
   const [search, setSearch] = useState("");
   const [gradeFilter, setGradeFilter] = useState("all");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, gradeFilter]);
 
   if (isLoading) {
     return (
@@ -58,6 +83,11 @@ export default function ParentChildrenPage() {
     const matchesGrade = gradeFilter === "all" || c.grade === gradeFilter;
     return matchesSearch && matchesGrade;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const visible = filtered.slice(startIdx, startIdx + PAGE_SIZE);
 
   return (
     <div className="space-y-6 p-6 pb-20">
@@ -95,50 +125,97 @@ export default function ParentChildrenPage() {
           {filtered.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No children match your filter.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Grade</TableHead>
-                  <TableHead>Subjects</TableHead>
-                  <TableHead>Weekly Activity</TableHead>
-                  <TableHead>Alerts</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((child) => (
-                  <TableRow key={child.id}>
-                    <TableCell className="font-medium">{child.name}</TableCell>
-                    <TableCell>{child.grade}</TableCell>
-                    <TableCell>
-                      <div className="space-y-1 min-w-[160px]">
-                        {child.currentSubjects.map((s) => (
-                          <div key={s.code} className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground truncate w-28">{s.name}</span>
-                            <Progress value={s.mastery} className="h-1.5 flex-1" />
-                            <span className="text-xs font-medium w-8 text-right">{s.mastery}%</span>
-                          </div>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>{child.weeklyMinutes} min</TableCell>
-                    <TableCell>
-                      {child.alertCount > 0 ? (
-                        <Badge variant="destructive">{child.alertCount}</Badge>
-                      ) : (
-                        <Badge variant="secondary">0</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/parent/children/${child.id}`}>View</Link>
-                      </Button>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Grade</TableHead>
+                    <TableHead>Subjects</TableHead>
+                    <TableHead>Weekly Activity</TableHead>
+                    <TableHead>Last Active</TableHead>
+                    <TableHead>Alerts</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {visible.map((child) => (
+                    <TableRow key={child.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            {child.avatarUrl ? (
+                              <AvatarImage src={child.avatarUrl} alt={child.name} />
+                            ) : null}
+                            <AvatarFallback className="text-xs">{initials(child.name)}</AvatarFallback>
+                          </Avatar>
+                          <span>{child.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{child.grade}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1 min-w-[160px]">
+                          {child.currentSubjects.map((s) => (
+                            <div key={s.code} className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground truncate w-28">{s.name}</span>
+                              <Progress value={s.mastery} className="h-1.5 flex-1" />
+                              <span className="text-xs font-medium w-8 text-right">{s.mastery}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>{child.weeklyMinutes} min</TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {formatLastActive(child.lastActiveAt)}
+                      </TableCell>
+                      <TableCell>
+                        {child.alertCount > 0 ? (
+                          <Badge variant="destructive">{child.alertCount}</Badge>
+                        ) : (
+                          <Badge variant="secondary">0</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/parent/children/${child.id}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {startIdx + 1}–{Math.min(startIdx + PAGE_SIZE, filtered.length)} of {filtered.length}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    <span className="text-sm font-medium">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

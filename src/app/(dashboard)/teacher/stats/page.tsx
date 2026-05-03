@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Loader2, AlertCircle, BarChart3 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { Button } from "@/components/dashboard/ui/button";
@@ -7,28 +8,34 @@ import { useTeacherStats, useTeacherHistory } from "@/lib/api/teacher";
 import { usePageTitle } from "@/lib/usePageTitle";
 import type { TeacherHistoryItem } from "@/lib/types/teacher";
 
-function RadialGauge({ value, max = 100, color, label }: {
+function RadialGauge({ value, max = 100, color, label, displayValue, unavailable }: {
   value: number;
   max?: number;
   color: string;
   label: string;
+  displayValue?: string;
+  unavailable?: boolean;
 }) {
-  const pct = Math.min(value / max, 1);
+  const pct = unavailable ? 0 : Math.min(value / max, 1);
   const circumference = 2 * Math.PI * 36;
   const dashOffset = circumference * (1 - pct);
+  const text = unavailable ? "—" : (displayValue ?? `${value.toFixed(0)}${max === 100 ? "%" : ""}`);
+  const arcColor = unavailable ? "currentColor" : color;
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <svg width="88" height="88" viewBox="0 0 88 88" aria-hidden="true">
+      <svg width="88" height="88" viewBox="0 0 88 88" aria-hidden="true"
+        className={unavailable ? "opacity-40" : undefined}>
         <circle cx="44" cy="44" r="36" fill="none" stroke="currentColor"
           strokeWidth="8" className="text-muted/20" />
-        <circle cx="44" cy="44" r="36" fill="none" stroke={color}
+        <circle cx="44" cy="44" r="36" fill="none" stroke={arcColor}
           strokeWidth="8" strokeDasharray={circumference}
           strokeDashoffset={dashOffset} strokeLinecap="round"
-          transform="rotate(-90 44 44)" />
+          transform="rotate(-90 44 44)"
+          className={unavailable ? "text-muted/40" : undefined} />
         <text x="44" y="50" textAnchor="middle"
           className="fill-foreground text-sm font-bold" fontSize="14">
-          {value.toFixed(0)}{max === 100 ? "%" : ""}
+          {text}
         </text>
       </svg>
       <p className="text-xs text-muted-foreground text-center">{label}</p>
@@ -74,8 +81,10 @@ function DecisionBar({ history }: { history: TeacherHistoryItem[] }) {
 export default function TeacherStatsPage() {
   usePageTitle("My Stats");
 
-  const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useTeacherStats();
-  const { data: history, isLoading: historyLoading } = useTeacherHistory("30d");
+  const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } =
+    useTeacherStats({ refetchInterval: 60_000 });
+  const { data: history, isLoading: historyLoading, error: historyError, refetch: refetchHistory } =
+    useTeacherHistory("30d", { refetchInterval: 60_000 });
 
   const isLoading = statsLoading || historyLoading;
 
@@ -98,10 +107,9 @@ export default function TeacherStatsPage() {
   }
 
   const historyData = history ?? [];
-  const agreementCount = historyData.filter((h) => h.agreementWithAi).length;
-  const agreementPct30d = historyData.length > 0
-    ? Math.round((agreementCount / historyData.length) * 100)
-    : 0;
+  const avgMin = stats?.avgResolutionMinutes ?? 0;
+  const avgGaugeValue = Math.min(avgMin, 30);
+  const avgGaugeDisplay = avgMin > 30 ? "30+" : avgMin.toFixed(0);
 
   return (
     <div className="space-y-6 p-6 pb-20">
@@ -126,9 +134,10 @@ export default function TeacherStatsPage() {
               label="Agreement with AI"
             />
             <RadialGauge
-              value={agreementPct30d}
+              value={stats?.agreementRatePct30d ?? 0}
               color="#10b981"
               label="Agreement (30d)"
+              unavailable={!!historyError && stats?.agreementRatePct30d == null}
             />
             <RadialGauge
               value={stats?.escalationRatePct ?? 0}
@@ -136,10 +145,11 @@ export default function TeacherStatsPage() {
               label="Escalation rate"
             />
             <RadialGauge
-              value={Math.min(stats?.avgResolutionMinutes ?? 0, 30)}
+              value={avgGaugeValue}
               max={30}
               color="#f59e0b"
               label={`Avg ${stats?.avgResolutionMinutes?.toFixed(1) ?? "—"} min/review`}
+              displayValue={avgGaugeDisplay}
             />
           </div>
         </CardContent>
@@ -151,7 +161,13 @@ export default function TeacherStatsPage() {
           <CardTitle className="text-base">Decision Breakdown (last 30 days)</CardTitle>
         </CardHeader>
         <CardContent>
-          {historyData.length === 0 ? (
+          {historyError ? (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <AlertCircle className="h-6 w-6 text-red-500" />
+              <p className="text-sm text-muted-foreground">Failed to load review history.</p>
+              <Button variant="outline" size="sm" onClick={() => refetchHistory()}>Retry</Button>
+            </div>
+          ) : historyData.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
               No review history in the last 30 days.
             </p>
@@ -169,12 +185,14 @@ export default function TeacherStatsPage() {
             <p className="text-xs text-muted-foreground mt-1">Reviewed today</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-5 text-center">
-            <p className="text-3xl font-bold text-amber-500">{stats?.queueDepth ?? 0}</p>
-            <p className="text-xs text-muted-foreground mt-1">In queue now</p>
-          </CardContent>
-        </Card>
+        <Link href="/teacher/review" className="block group">
+          <Card className="h-full cursor-pointer transition-colors hover:border-primary">
+            <CardContent className="pt-5 text-center">
+              <p className="text-3xl font-bold text-amber-500">{stats?.queueDepth ?? 0}</p>
+              <p className="text-xs text-muted-foreground mt-1">In queue now</p>
+            </CardContent>
+          </Card>
+        </Link>
         <Card>
           <CardContent className="pt-5 text-center">
             <p className="text-3xl font-bold text-green-500">{historyData.length}</p>

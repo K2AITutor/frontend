@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -10,7 +10,6 @@ import {
   AlertCircle,
   ArrowUpCircle,
 } from "lucide-react";
-import Link from "next/link";
 import { toast } from "@/components/dashboard/ui/sonner";
 import { Button } from "@/components/dashboard/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
@@ -58,7 +57,7 @@ const DECISION_CONFIG: Record<
     label: "Escalate",
     variant: "destructive",
     icon: <ArrowUpCircle className="h-4 w-4" />,
-    description: "Flag this submission for further review. Score will not change yet.",
+    description: "Flag this submission for admin review. Score will not change yet.",
   },
 };
 
@@ -83,12 +82,34 @@ export default function AnnotationWorkspacePage({
   // Confirm dialog
   const [pendingDecision, setPendingDecision] = useState<Decision | null>(null);
 
+  const initialTagsRef = useRef<string[]>([]);
+
   // Pre-seed from AI marking once data loads
   useEffect(() => {
     if (!data) return;
     setFinalScore(data.aiMarking.finalScore);
-    setSelectedTags(data.aiMarking.errorTags.map((t) => t.tagCode));
+    const tags = data.aiMarking.errorTags.map((t) => t.tagCode);
+    setSelectedTags(tags);
+    initialTagsRef.current = tags;
   }, [data]);
+
+  const isDirty =
+    data != null &&
+    (finalScore !== data.aiMarking.finalScore ||
+      comment.trim() !== "" ||
+      Object.keys(criterionOverrides).length > 0 ||
+      JSON.stringify([...selectedTags].sort()) !==
+        JSON.stringify([...initialTagsRef.current].sort()));
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
 
   const handleCriterionChange = (criterionId: string, score: number) => {
     setCriterionOverrides((prev) => ({ ...prev, [criterionId]: score }));
@@ -166,11 +187,17 @@ export default function AnnotationWorkspacePage({
     <div className="p-6 pb-20 space-y-4">
       {/* Header */}
       <div className="flex items-start gap-4">
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href="/teacher/review">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Queue
-          </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2"
+          onClick={() => {
+            if (isDirty && !window.confirm("You have unsaved changes. Leave without reviewing?")) return;
+            router.push("/teacher/review");
+          }}
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Queue
         </Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold truncate">
@@ -376,7 +403,7 @@ export default function AnnotationWorkspacePage({
               {/* Comment */}
               <div className="space-y-1.5">
                 <Label htmlFor="review-comment" className="text-sm font-medium">
-                  Comment
+                  Comment <span className="font-normal text-muted-foreground">(optional)</span>
                 </Label>
                 <Textarea
                   id="review-comment"
@@ -393,20 +420,22 @@ export default function AnnotationWorkspacePage({
               {/* Decision buttons */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Decision</Label>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-3">
                   {(["approve", "override", "escalate"] as Decision[]).map((dec) => {
                     const cfg = DECISION_CONFIG[dec];
                     return (
-                      <Button
-                        key={dec}
-                        variant={cfg.variant}
-                        className="w-full justify-start gap-2"
-                        onClick={() => openConfirm(dec)}
-                        disabled={mutation.isPending}
-                      >
-                        {cfg.icon}
-                        {cfg.label}
-                      </Button>
+                      <div key={dec} className="space-y-1">
+                        <Button
+                          variant={cfg.variant}
+                          className="w-full justify-start gap-2"
+                          onClick={() => openConfirm(dec)}
+                          disabled={mutation.isPending}
+                        >
+                          {cfg.icon}
+                          {cfg.label}
+                        </Button>
+                        <p className="text-xs text-muted-foreground px-1">{cfg.description}</p>
+                      </div>
                     );
                   })}
                 </div>

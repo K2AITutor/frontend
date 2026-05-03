@@ -6,6 +6,7 @@ export interface TeacherStats {
   escalationRatePct: number;
   avgResolutionMinutes: number;
   agreementRatePct: number;
+  agreementRatePct30d?: number;
 }
 
 export interface TeacherHistoryItem {

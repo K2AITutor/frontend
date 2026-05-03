@@ -10,10 +10,11 @@ import type {
   ReviewQueueResponse,
 } from "@/lib/types/teacher";
 
-export function useTeacherStats() {
+export function useTeacherStats(options?: { refetchInterval?: number }) {
   return useQuery({
     queryKey: ["teacher", "stats"],
     queryFn: () => apiGet<TeacherStats>("/teacher/stats"),
+    ...options,
   });
 }
 
@@ -76,10 +77,11 @@ export function usePostTeacherLabels() {
   });
 }
 
-export function useTeacherHistory(range: string = "7d") {
+export function useTeacherHistory(range: string = "7d", options?: { refetchInterval?: number }) {
   return useQuery({
     queryKey: ["teacher", "history", range],
     queryFn: () =>
       apiGet<TeacherHistoryItem[]>(`/teacher/history?range=${range}`),
+    ...options,
   });
 }

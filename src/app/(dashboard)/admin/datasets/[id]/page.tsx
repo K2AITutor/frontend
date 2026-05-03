@@ -15,10 +15,8 @@ import {
 import { toast } from "@/components/dashboard/ui/sonner";
 import { Loader2, AlertCircle, ChevronLeft, Download } from "lucide-react";
 import { useDatasets, useDatasetRows } from "@/lib/api/admin-datasets";
+import type { SplitFilter } from "@/lib/api/admin-datasets";
 import { DatasetRowTable } from "@/components/marking/DatasetRowTable";
-import type { SplitTag } from "@/lib/types/dataset";
-
-type SplitFilter = SplitTag | "all";
 
 export default function AdminDatasetDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,21 +24,13 @@ export default function AdminDatasetDetailPage() {
   const [splitFilter, setSplitFilter] = useState<SplitFilter>("all");
 
   const { data: datasets } = useDatasets();
-  const { data, isLoading, error } = useDatasetRows(id, page);
+  const { data, isLoading, error, refetch } = useDatasetRows(id, page, splitFilter);
 
   const dataset = datasets?.find((d) => d.id === id);
 
-  const allRows = data?.rows ?? [];
-  const filteredRows =
-    splitFilter === "all"
-      ? allRows
-      : allRows.filter((r) => r.splitTag === splitFilter);
-  const displayTotal =
-    splitFilter === "all" ? (data?.total ?? 0) : filteredRows.length;
-
   function handleExport() {
     const apiBase = (
-      process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
+      process.env.NEXT_PUBLIC_API_BASE ?? ""
     ).replace(/\/+$/, "");
     const url = `${apiBase}/admin/datasets/${id}/export?format=jsonl`;
     const link = document.createElement("a");
@@ -62,9 +52,12 @@ export default function AdminDatasetDetailPage() {
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <AlertCircle className="h-10 w-10 text-red-500" />
         <p className="text-muted-foreground">Failed to load dataset rows</p>
-        <Button variant="outline" asChild>
-          <Link href="/admin/datasets">Back to Datasets</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => refetch()}>Retry</Button>
+          <Button variant="outline" asChild>
+            <Link href="/admin/datasets">Back to Datasets</Link>
+          </Button>
+        </div>
       </div>
     );
 
@@ -111,8 +104,8 @@ export default function AdminDatasetDetailPage() {
         </CardHeader>
         <CardContent>
           <DatasetRowTable
-            rows={filteredRows}
-            total={displayTotal}
+            rows={data?.rows ?? []}
+            total={data?.total ?? 0}
             page={page}
             pageSize={10}
             loading={isLoading}

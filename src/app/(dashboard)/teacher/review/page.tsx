@@ -28,7 +28,7 @@ import { usePageTitle } from "@/lib/usePageTitle";
 import type { ReviewQueueItem } from "@/lib/types/review";
 
 const REASON_OPTIONS = [
-  { value: "", label: "All reasons" },
+  { value: "all", label: "All reasons" },
   { value: "ensemble_divergence", label: "Ensemble divergence" },
   { value: "low_overall_confidence", label: "Low confidence" },
   { value: "escalated", label: "Escalated" },
@@ -49,14 +49,14 @@ export default function TeacherReviewQueuePage() {
   const [subject, setSubject] = useState("");
   const [minConf, setMinConf] = useState("");
   const [maxConf, setMaxConf] = useState("");
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState("all");
   const [page, setPage] = useState(1);
 
   const filters: ReviewQueueFilters = {
     ...(subject.trim() && { subject: subject.trim() }),
-    ...(minConf !== "" && { minConfidence: Number(minConf) }),
-    ...(maxConf !== "" && { maxConfidence: Number(maxConf) }),
-    ...(reason && { reason }),
+    ...(minConf !== "" && { minConfidence: Number(minConf) / 100 }),
+    ...(maxConf !== "" && { maxConfidence: Number(maxConf) / 100 }),
+    ...(reason !== "all" && { reason }),
     page,
   };
 
@@ -68,7 +68,7 @@ export default function TeacherReviewQueuePage() {
     setSubject("");
     setMinConf("");
     setMaxConf("");
-    setReason("");
+    setReason("all");
     setPage(1);
   };
 
@@ -110,40 +110,40 @@ export default function TeacherReviewQueuePage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="min-conf">Min confidence (0–1)</Label>
+              <Label htmlFor="min-conf">Min confidence (%)</Label>
               <Input
                 id="min-conf"
                 type="number"
                 min="0"
-                max="1"
-                step="0.05"
-                placeholder="0.00"
+                max="100"
+                step="5"
+                placeholder="0"
                 value={minConf}
                 onChange={(e) => { setMinConf(e.target.value); setPage(1); }}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="max-conf">Max confidence (0–1)</Label>
+              <Label htmlFor="max-conf">Max confidence (%)</Label>
               <Input
                 id="max-conf"
                 type="number"
                 min="0"
-                max="1"
-                step="0.05"
-                placeholder="1.00"
+                max="100"
+                step="5"
+                placeholder="100"
                 value={maxConf}
                 onChange={(e) => { setMaxConf(e.target.value); setPage(1); }}
               />
             </div>
             <div className="space-y-1.5">
               <Label>Reason</Label>
-              <Select value={reason} onValueChange={(v) => { setReason(v === "all" ? "" : v); setPage(1); }}>
+              <Select value={reason} onValueChange={(v) => { setReason(v); setPage(1); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="All reasons" />
                 </SelectTrigger>
                 <SelectContent>
                   {REASON_OPTIONS.map((o) => (
-                    <SelectItem key={o.value || "all"} value={o.value || "all"}>
+                    <SelectItem key={o.value} value={o.value}>
                       {o.label}
                     </SelectItem>
                   ))}
@@ -151,7 +151,7 @@ export default function TeacherReviewQueuePage() {
               </Select>
             </div>
           </div>
-          {(subject || minConf || maxConf || reason) && (
+          {(subject || minConf || maxConf || reason !== "all") && (
             <Button variant="ghost" size="sm" className="mt-3" onClick={handleClearFilters}>
               Clear filters
             </Button>
@@ -168,7 +168,9 @@ export default function TeacherReviewQueuePage() {
             </div>
           ) : !data || data.items.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground">
-              No submissions match the current filters.
+              {(subject || minConf || maxConf || reason !== "all")
+                ? "No submissions match the current filters."
+                : "No submissions are waiting for review."}
             </div>
           ) : (
             <Table>

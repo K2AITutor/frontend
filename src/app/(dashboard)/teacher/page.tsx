@@ -11,6 +11,7 @@ import {
   ThumbsUp,
   ArrowRight,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Button } from "@/components/dashboard/ui/button";
@@ -48,8 +49,9 @@ function QueuePreviewRow({ item }: { item: ReviewQueueItem }) {
 export default function TeacherDashboardPage() {
   usePageTitle("Teacher Dashboard");
 
+  const { data: session } = useSession();
   const { data: stats, isLoading, error, refetch } = useTeacherStats();
-  const { data: queue } = useReviewQueue({ page: 1 });
+  const { data: queue, isError: queueError, refetch: refetchQueue } = useReviewQueue({ page: 1 });
 
   if (isLoading) {
     return (
@@ -98,11 +100,14 @@ export default function TeacherDashboardPage() {
   ];
 
   const previewItems = queue?.items.slice(0, 5) ?? [];
+  const teacherName = session?.user?.name;
 
   return (
     <div className="space-y-6 p-6 pb-20">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Teacher Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {teacherName ? `Welcome back, ${teacherName}` : "Teacher Dashboard"}
+        </h1>
         <p className="text-muted-foreground">Review AI-marked submissions and manage your queue</p>
       </div>
 
@@ -123,7 +128,14 @@ export default function TeacherDashboardPage() {
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Review Queue</CardTitle>
+            <CardTitle className="text-base">
+              Review Queue
+              {queue?.total != null && queue.total > 0 && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  ({previewItems.length} of {queue.total})
+                </span>
+              )}
+            </CardTitle>
             <Button asChild variant="ghost" size="sm">
               <Link href="/teacher/review" className="flex items-center gap-1">
                 View all <ArrowRight className="h-4 w-4" />
@@ -132,7 +144,13 @@ export default function TeacherDashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {previewItems.length === 0 ? (
+          {queueError ? (
+            <div className="flex flex-col items-center justify-center py-6 gap-3">
+              <AlertCircle className="h-8 w-8 text-red-500" />
+              <p className="text-sm text-muted-foreground">Failed to load queue</p>
+              <Button variant="outline" size="sm" onClick={() => refetchQueue()}>Retry</Button>
+            </div>
+          ) : previewItems.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">
               Queue is empty — no submissions awaiting review.
             </p>

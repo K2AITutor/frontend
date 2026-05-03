@@ -91,7 +91,7 @@ export default function AdminDashboardPage() {
               <FileQuestion className="h-5 w-5 text-orange-600 dark:text-orange-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{systemStats.totalQuestions.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{(systemStats.totalQuestions ?? 0).toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">Questions</p>
             </div>
           </CardContent>
@@ -102,7 +102,7 @@ export default function AdminDashboardPage() {
               <ClipboardList className="h-5 w-5 text-teal-600 dark:text-teal-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{systemStats.totalAttempts.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{(systemStats.totalAttempts ?? 0).toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">Total Attempts</p>
             </div>
           </CardContent>
