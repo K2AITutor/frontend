@@ -1,20 +1,30 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import QuestionCard from "@/components/practice/QuestionCard";
+import MathpixMarkdown from "@/components/practice/MathpixMarkdown";
 import { submitExamAnswer } from "@/lib/apiClient";
-import PdfQuestionCrop from "@/components/exam/PdfQuestionCrop";
-import { fetchExamMeta, resolveQuestionAsset, type ExamMeta } from "@/lib/examAssets";
 
 type MarkingResult = {
   correct?: boolean;
   isCorrect?: boolean;
+  correctAnswer?: string | null;
   score?: number | null;
   maxScore?: number | null;
   errorTags?: string[] | null;
   skillGaps?: string[] | null;
   explanation?: string | null;
+  workedSolution?: string | null;
+  markingRubric?: Array<{ marks?: number | null; criterion?: string | null }> | null;
+  examinerFeedback?: {
+    summary?: string | null;
+    markingRubric?: Array<{ marks?: number | null; criterion?: string | null }> | null;
+    commonMistake?: string | null;
+    source?: string | null;
+    sourceRef?: string | null;
+  } | null;
   diagnostics?: any;
 };
 
@@ -22,10 +32,16 @@ type ExamQuestionLike = {
   id: number | string;
   questionNumber?: string | null;
   prompt: string;
+  questionText?: string | null;
   answer?: string;
   answerType?: string;
   marks?: number;
   skillCode?: string | null;
+  topicCode?: string | null;
+  subtopicCode?: string | null;
+  difficulty?: string | null;
+  isMarkable?: boolean | null;
+  rubricKey?: string | null;
   pdfPage?: number | null;
   markingMeta?: any;
 };
@@ -45,6 +61,7 @@ export default function ExamSessionClient(props: {
   examTitle?: string;
   // examPdfSrc is optional now; meta.json is preferred
   examPdfSrc?: string | null;
+  questionImageBase?: string;
 
   readingMins?: number;
   writingMins?: number;
@@ -53,6 +70,7 @@ export default function ExamSessionClient(props: {
   workingRequired?: boolean;
 }) {
   const router = useRouter();
+  const { data: session } = useSession();
 
   const {
     initialQuestions,
@@ -71,30 +89,15 @@ export default function ExamSessionClient(props: {
   const question = questions[currentIndex] ?? null;
 
   const [answer, setAnswer] = useState("");
+  const answerInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [result, setResult] = useState<MarkingResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [showDebug, setShowDebug] = useState(false);
-  const [showLeft, setShowLeft] = useState(true);
 
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
   const [attemptsByQid, setAttemptsByQid] = useState<Record<string, AttemptRecord[]>>({});
-
-  // ===== Option C: load exam meta.json =====
-  const [meta, setMeta] = useState<ExamMeta | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const m = await fetchExamMeta(examKey);
-      if (!alive) return;
-      setMeta(m);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [examKey]);
 
   const qid = question ? String(question.id) : "";
 
@@ -124,6 +127,11 @@ export default function ExamSessionClient(props: {
     return maxMarks;
   }, [result, maxMarks]);
 
+  const displayedRubric = useMemo(() => {
+    const rubric = result?.examinerFeedback?.markingRubric ?? result?.markingRubric ?? [];
+    return Array.isArray(rubric) ? rubric.filter((item) => item?.criterion) : [];
+  }, [result]);
+
   const qLabel = useMemo(() => {
     if (!question) return "";
     const qn = question.questionNumber?.trim();
@@ -131,6 +139,58 @@ export default function ExamSessionClient(props: {
   }, [question, currentIndex]);
 
   const isFlagged = Boolean(question && flagged[String(question.id)]);
+  const answerType = String(question?.answerType ?? "").toUpperCase();
+  const needsWorkingInput =
+    question?.isMarkable === false ||
+    ["WORKING", "PROOF", "GRAPH", "EXPLANATION", "TEXT"].some((type) => answerType.includes(type));
+  const compactAnswerInput = !needsWorkingInput;
+  const answerPlaceholder = needsWorkingInput
+    ? "Enter your working or explanation"
+    : answerType.includes("NUMERIC")
+      ? "Example: 1, 3/2, sqrt(2), pi/4"
+      : "Example: 2*x*cos(x)-x^2*sin(x)";
+
+  const answerShortcuts = useMemo(() => {
+    if (needsWorkingInput) {
+      return [
+        { label: "sqrt", value: "sqrt()" },
+        { label: "^", value: "^" },
+        { label: "pi", value: "pi" },
+        { label: "frac", value: "/" },
+      ];
+    }
+
+    return [
+      { label: "sqrt", value: "sqrt()" },
+      { label: "^", value: "^" },
+      { label: "pi", value: "pi" },
+      { label: "sin", value: "sin()" },
+      { label: "cos", value: "cos()" },
+      { label: "tan", value: "tan()" },
+      { label: "(", value: "(" },
+      { label: ")", value: ")" },
+    ];
+  }, [needsWorkingInput]);
+
+  const insertAnswerToken = (token: string) => {
+    const el = answerInputRef.current;
+    if (!el) {
+      setAnswer((value) => `${value}${token}`);
+      return;
+    }
+
+    const start = el.selectionStart ?? answer.length;
+    const end = el.selectionEnd ?? answer.length;
+    const nextAnswer = `${answer.slice(0, start)}${token}${answer.slice(end)}`;
+    const cursorOffset = token.endsWith("()") ? token.length - 1 : token.length;
+
+    setAnswer(nextAnswer);
+    window.requestAnimationFrame(() => {
+      el.focus();
+      const nextCursor = start + cursorOffset;
+      el.setSelectionRange(nextCursor, nextCursor);
+    });
+  };
 
   const resetAttemptState = () => {
     setAnswer("");
@@ -151,6 +211,11 @@ export default function ExamSessionClient(props: {
         examKey,
         questionId: question.id,
         answer,
+        token: (session?.user as any)?.accessToken,
+        userId:
+          (session?.user as any)?.id != null
+            ? Number((session?.user as any).id)
+            : undefined,
       })) as MarkingResult;
 
       setResult(res);
@@ -226,77 +291,58 @@ export default function ExamSessionClient(props: {
     );
   }
 
-  // ===== Resolve PDF + crop for this question =====
-  const asset = resolveQuestionAsset(meta, question.questionNumber ?? String(currentIndex + 1));
-  const pdfUrlFromMeta = meta?.pdfUrl ?? null;
-  const pdfUrl = pdfUrlFromMeta ?? examPdfSrc; // fallback to prop
-  const page = asset?.page ?? question.pdfPage ?? meta?.defaultPage ?? 1;
-  const crop = asset?.crop;
-
   return (
     <div className="space-y-4">
       <div className="px-4 py-2 rounded-lg bg-red-900/40 text-red-200 text-sm">
-        🟥 <strong>Exam Mode</strong> — AI assistance is disabled during the examination.
+        <strong>Exam Mode</strong> — AI assistance is disabled during the examination.
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* LEFT: PDF cropped view */}
-        <div className={`lg:col-span-6 ${showLeft ? "" : "hidden lg:block"}`}>
-          <div className="glass p-3 sticky top-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm text-slate-300">
-                Question View{question.questionNumber ? ` • ${question.questionNumber}` : ""}
-              </div>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        <div className="xl:col-span-7">
+          <div className="space-y-4 sticky top-4">
+            <div className="glass p-5 text-slate-200">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-semibold">{qLabel}</h1>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {examTitle} • {currentIndex + 1} of {questions.length}
+                    {isFlagged ? " • Flagged" : ""}
+                  </p>
+                </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowLeft((v) => !v)}
-                  className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-200"
-                >
-                  {showLeft ? "Hide" : "Show"}
-                </button>
-
-                {pdfUrl && (
-                  <a
-                    href={`${pdfUrl}#page=${page}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-200"
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={goPrev}
+                    disabled={currentIndex === 0}
+                    className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-sm"
                   >
-                    Open PDF
-                  </a>
-                )}
+                    Previous
+                  </button>
+
+                  <button
+                    onClick={toggleFlag}
+                    className={`px-3 py-2 rounded-lg text-sm ${isFlagged ? "bg-yellow-700 hover:bg-yellow-600" : "bg-slate-800 hover:bg-slate-700"
+                      }`}
+                  >
+                    {isFlagged ? "Unflag" : "Flag"}
+                  </button>
+
+                  <button
+                    onClick={goNext}
+                    disabled={currentIndex >= questions.length - 1}
+                    className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-sm"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
 
-            {pdfUrl ? (
-              <PdfQuestionCrop
-                pdfUrl={pdfUrl}
-                page={page}
-                crop={crop}
-                title={meta?.title ?? examKey}
-              />
-            ) : (
-              <div className="text-slate-300 text-sm">
-                No PDF configured. Add{" "}
-                <span className="font-mono">/public/exams/{examKey}/exam.pdf</span> and{" "}
-                <span className="font-mono">/public/exams/{examKey}/meta.json</span>.
-              </div>
-            )}
+            <QuestionCard question={question as any} />
           </div>
         </div>
 
-        {/* RIGHT: marking + answer */}
-        <div className={showLeft ? "lg:col-span-6" : "lg:col-span-12"}>
-          <div className="lg:hidden mb-3">
-            <button
-              onClick={() => setShowLeft((v) => !v)}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm text-slate-200"
-            >
-              {showLeft ? "Hide Question" : "Show Question"}
-            </button>
-          </div>
-
+        <div className="xl:col-span-5">
           <div className="space-y-6">
             <div className="glass p-6 text-slate-200">
               <div className="flex items-start justify-between gap-4">
@@ -320,90 +366,107 @@ export default function ExamSessionClient(props: {
                     </span>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                {pdfUrl && (
+            <div className="glass p-5 text-slate-200">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-semibold">PDF reference</h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Open the original exam PDF only when you need to check the source.
+                  </p>
+                </div>
+
+                {examPdfSrc ? (
                   <a
-                    href={`${pdfUrl}#page=${page}`}
+                    href={examPdfSrc}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm"
+                    className="px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm font-semibold text-slate-100"
                   >
-                    Open Exam PDF
+                    Open PDF
                   </a>
+                ) : (
+                  <span className="px-3 py-2 rounded bg-slate-800 text-xs text-slate-400">
+                    No PDF
+                  </span>
                 )}
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 text-slate-300">
-              <div className="text-sm">
-                {qLabel} <span className="text-slate-500">•</span> {currentIndex + 1} of{" "}
-                {questions.length}
-                {page ? (
-                  <>
-                    {" "}
-                    <span className="text-slate-500">•</span> PDF page {page}
-                  </>
-                ) : null}
-                {isFlagged ? (
-                  <>
-                    {" "}
-                    <span className="text-slate-500">•</span>{" "}
-                    <span className="text-yellow-300">Flagged</span>
-                  </>
-                ) : null}
+            <div className="glass p-5 space-y-4">
+              <div>
+                <h2 className="font-semibold text-slate-100">Your answer</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  {question.isMarkable === false
+                    ? "This part is saved for manual review."
+                    : "Submit your answer to check it against the dataset."}
+                </p>
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={goPrev}
-                  disabled={currentIndex === 0}
-                  className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-sm"
-                >
-                  ← Previous
-                </button>
+              <div className="space-y-3">
+                {compactAnswerInput ? (
+                  <input
+                    ref={answerInputRef as any}
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit();
+                    }}
+                    placeholder={answerPlaceholder}
+                    className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg text-slate-100"
+                  />
+                ) : (
+                  <textarea
+                    ref={answerInputRef as any}
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit();
+                    }}
+                    placeholder={answerPlaceholder}
+                    rows={question.isMarkable === false ? 6 : 4}
+                    className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg text-slate-200 resize-y"
+                  />
+                )}
 
-                <button
-                  onClick={toggleFlag}
-                  className={`px-3 py-2 rounded-lg text-sm ${isFlagged ? "bg-yellow-700 hover:bg-yellow-600" : "bg-slate-800 hover:bg-slate-700"
-                    }`}
-                >
-                  {isFlagged ? "Unflag" : "Flag"}
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {answerShortcuts.map((shortcut) => (
+                    <button
+                      key={`${shortcut.label}-${shortcut.value}`}
+                      type="button"
+                      onClick={() => insertAnswerToken(shortcut.value)}
+                      className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200"
+                    >
+                      {shortcut.label}
+                    </button>
+                  ))}
+                </div>
 
+                <p className="text-xs text-slate-500">
+                  Accepted format: normal calculator-style typing, such as <span className="font-mono">3/2</span>,{" "}
+                  <span className="font-mono">sqrt(2)</span>, or{" "}
+                  <span className="font-mono">2*x*cos(x)-x^2*sin(x)</span>.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={goNext}
-                  disabled={currentIndex >= questions.length - 1}
-                  className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-sm"
+                  disabled={isSubmitting}
+                  onClick={handleSubmit}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold disabled:opacity-50"
                 >
-                  Next →
+                  {isSubmitting ? "Checking..." : "Submit Answer"}
                 </button>
 
                 <button
                   onClick={finishAndReview}
-                  className="px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-sm"
+                  className="px-4 py-3 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-sm font-semibold"
                 >
                   Finish & Review
                 </button>
               </div>
-            </div>
-
-            <QuestionCard question={question as any} />
-
-            <div className="space-y-3">
-              <input
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder="Enter your answer"
-                className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg text-slate-200"
-              />
-
-              <button
-                disabled={isSubmitting}
-                onClick={handleSubmit}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold disabled:opacity-50"
-              >
-                {isSubmitting ? "Checking..." : "Submit Answer"}
-              </button>
 
               {submitError && (
                 <div className="glass p-4 text-red-300">
@@ -448,6 +511,67 @@ export default function ExamSessionClient(props: {
                 </div>
 
                 <div className="mt-3 border-t border-slate-700 pt-3">
+                  {(result.correctAnswer ||
+                    result.workedSolution ||
+                    result.explanation ||
+                    result.examinerFeedback ||
+                    displayedRubric.length > 0) && (
+                    <div className="mb-4 space-y-4 text-sm text-slate-200">
+                      {result.examinerFeedback?.summary && (
+                        <div>
+                          <div className="text-slate-400">Examiner feedback</div>
+                          <p className="mt-1 text-slate-200">{result.examinerFeedback.summary}</p>
+                        </div>
+                      )}
+
+                      {result.correctAnswer && (
+                        <div>
+                          <div className="text-slate-400">Expected answer</div>
+                          <div className="mt-1">
+                            <MathpixMarkdown value={result.correctAnswer} />
+                          </div>
+                        </div>
+                      )}
+
+                      {displayedRubric.length > 0 && (
+                        <div>
+                          <div className="text-slate-400">Marking guide</div>
+                          <div className="mt-2 overflow-hidden rounded-lg border border-slate-700">
+                            {displayedRubric.map((item, index) => (
+                              <div
+                                key={`${index}-${item.criterion}`}
+                                className="grid grid-cols-[72px_1fr] border-b border-slate-700 last:border-b-0"
+                              >
+                                <div className="bg-slate-900/50 px-3 py-2 text-slate-300">
+                                  {item.marks ?? 1} mark{Number(item.marks ?? 1) === 1 ? "" : "s"}
+                                </div>
+                                <div className="px-3 py-2 text-slate-200">
+                                  {item.criterion}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {(result.workedSolution || result.explanation) && (
+                        <div>
+                          <div className="text-slate-400">Worked solution</div>
+                          <div className="mt-1">
+                            <MathpixMarkdown value={result.workedSolution || result.explanation || ""} />
+                          </div>
+                        </div>
+                      )}
+
+                      {result.examinerFeedback?.commonMistake && (
+                        <div>
+                          <div className="text-slate-400">Common mistake</div>
+                          <p className="mt-1 text-slate-200">{result.examinerFeedback.commonMistake}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <button
                     className="text-xs text-slate-300 underline"
                     onClick={() => setShowDebug((v) => !v)}

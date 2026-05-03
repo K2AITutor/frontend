@@ -1,4 +1,54 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import { fetchExamQuestionsByExamKey, type ExamQuestionDTO } from "@/lib/apiClient";
+
 export default function Exam1BriefingPage() {
+    const examKey = "VCE_MM_EXAM1_2025";
+    const { data: session, status } = useSession();
+    const [questions, setQuestions] = useState<ExamQuestionDTO[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (status === "loading") return;
+        if (status === "unauthenticated") {
+            setError("Please log in again to load this exam.");
+            setLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const token = (session?.user as any)?.accessToken;
+                if (!token) {
+                    throw new Error("Your login session is missing an API token. Please log out and log in again.");
+                }
+                const rows = await fetchExamQuestionsByExamKey(
+                    examKey,
+                    token
+                );
+                if (!cancelled) setQuestions(rows);
+            } catch (e: any) {
+                if (!cancelled) setError(e?.message || "Failed to load dataset questions.");
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [session, status]);
+
+    const totalMarks = useMemo(
+        () => questions.reduce((sum, question) => sum + Number(question.marks || 0), 0),
+        [questions]
+    );
+
     return (
         <div className="max-w-4xl mx-auto px-6 py-10 space-y-8 text-slate-200">
             {/* Header */}
@@ -15,7 +65,58 @@ export default function Exam1BriefingPage() {
                     <span className="px-2 py-1 rounded bg-slate-800">Writing time: 60 minutes</span>
                     <span className="px-2 py-1 rounded bg-slate-800">CAS: Not allowed</span>
                     <span className="px-2 py-1 rounded bg-slate-800">Exact values required</span>
+                    <span className="px-2 py-1 rounded bg-emerald-900/60 text-emerald-200">
+                        Dataset: {loading ? "loading" : `${questions.length} parts`}
+                    </span>
+                    {!loading && questions.length > 0 && (
+                        <span className="px-2 py-1 rounded bg-slate-800">{totalMarks} marks</span>
+                    )}
                 </div>
+            </div>
+
+            <div className="glass p-6">
+                <h3 className="font-semibold mb-3">Loaded dataset questions</h3>
+                {loading ? (
+                    <p className="text-sm text-slate-300">Loading questions from PostgreSQL…</p>
+                ) : error ? (
+                    <p className="text-sm text-red-300">{error}</p>
+                ) : questions.length === 0 ? (
+                    <p className="text-sm text-slate-300">
+                        No seeded questions found for this exam yet. Run the backend seed after applying the dataset.
+                    </p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="text-slate-400">
+                                <tr className="border-b border-slate-700">
+                                    <th className="py-2 pr-3 text-left font-medium">Question</th>
+                                    <th className="py-2 pr-3 text-left font-medium">Marks</th>
+                                    <th className="py-2 pr-3 text-left font-medium">Topic</th>
+                                    <th className="py-2 text-left font-medium">Marking</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {questions.map((question) => (
+                                    <tr key={question.id} className="border-b border-slate-800">
+                                        <td className="py-2 pr-3 text-slate-100">Question {question.questionNumber}</td>
+                                        <td className="py-2 pr-3 text-slate-300">{question.marks}</td>
+                                        <td className="py-2 pr-3 text-slate-300">
+                                            {question.topicCode || "Untitled"}
+                                            {question.subtopicCode ? (
+                                                <span className="block text-xs text-slate-500">
+                                                    {question.subtopicCode}
+                                                </span>
+                                            ) : null}
+                                        </td>
+                                        <td className="py-2 text-slate-300">
+                                            {question.isMarkable === false ? "Manual review" : "Auto-check"}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
             {/* Exam Conditions */}
