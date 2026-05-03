@@ -53,6 +53,24 @@ type AttemptRecord = {
   ts: number;
 };
 
+function plainAnswerForClipboard(value: string | null | undefined) {
+  return String(value ?? "")
+    .replace(/\\{1,2}\(|\\{1,2}\)|\\{1,2}\[|\\{1,2}\]/g, "")
+    .replace(/\\left|\\right/g, "")
+    .replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, "($1)/($2)")
+    .replace(/\\sqrt\s*\{([^{}]+)\}/g, "sqrt($1)")
+    .replace(/\\pi\b/g, "pi")
+    .replace(/\\cos\b/g, "cos")
+    .replace(/\\sin\b/g, "sin")
+    .replace(/\\tan\b/g, "tan")
+    .replace(/\\log\b/g, "log")
+    .replace(/\\ln\b/g, "ln")
+    .replace(/\\cdot|\\times/g, "*")
+    .replace(/[{}]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default function ExamSessionClient(props: {
   initialQuestions: ExamQuestionLike[];
   subject: string;
@@ -275,6 +293,16 @@ export default function ExamSessionClient(props: {
 
   const finishAndReview = () => {
     router.push(`/student/practice/math-methods/exam-1/review?examKey=${encodeURIComponent(examKey)}`);
+  };
+
+  const copyPlainExpectedAnswer = (event: React.ClipboardEvent<HTMLElement>) => {
+    if (!result?.correctAnswer) return;
+
+    const plainAnswer = plainAnswerForClipboard(result.correctAnswer);
+    if (!plainAnswer) return;
+
+    event.preventDefault();
+    event.clipboardData.setData("text/plain", plainAnswer);
   };
   
   if (!questions.length) {
@@ -527,7 +555,11 @@ export default function ExamSessionClient(props: {
                       {result.correctAnswer && (
                         <div>
                           <div className="text-slate-400">Expected answer</div>
-                          <div className="mt-1">
+                          <div
+                            className="mt-1"
+                            onCopy={copyPlainExpectedAnswer}
+                            title="Copying this answer uses plain calculator-style text."
+                          >
                             <MathpixMarkdown value={result.correctAnswer} />
                           </div>
                         </div>

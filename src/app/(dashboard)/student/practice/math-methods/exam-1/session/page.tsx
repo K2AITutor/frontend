@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import ExamSessionClient from "@/components/exam/ExamSessionClient";
 import {
@@ -11,7 +12,8 @@ import {
 } from "@/lib/apiClient";
 
 export default function Exam1SessionPage() {
-  const examKey = "VCE_MM_EXAM1_2025";
+  const searchParams = useSearchParams();
+  const examKey = searchParams.get("examKey") || "VCE_MM_EXAM1_2025";
   const { data: session, status } = useSession();
 
   const [exam, setExam] = useState<ExamDTO | null>(null);
@@ -54,7 +56,7 @@ export default function Exam1SessionPage() {
     return () => {
       cancelled = true;
     };
-  }, [session, status]);
+  }, [examKey, session, status]);
 
   if (loading) {
     return (
