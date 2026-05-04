@@ -2,24 +2,23 @@
 
 import Link from "next/link";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { useContributorDashboardData } from "@/lib/api/contributor";
+import { DatasetQaQuestion, DatasetQaStatus, useDatasetQaQuestions } from "@/lib/api/contributor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { Button } from "@/components/dashboard/ui/button";
 import { Skeleton } from "@/components/dashboard/ui/skeleton";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import {
-    ClipboardList,
-    BookOpen,
-    Library,
-    ArrowRight,
-    Clock3,
-    FilePlus2,
+    FileText,
+    ShieldCheck,
+    AlertTriangle,
     CheckCircle2,
+    ClipboardCheck,
+    BarChart3,
 } from "lucide-react";
 
 export default function ContributorDashboardPage() {
     usePageTitle("Contributor Dashboard");
-    const { data, isLoading, isError } = useContributorDashboardData();
+    const { data = [], isLoading, isError } = useDatasetQaQuestions("VCE_MM_EXAM1_2025");
 
     if (isLoading) return <ContributorDashboardSkeleton />;
 
@@ -31,41 +30,41 @@ export default function ContributorDashboardPage() {
         );
     }
 
-    const hasRecentTasks = data.recentTasks.length > 0;
-
     return (
         <div className="space-y-6 p-6">
             <div>
                 <h1 className="text-2xl font-bold">Contributor Dashboard</h1>
                 <p className="text-muted-foreground">
-                    Build structured question drafts, lightweight rubrics, and future dataset-ready content.
+                    Review dataset questions, test expected answers, and record QA decisions before release.
                 </p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <DatasetOverviewStats rows={data} />
+
+            <div className="grid gap-4 md:grid-cols-3">
                 <StatsCard
-                    title="Assigned Tasks"
-                    value={data.summary.assignedTasks}
-                    subtitle="Work formally assigned"
-                    icon={ClipboardList}
+                    title="Dataset QA"
+                    value="Exam 1"
+                    subtitle="Review ready-for-QA records"
+                    icon={ShieldCheck}
                 />
                 <StatsCard
-                    title="To Do"
-                    value={data.summary.todoTasks}
-                    subtitle="Ready to start"
-                    icon={Clock3}
+                    title="Questions"
+                    value={data.length}
+                    subtitle="2025 Exam 1 records loaded"
+                    icon={ClipboardCheck}
                 />
                 <StatsCard
-                    title="Draft Questions"
-                    value={data.summary.draftQuestions}
-                    subtitle="Created by you"
-                    icon={BookOpen}
+                    title="Manual Review"
+                    value={data.filter((row) => row.reviewStatus === "MANUAL_REVIEW").length}
+                    subtitle="Graph, proof, or non-machine items"
+                    icon={AlertTriangle}
                 />
                 <StatsCard
-                    title="Draft Rubrics"
-                    value={data.summary.draftRubrics}
-                    subtitle="Linked marking guides"
-                    icon={Library}
+                    title="Analytics"
+                    value="Coverage"
+                    subtitle="Review model-training readiness"
+                    icon={BarChart3}
                 />
             </div>
 
@@ -74,43 +73,45 @@ export default function ContributorDashboardPage() {
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg">What to do next</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid gap-3 md:grid-cols-3">
+                    <CardContent className="grid gap-3 md:grid-cols-2">
                         <div className="rounded-lg border p-4">
                             <div className="mb-3 flex items-center gap-2 font-medium">
-                                <FilePlus2 className="h-4 w-4" />
-                                Create a question draft
+                                <ShieldCheck className="h-4 w-4" />
+                                Open Dataset QA
                             </div>
                             <p className="mb-4 text-sm text-muted-foreground">
-                                Add structured question content with prompt, metadata, answer type, and source.
+                                Review question text, expected answers, worked solutions, topic codes, and marker results.
                             </p>
                             <Button size="sm" className="w-full" asChild>
-                                <Link href="/contributor/questions/new">New Draft</Link>
+                                <Link href="/contributor/dataset-qa">Start QA Review</Link>
                             </Button>
                         </div>
 
                         <div className="rounded-lg border p-4">
                             <div className="mb-3 flex items-center gap-2 font-medium">
-                                <CheckCircle2 className="h-4 w-4" />
-                                Review your drafts
+                                <BarChart3 className="h-4 w-4" />
+                                Review Dataset Analytics
                             </div>
                             <p className="mb-4 text-sm text-muted-foreground">
-                                Check question details, fix metadata, and submit ready drafts for review.
+                                Check topic coverage, machine-markable records, problem flags, and training suitability.
                             </p>
                             <Button size="sm" variant="outline" className="w-full" asChild>
-                                <Link href="/contributor/questions">Open Drafts</Link>
+                                <Link href="/contributor/dataset-qa/analytics">Open Analytics</Link>
                             </Button>
                         </div>
 
                         <div className="rounded-lg border p-4">
                             <div className="mb-3 flex items-center gap-2 font-medium">
-                                <Library className="h-4 w-4" />
-                                Build rubrics
+                                <FileText className="h-4 w-4" />
+                                Read the QA guide
                             </div>
                             <p className="mb-4 text-sm text-muted-foreground">
-                                Add lightweight criteria, marking notes, and model answers linked to questions.
+                                Follow the student testing flow and use consistent approve, fix, reject, or manual-review decisions.
                             </p>
                             <Button size="sm" variant="outline" className="w-full" asChild>
-                                <Link href="/contributor/rubrics">View Rubrics</Link>
+                                <Link href="/docs/contributor-dataset-qa-guide.pdf" target="_blank">
+                                    Open PDF Guide
+                                </Link>
                             </Button>
                         </div>
                     </CardContent>
@@ -122,82 +123,93 @@ export default function ContributorDashboardPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <Button className="w-full justify-start" asChild>
-                            <Link href="/contributor/questions/new">
-                                <BookOpen className="mr-2 h-4 w-4" />
-                                New Question Draft
+                            <Link href="/contributor/dataset-qa">
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                Dataset QA Tool
                             </Link>
                         </Button>
 
                         <Button variant="outline" className="w-full justify-start" asChild>
-                            <Link href="/contributor/questions">
-                                <ClipboardList className="mr-2 h-4 w-4" />
-                                View Question Drafts
+                            <Link href="/contributor/dataset-qa/analytics">
+                                <BarChart3 className="mr-2 h-4 w-4" />
+                                Dataset Analytics
                             </Link>
                         </Button>
 
                         <Button variant="outline" className="w-full justify-start" asChild>
-                            <Link href="/contributor/rubrics">
-                                <Library className="mr-2 h-4 w-4" />
-                                View Rubric Drafts
+                            <Link href="/docs/contributor-dataset-qa-guide.pdf" target="_blank">
+                                <FileText className="mr-2 h-4 w-4" />
+                                QA Guide PDF
+                            </Link>
+                        </Button>
+
+                        <Button variant="outline" className="w-full justify-start" asChild>
+                            <Link href="#golden-example">
+                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                Golden Example
                             </Link>
                         </Button>
                     </CardContent>
                 </Card>
             </div>
 
-            <Card>
+            <Card id="golden-example">
                 <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">Recent Tasks</CardTitle>
-                        <Button variant="ghost" size="sm" asChild>
-                            <Link href="/contributor/tasks">
-                                View all <ArrowRight className="ml-1 h-4 w-4" />
-                            </Link>
-                        </Button>
-                    </div>
+                    <CardTitle className="text-lg">Golden Example</CardTitle>
                 </CardHeader>
 
-                <CardContent className="space-y-3">
-                    {hasRecentTasks ? (
-                        data.recentTasks.map((task) => (
-                            <div
-                                key={task.id}
-                                className="rounded-lg border p-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
-                            >
-                                <div className="space-y-1">
-                                    <p className="font-medium">{task.title}</p>
-                                    <p className="text-sm text-muted-foreground">{task.description}</p>
-                                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                        <span className="rounded bg-muted px-2 py-1">{task.type}</span>
-                                        <span className="rounded bg-muted px-2 py-1">{task.status}</span>
-                                        <span className="rounded bg-muted px-2 py-1">Priority {task.priority}</span>
-                                    </div>
-                                </div>
-
-                                <Button variant="outline" asChild>
-                                    <Link href="/contributor/tasks">Open</Link>
-                                </Button>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="rounded-lg border border-dashed p-6 text-center">
-                            <p className="font-medium">No assigned tasks yet</p>
-                            <p className="mt-2 text-sm text-muted-foreground">
-                                Start manually by creating a new question draft, then build a rubric for it.
-                            </p>
-                            <div className="mt-4 flex justify-center gap-3">
-                                <Button asChild>
-                                    <Link href="/contributor/questions/new">Create Question Draft</Link>
-                                </Button>
-                                <Button variant="outline" asChild>
-                                    <Link href="/contributor/questions">View Existing Drafts</Link>
-                                </Button>
-                            </div>
+                <CardContent>
+                    <div className="rounded-lg border p-5">
+                        <p className="font-medium">Use 2025 Exam 1, Question 3a as the model QA check.</p>
+                        <div className="mt-3 grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+                            <p>Expected answer: <span className="font-medium text-foreground">[-1,3]</span></p>
+                            <p>Marker result: <span className="font-medium text-foreground">Correct, 1 / 1</span></p>
+                            <p>Topic check: trigonometric/circular functions.</p>
+                            <p>Decision: Approved when text, answer, and solution match.</p>
                         </div>
-                    )}
+                        <div className="mt-4 flex flex-wrap gap-3">
+                            <Button asChild>
+                                <Link href="/contributor/dataset-qa">Open Dataset QA</Link>
+                            </Button>
+                            <Button variant="outline" asChild>
+                                <Link href="/docs/contributor-dataset-qa-guide.pdf" target="_blank">
+                                    Open Full Guide
+                                </Link>
+                            </Button>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
         </div>
+    );
+}
+
+function DatasetOverviewStats({ rows }: { rows: DatasetQaQuestion[] }) {
+    const statuses: DatasetQaStatus[] = ["READY_FOR_QA", "APPROVED", "NEEDS_FIX", "REJECTED", "MANUAL_REVIEW"];
+    const labels: Record<DatasetQaStatus, string> = {
+        READY_FOR_QA: "Ready for QA",
+        APPROVED: "Approved",
+        NEEDS_FIX: "Needs fix",
+        REJECTED: "Rejected",
+        MANUAL_REVIEW: "Manual review",
+    };
+
+    return (
+        <Card>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Dataset Overview</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-5">
+                {statuses.map((status) => (
+                    <div key={status} className="rounded-lg border p-4">
+                        <p className="text-xs text-muted-foreground">{labels[status]}</p>
+                        <p className="mt-1 text-2xl font-semibold">
+                            {rows.filter((row) => row.reviewStatus === status).length}
+                        </p>
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
     );
 }
 
@@ -209,8 +221,8 @@ function ContributorDashboardSkeleton() {
                 <Skeleton className="h-4 w-80" />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {[...Array(4)].map((_, i) => (
+            <div className="grid gap-4 md:grid-cols-3">
+                {[...Array(3)].map((_, i) => (
                     <Skeleton key={i} className="h-32" />
                 ))}
             </div>

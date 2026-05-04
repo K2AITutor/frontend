@@ -14,17 +14,15 @@ import {
 import {
   LayoutDashboard,
   BookOpen,
-  FileText,
   Settings,
   LogOut,
-  BarChart3,
   UserCog,
   Sparkles,
   CreditCard,
   Quote,
   HelpCircle,
-  ClipboardList,
-  Library,
+  ShieldCheck,
+  BarChart3,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -110,19 +108,14 @@ const contributorNavItems: NavItem[] = [
     icon: <LayoutDashboard className="h-5 w-5" />,
   },
   {
-    title: "Tasks",
-    href: "/contributor/tasks",
-    icon: <ClipboardList className="h-5 w-5" />,
+    title: "Dataset QA",
+    href: "/contributor/dataset-qa",
+    icon: <ShieldCheck className="h-5 w-5" />,
   },
   {
-    title: "Question Drafts",
-    href: "/contributor/questions",
-    icon: <BookOpen className="h-5 w-5" />,
-  },
-  {
-    title: "Rubric Drafts",
-    href: "/contributor/rubrics",
-    icon: <Library className="h-5 w-5" />,
+    title: "Dataset Analytics",
+    href: "/contributor/dataset-qa/analytics",
+    icon: <BarChart3 className="h-5 w-5" />,
   },
 ];
 
@@ -148,6 +141,9 @@ export function DashboardSidebar({
 
   const isActive = (href: string) => {
     if (href === `/${role}`) {
+      return pathname === href;
+    }
+    if (href === "/contributor/dataset-qa") {
       return pathname === href;
     }
     return pathname.startsWith(href);
