@@ -66,6 +66,56 @@ export interface CreateRubricDraftPayload {
     criteria: RubricCriterionInput[];
 }
 
+export type DatasetQaStatus =
+    | "READY_FOR_QA"
+    | "APPROVED"
+    | "NEEDS_FIX"
+    | "REJECTED"
+    | "MANUAL_REVIEW";
+
+export interface DatasetQaQuestion {
+    id: number;
+    examKey: string;
+    questionNumber: string;
+    questionText: string;
+    topicCode?: string | null;
+    subtopicCode?: string | null;
+    skillCode?: string | null;
+    marks: number;
+    answerType: string;
+    isMarkable: boolean;
+    machineEngine?: string | null;
+    correctAnswer: string;
+    acceptedAnswers: string[];
+    workedSolution: string;
+    markingRubric: Array<{ marks?: number; criterion?: string }>;
+    reviewStatus: DatasetQaStatus;
+    reviewerName?: string;
+    reviewNotes?: string;
+    reviewedAt?: string | null;
+    pdfPage?: number | null;
+}
+
+export interface UpdateDatasetQaPayload {
+    reviewerName: string;
+    reviewStatus: DatasetQaStatus;
+    reviewNotes?: string;
+    questionText?: string;
+    correctAnswer?: string;
+    acceptedAnswers?: string[];
+    workedSolution?: string;
+    topicCode?: string;
+    subtopicCode?: string;
+}
+
+export interface DatasetQaMarkingResult {
+    isCorrect: boolean | null;
+    score: number | null;
+    maxScore: number;
+    errorTags: string[];
+    diagnostics?: Record<string, unknown>;
+}
+
 async function getAccessToken() {
     const session = await getSession();
     return (session?.user as any)?.accessToken as string | undefined;
@@ -177,4 +227,36 @@ export async function updateRubricDraft(
 ) {
     const token = await getAccessToken();
     return apiPut(`/contributor/rubrics/${rubricId}`, payload, token);
+}
+
+export function useDatasetQaQuestions(examKey: string, enabled = true) {
+    return useQuery({
+        queryKey: ["datasetQaQuestions", examKey],
+        queryFn: async () => {
+            const token = await getAccessToken();
+            return apiGet<DatasetQaQuestion[]>(
+                `/contributor/dataset-qa?examKey=${encodeURIComponent(examKey)}`,
+                token
+            );
+        },
+        enabled,
+        staleTime: 15_000,
+    });
+}
+
+export async function updateDatasetQaQuestion(
+    questionId: number | string,
+    payload: UpdateDatasetQaPayload
+) {
+    const token = await getAccessToken();
+    return apiPut<DatasetQaQuestion>(`/contributor/dataset-qa/${questionId}`, payload, token);
+}
+
+export async function testDatasetQaAnswer(questionId: number | string, answer: string) {
+    const token = await getAccessToken();
+    return apiPost<DatasetQaMarkingResult>(
+        `/contributor/dataset-qa/${questionId}/test-answer`,
+        { answer },
+        token
+    );
 }
