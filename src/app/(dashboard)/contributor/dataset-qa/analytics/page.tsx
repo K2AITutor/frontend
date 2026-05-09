@@ -53,14 +53,20 @@ interface SubjectOption {
     exams: ExamOption[];
 }
 
+const VCE_MM_EXAM1_OPTIONS: ExamOption[] = Array.from({ length: 10 }, (_, index) => {
+    const year = 2025 - index;
+    return {
+        key: `VCE_MM_EXAM1_${year}`,
+        label: `${year} Exam 1`,
+        available: true,
+    };
+});
+
 const SUBJECTS: SubjectOption[] = [
     {
         key: "VCE_MM",
         label: "VCE Mathematical Methods",
-        exams: [
-            { key: "VCE_MM_EXAM1_2025", label: "2025 Exam 1", available: true },
-            { key: "VCE_MM_EXAM1_2024", label: "2024 Exam 1", available: true },
-        ],
+        exams: VCE_MM_EXAM1_OPTIONS,
     },
     {
         key: "VCE_SPEC",
@@ -93,7 +99,7 @@ const TRAINING_LABELS: Record<TrainingLabel, string> = {
 const SECTION_GUIDE = [
     {
         section: "Dataset summary",
-        shows: "Total records, total marks, review decisions, and available exams.",
+        shows: "Live records, total marks, review decisions, and selected exam year from the QA database.",
         why: "Confirms whether the dataset is complete enough to use or still needs QA work.",
     },
     {
@@ -120,6 +126,11 @@ const SECTION_GUIDE = [
         section: "Problem flags",
         shows: "Missing answers, missing worked solutions, missing rubric, manual-review items, and rejected records.",
         why: "Gives contributors a focused fix list before the dataset is locked.",
+    },
+    {
+        section: "Release readiness",
+        shows: "Approved records, train-ready records, and review-only records for the selected exam.",
+        why: "Keeps reviewed datasets separate from data that should stay out of student practice and model training.",
     },
 ];
 
@@ -307,7 +318,7 @@ export default function ContributorDatasetAnalyticsPage() {
                         <h1 className="text-2xl font-bold">Dataset Analytics</h1>
                     </div>
                     <p className="text-muted-foreground">
-                        Evaluate dataset quality, coverage, QA status, and training suitability across subjects.
+                        Evaluate live QA records by subject and exam year before using them for student release or model training.
                     </p>
                 </div>
 
@@ -381,7 +392,7 @@ export default function ContributorDatasetAnalyticsPage() {
                         <MetricCard
                             title="Dataset records"
                             value={data.length}
-                            subtitle={`${analytics.totalMarks} total marks`}
+                            subtitle={`${selectedExam.label} · ${analytics.totalMarks} total marks`}
                             icon={<Database className="h-5 w-5" />}
                         />
                         <MetricCard
@@ -399,7 +410,7 @@ export default function ContributorDatasetAnalyticsPage() {
                         <MetricCard
                             title="Train ready"
                             value={analytics.trainingCounts.TRAIN_READY ?? 0}
-                            subtitle={`${analytics.trainingCounts.NEEDS_REVIEW ?? 0} need review first`}
+                            subtitle={`${analytics.trainingCounts.NEEDS_REVIEW ?? 0} need QA first`}
                             icon={<Brain className="h-5 w-5" />}
                         />
                     </div>
@@ -409,6 +420,10 @@ export default function ContributorDatasetAnalyticsPage() {
                             <CardTitle className="text-lg">Analytics Guide</CardTitle>
                         </CardHeader>
                         <CardContent>
+                            <p className="mb-4 text-sm text-muted-foreground">
+                                These numbers are calculated from the selected Dataset QA queue. Change the subject or exam
+                                dropdown above to inspect another seeded dataset.
+                            </p>
                             <Table>
                                 <TableHeader>
                                     <TableRow>

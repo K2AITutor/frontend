@@ -6,16 +6,16 @@ import { useSession } from "next-auth/react";
 import { fetchExam, fetchExamQuestionsByExamKey, type ExamDTO, type ExamQuestionDTO } from "@/lib/apiClient";
 
 const EXAM_OPTIONS = [
-    { year: 2025, examKey: "VCE_MM_EXAM1_2025" },
-    { year: 2024, examKey: "VCE_MM_EXAM1_2024" },
-    { year: 2023, examKey: "VCE_MM_EXAM1_2023" },
-    { year: 2022, examKey: "VCE_MM_EXAM1_2022" },
-    { year: 2021, examKey: "VCE_MM_EXAM1_2021" },
-    { year: 2020, examKey: "VCE_MM_EXAM1_2020" },
-    { year: 2019, examKey: "VCE_MM_EXAM1_2019" },
-    { year: 2018, examKey: "VCE_MM_EXAM1_2018" },
-    { year: 2017, examKey: "VCE_MM_EXAM1_2017" },
-    { year: 2016, examKey: "VCE_MM_EXAM1_2016" },
+    { year: 2025, examKey: "VCE_MM_EXAM1_2025", studentVisible: true },
+    { year: 2024, examKey: "VCE_MM_EXAM1_2024", studentVisible: false },
+    { year: 2023, examKey: "VCE_MM_EXAM1_2023", studentVisible: false },
+    { year: 2022, examKey: "VCE_MM_EXAM1_2022", studentVisible: false },
+    { year: 2021, examKey: "VCE_MM_EXAM1_2021", studentVisible: false },
+    { year: 2020, examKey: "VCE_MM_EXAM1_2020", studentVisible: false },
+    { year: 2019, examKey: "VCE_MM_EXAM1_2019", studentVisible: false },
+    { year: 2018, examKey: "VCE_MM_EXAM1_2018", studentVisible: false },
+    { year: 2017, examKey: "VCE_MM_EXAM1_2017", studentVisible: false },
+    { year: 2016, examKey: "VCE_MM_EXAM1_2016", studentVisible: false },
 ];
 
 const TOPIC_DISPLAY: Record<string, string> = {
@@ -120,6 +120,13 @@ export default function Exam1BriefingPage() {
             setLoading(false);
             return;
         }
+        if (!selectedExam.studentVisible) {
+            setError(`${selectedExam.year} Exam 1 is seeded for contributor QA and will open for students after approval.`);
+            setExam(null);
+            setQuestions([]);
+            setLoading(false);
+            return;
+        }
 
         let cancelled = false;
 
@@ -156,7 +163,7 @@ export default function Exam1BriefingPage() {
         return () => {
             cancelled = true;
         };
-    }, [selectedExam.examKey, selectedExam.year, session, status]);
+    }, [selectedExam.examKey, selectedExam.studentVisible, selectedExam.year, session, status]);
 
     const totalMarks = useMemo(
         () => questions.reduce((sum, question) => sum + Number(question.marks || 0), 0),

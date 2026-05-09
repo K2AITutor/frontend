@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import AnswerInputV2 from "@/components/exam/AnswerInputV2";
 import QuestionCard from "@/components/practice/QuestionCard";
 import MathpixMarkdown from "@/components/practice/MathpixMarkdown";
 import { submitExamAnswer } from "@/lib/apiClient";
@@ -107,7 +108,6 @@ export default function ExamSessionClient(props: {
   const question = questions[currentIndex] ?? null;
 
   const [answer, setAnswer] = useState("");
-  const answerInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [result, setResult] = useState<MarkingResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -161,54 +161,6 @@ export default function ExamSessionClient(props: {
   const needsWorkingInput =
     question?.isMarkable === false ||
     ["WORKING", "PROOF", "GRAPH", "EXPLANATION", "TEXT"].some((type) => answerType.includes(type));
-  const compactAnswerInput = !needsWorkingInput;
-  const answerPlaceholder = needsWorkingInput
-    ? "Enter your working or explanation"
-    : answerType.includes("NUMERIC")
-      ? "Example: 1, 3/2, sqrt(2), pi/4"
-      : "Example: 2*x*cos(x)-x^2*sin(x)";
-
-  const answerShortcuts = useMemo(() => {
-    if (needsWorkingInput) {
-      return [
-        { label: "sqrt", value: "sqrt()" },
-        { label: "^", value: "^" },
-        { label: "pi", value: "pi" },
-        { label: "frac", value: "/" },
-      ];
-    }
-
-    return [
-      { label: "sqrt", value: "sqrt()" },
-      { label: "^", value: "^" },
-      { label: "pi", value: "pi" },
-      { label: "sin", value: "sin()" },
-      { label: "cos", value: "cos()" },
-      { label: "tan", value: "tan()" },
-      { label: "(", value: "(" },
-      { label: ")", value: ")" },
-    ];
-  }, [needsWorkingInput]);
-
-  const insertAnswerToken = (token: string) => {
-    const el = answerInputRef.current;
-    if (!el) {
-      setAnswer((value) => `${value}${token}`);
-      return;
-    }
-
-    const start = el.selectionStart ?? answer.length;
-    const end = el.selectionEnd ?? answer.length;
-    const nextAnswer = `${answer.slice(0, start)}${token}${answer.slice(end)}`;
-    const cursorOffset = token.endsWith("()") ? token.length - 1 : token.length;
-
-    setAnswer(nextAnswer);
-    window.requestAnimationFrame(() => {
-      el.focus();
-      const nextCursor = start + cursorOffset;
-      el.setSelectionRange(nextCursor, nextCursor);
-    });
-  };
 
   const resetAttemptState = () => {
     setAnswer("");
@@ -423,86 +375,22 @@ export default function ExamSessionClient(props: {
               </div>
             </div>
 
-            <div className="glass p-5 space-y-4">
-              <div>
-                <h2 className="font-semibold text-slate-100">Your answer</h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  {question.isMarkable === false
-                    ? "This part is saved for manual review."
-                    : "Submit your answer to check it against the dataset."}
-                </p>
+            <AnswerInputV2
+              value={answer}
+              onChange={setAnswer}
+              answerType={question.answerType}
+              isManualReview={needsWorkingInput}
+              onSubmit={handleSubmit}
+              onFinishReview={finishAndReview}
+              isSubmitting={isSubmitting}
+            />
+
+            {submitError && (
+              <div className="glass p-4 text-red-300">
+                <p className="font-semibold mb-1">Submission error</p>
+                <p className="text-sm text-slate-300">{submitError}</p>
               </div>
-
-              <div className="space-y-3">
-                {compactAnswerInput ? (
-                  <input
-                    ref={answerInputRef as any}
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    onKeyDown={(e) => {
-                      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit();
-                    }}
-                    placeholder={answerPlaceholder}
-                    className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg text-slate-100"
-                  />
-                ) : (
-                  <textarea
-                    ref={answerInputRef as any}
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    onKeyDown={(e) => {
-                      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit();
-                    }}
-                    placeholder={answerPlaceholder}
-                    rows={question.isMarkable === false ? 6 : 4}
-                    className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg text-slate-200 resize-y"
-                  />
-                )}
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {answerShortcuts.map((shortcut) => (
-                    <button
-                      key={`${shortcut.label}-${shortcut.value}`}
-                      type="button"
-                      onClick={() => insertAnswerToken(shortcut.value)}
-                      className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200"
-                    >
-                      {shortcut.label}
-                    </button>
-                  ))}
-                </div>
-
-                <p className="text-xs text-slate-500">
-                  Accepted format: normal calculator-style typing, such as <span className="font-mono">3/2</span>,{" "}
-                  <span className="font-mono">sqrt(2)</span>, or{" "}
-                  <span className="font-mono">2*x*cos(x)-x^2*sin(x)</span>.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  disabled={isSubmitting}
-                  onClick={handleSubmit}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold disabled:opacity-50"
-                >
-                  {isSubmitting ? "Checking..." : "Submit Answer"}
-                </button>
-
-                <button
-                  onClick={finishAndReview}
-                  className="px-4 py-3 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-sm font-semibold"
-                >
-                  Finish & Review
-                </button>
-              </div>
-
-              {submitError && (
-                <div className="glass p-4 text-red-300">
-                  <p className="font-semibold mb-1">Submission error</p>
-                  <p className="text-sm text-slate-300">{submitError}</p>
-                </div>
-              )}
-            </div>
+            )}
 
             {result && (
               <div

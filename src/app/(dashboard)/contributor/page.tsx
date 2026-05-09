@@ -160,13 +160,17 @@ export default function ContributorDashboardPage() {
 
                 <CardContent>
                     <div className="rounded-lg border p-5">
-                        <p className="font-medium">Use 2025 Exam 1, Question 3a as the model QA check.</p>
+                        <p className="font-medium">Use 2025 Exam 1, Question 1a as the model QA check.</p>
                         <div className="mt-3 grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-                            <p>Expected answer: <span className="font-medium text-foreground">[-1,3]</span></p>
+                            <p>Expected answer: <span className="font-medium text-foreground">2x cos(x) - x^2 sin(x)</span></p>
                             <p>Marker result: <span className="font-medium text-foreground">Correct, 1 / 1</span></p>
-                            <p>Topic check: trigonometric/circular functions.</p>
-                            <p>Decision: Approved when text, answer, and solution match.</p>
+                            <p>Topic check: Differentiation rules / Product rule.</p>
+                            <p>Decision: Approved when text, answer, solution, rubric, and marker result match.</p>
                         </div>
+                        <p className="mt-3 text-sm text-muted-foreground">
+                            Reviewer note example: Checked against source. Expected answer marks correct.
+                            Product rule topic is correct.
+                        </p>
                         <div className="mt-4 flex flex-wrap gap-3">
                             <Button asChild>
                                 <Link href="/contributor/dataset-qa">Open Dataset QA</Link>

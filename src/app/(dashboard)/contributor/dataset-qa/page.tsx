@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { BarChart3, CheckCircle2, FlaskConical, Save, Search, ShieldCheck, XCircle } from "lucide-react";
+import { BarChart3, CheckCircle2, FileText, FlaskConical, Save, Search, ShieldCheck, XCircle } from "lucide-react";
 import { usePageTitle } from "@/lib/usePageTitle";
 import {
     DatasetQaQuestion,
@@ -30,6 +30,22 @@ import { Textarea } from "@/components/dashboard/ui/textarea";
 const EXAMS = [
     { key: "VCE_MM_EXAM1_2025", label: "2025 Mathematical Methods Exam 1" },
     { key: "VCE_MM_EXAM1_2024", label: "2024 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2023", label: "2023 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2022", label: "2022 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2021", label: "2021 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2020", label: "2020 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2019", label: "2019 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2018", label: "2018 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2017", label: "2017 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2016", label: "2016 Mathematical Methods Exam 1" },
+];
+
+const DATASET_QA_SOURCES = [
+    ...EXAMS,
+    {
+        key: "TOPIC_MM_CALC_DIFF_RULES",
+        label: "Topic practice: Differentiation Rules",
+    },
 ];
 
 const STATUS_LABELS: Record<DatasetQaStatus, string> = {
@@ -151,16 +167,16 @@ export default function ContributorDatasetQaPage() {
                         </Link>
                     </Button>
                     <div className="space-y-2">
-                        <Label>Past exam</Label>
+                        <Label>Dataset</Label>
                         <Select value={examKey} onValueChange={(value) => {
                             setExamKey(value);
                             setSelectedId(null);
                         }}>
                             <SelectTrigger>
-                                <SelectValue placeholder="Select exam" />
+                                <SelectValue placeholder="Select dataset" />
                             </SelectTrigger>
                             <SelectContent>
-                                {EXAMS.map((exam) => (
+                                {DATASET_QA_SOURCES.map((exam) => (
                                     <SelectItem key={exam.key} value={exam.key}>
                                         {exam.label}
                                     </SelectItem>
@@ -189,6 +205,56 @@ export default function ContributorDatasetQaPage() {
                     </Card>
                 ))}
             </div>
+
+            <Card>
+                <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <FileText className="h-5 w-5" />
+                        QA review guideline
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                    <div>
+                        <p className="text-sm text-muted-foreground">
+                            Review each record as if you are preparing it for a student and for future model training.
+                            Do not approve a record only because it loads on screen.
+                        </p>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            {[
+                                "Enter your reviewer name before saving any decision.",
+                                "Select the exam year and open the first Ready for QA record.",
+                                "Compare the rendered question with the original exam or trusted source.",
+                                "Check topic, subtopic, marks, answer type, and manual-review flag.",
+                                "For auto-check questions, run the marker using the expected answer.",
+                                "Read the worked solution and marking rubric for accuracy and clarity.",
+                                "Choose Approve, Needs Fix, Manual, or Reject, then write a short note.",
+                                "Move to the next question and repeat until the queue is complete.",
+                            ].map((step, index) => (
+                                <div key={step} className="rounded-md border p-3 text-sm">
+                                    <span className="mr-2 font-semibold text-primary">{index + 1}.</span>
+                                    {step}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="rounded-lg border bg-muted/30 p-4">
+                        <p className="font-semibold">Golden example: 2025 Question 1a</p>
+                        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                            <p>Question: differentiate y = x^2 cos(x).</p>
+                            <p>Expected answer: 2x cos(x) - x^2 sin(x).</p>
+                            <p>Marker test: paste the expected answer and confirm it scores 1 / 1.</p>
+                            <p>Topic check: Differentiation rules / Product rule.</p>
+                            <p>Decision: Approve only if the rendered question, answer, solution, rubric, and marker result all match.</p>
+                            <p>Reviewer note example: Checked against source. Expected answer marks correct. Product rule topic is correct.</p>
+                        </div>
+                        <Button className="mt-4 w-full" variant="outline" asChild>
+                            <Link href="/docs/contributor-dataset-qa-guide.pdf" target="_blank">
+                                Open full guide
+                            </Link>
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
 
             {isLoading ? (
                 <DatasetQaSkeleton />

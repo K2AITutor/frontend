@@ -274,6 +274,35 @@ export default function PracticeClient({
 
     const filteredQuestionCount = questions.length;
 
+    const masteryOverview = useMemo(() => {
+        const topics = Object.values(topicMetaMap);
+        const totalTopics = topics.length;
+        const totalQuestions = topics.reduce((sum, topic) => sum + topic.total, 0);
+        const attempted = topics.reduce((sum, topic) => sum + topic.attempted, 0);
+        const strongTopics = topics.filter((topic) => topic.status === 'Strong').length;
+        const focusTopics = topics.filter((topic) => ['Weak', 'Monitor', 'Early signal'].includes(topic.status)).length;
+        const averageMastery = totalTopics
+            ? Math.round(topics.reduce((sum, topic) => sum + topic.mastery, 0) / totalTopics)
+            : 0;
+
+        return {
+            totalTopics,
+            totalQuestions,
+            attempted,
+            strongTopics,
+            focusTopics,
+            averageMastery,
+        };
+    }, [topicMetaMap]);
+
+    const activeTopic = useMemo(() => {
+        for (const group of groupedTopics) {
+            const topic = group.topics.find((item) => item.topicCode === selectedTopicCode);
+            if (topic) return topic;
+        }
+        return null;
+    }, [groupedTopics, selectedTopicCode]);
+
     const resetSupportState = () => {
         setHint1Text('');
         setHint2Text('');
@@ -753,13 +782,73 @@ export default function PracticeClient({
     }, [submissionResult]);
 
     return (
-        <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="space-y-6">
+            <section className="rounded-3xl border border-white/10 bg-slate-950/50 p-5 shadow-xl">
+                <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                        <div className="text-sm font-semibold uppercase tracking-wide text-emerald-300">
+                            Learning mode
+                        </div>
+                        <h2 className="mt-2 text-2xl font-bold text-white">
+                            Master the topic first, then move to past exams
+                        </h2>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                            Work through Cambridge-aligned topic questions with hints, explanations,
+                            similar-question practice, and mastery tracking. Past exam mode stays separate
+                            so this page can focus on learning rather than exam conditions.
+                        </p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[520px] xl:grid-cols-4">
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="text-xs text-slate-400">Topics</div>
+                            <div className="mt-1 text-2xl font-bold text-white">{masteryOverview.totalTopics}</div>
+                            <div className="mt-1 text-xs text-slate-400">{masteryOverview.totalQuestions} questions</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="text-xs text-slate-400">Attempted</div>
+                            <div className="mt-1 text-2xl font-bold text-white">{masteryOverview.attempted}</div>
+                            <div className="mt-1 text-xs text-slate-400">learning attempts</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="text-xs text-slate-400">Strong</div>
+                            <div className="mt-1 text-2xl font-bold text-emerald-300">{masteryOverview.strongTopics}</div>
+                            <div className="mt-1 text-xs text-slate-400">topics ready</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="text-xs text-slate-400">Average mastery</div>
+                            <div className="mt-1 text-2xl font-bold text-white">{masteryOverview.averageMastery}%</div>
+                            <div className="mt-1 text-xs text-slate-400">{masteryOverview.focusTopics} focus topics</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 md:grid-cols-4">
+                    {[
+                        ['1. Choose topic', 'Pick a VCE strand and Cambridge-aligned topic from the mastery map.'],
+                        ['2. Try question', 'Submit your answer and let the marker check the response.'],
+                        ['3. Use support', 'Hint 1 guides the method, Hint 2 gives setup help, Explain gives the worked reasoning.'],
+                        ['4. Strengthen mastery', 'Retry mistakes or try a similar question before moving on.'],
+                    ].map(([title, body]) => (
+                        <div key={title} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="text-sm font-semibold text-white">{title}</div>
+                            <div className="mt-2 text-sm leading-6 text-slate-300">{body}</div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
             <aside className="space-y-5">
                 <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg">
                     <div className="text-sm font-medium uppercase tracking-wide text-slate-400">
-                        Topic filters
+                        Topic mastery map
                     </div>
-                    <h2 className="mt-2 text-2xl font-bold text-white">Choose your practice area</h2>
+                    <h2 className="mt-2 text-2xl font-bold text-white">Choose what to master</h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                        Select one topic at a time. The session adapts using your attempts, hint use,
+                        and correctness.
+                    </p>
 
                     <div className="mt-4">
                         <label className="mb-2 block text-sm text-slate-300">Difficulty filter</label>
@@ -780,7 +869,7 @@ export default function PracticeClient({
                     </div>
 
                     <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-sm text-slate-300">
-                        Progress now uses stored attempt data for this student.
+                        Progress uses stored attempts for this student and updates after each submitted answer.
                     </div>
                 </section>
 
@@ -867,6 +956,53 @@ export default function PracticeClient({
             </aside>
 
             <section className="space-y-6">
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg">
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                        <div>
+                            <div className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+                                Active mastery session
+                            </div>
+                            <h2 className="mt-2 text-2xl font-bold text-white">{currentTopicName}</h2>
+                            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                                {activeTopic?.description ||
+                                    'Practise this topic until the method is secure, then move into weak-area review or past exam practice.'}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-300">
+                                {activeTopic?.unitLabel && (
+                                    <span className="rounded-full border border-white/10 bg-slate-950/50 px-3 py-1">
+                                        {activeTopic.unitLabel}
+                                    </span>
+                                )}
+                                <span className="rounded-full border border-white/10 bg-slate-950/50 px-3 py-1">
+                                    {selectedTopicCode}
+                                </span>
+                                <span className="rounded-full border border-white/10 bg-slate-950/50 px-3 py-1">
+                                    {activeTopicMeta.total} available questions
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="min-w-[240px] rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="text-sm text-slate-400">Topic mastery</div>
+                                <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses(activeTopicMeta.status)}`}>
+                                    {activeTopicMeta.status}
+                                </span>
+                            </div>
+                            <div className="mt-3 text-3xl font-bold text-white">{activeTopicMeta.mastery}%</div>
+                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-800">
+                                <div
+                                    className="h-full rounded-full bg-emerald-400"
+                                    style={{ width: `${Math.min(100, Math.max(0, activeTopicMeta.mastery))}%` }}
+                                />
+                            </div>
+                            <div className="mt-3 text-xs text-slate-400">
+                                {activeTopicMeta.attempted}/{activeTopicMeta.total} attempted in this topic.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200">
@@ -1216,6 +1352,7 @@ export default function PracticeClient({
                     )}
                 </div>
             </section>
+        </div>
         </div>
     );
 }
