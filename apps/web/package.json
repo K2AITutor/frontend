@@ -1,5 +1,5 @@
 {
-    "name": "aitutor-frontend",
+    "name": "@aitutor/web",
     "version": "0.1.0",
     "private": true,
     "scripts": {
