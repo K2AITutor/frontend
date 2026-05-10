@@ -1,40 +1,5 @@
 @import "tailwindcss";
 
-@theme {
-  --color-bg-primary: oklch(0.15 0.01 260);
-  --color-bg-secondary: oklch(0.18 0.015 260);
-  --color-bg-tertiary: oklch(0.22 0.02 260);
-  --color-accent-coral: oklch(0.65 0.2 25);
-  --color-accent-teal: oklch(0.7 0.15 170);
-  --color-accent-gold: oklch(0.8 0.15 85);
-  --color-text-primary: oklch(0.95 0.01 260);
-  --color-text-secondary: oklch(0.7 0.015 260);
-  --color-text-muted: oklch(0.5 0.02 260);
-  --color-border-subtle: oklch(1 0 0 / 0.1);
-  --color-border-accent: oklch(0.7 0.15 170 / 0.3);
-
-  --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-serif: 'Instrument Serif', Georgia, serif;
-
-  --spacing-container: 80rem;
-}
-
-@media (prefers-color-scheme: light) {
-  @theme {
-    --color-bg-primary: oklch(0.98 0.005 260);
-    --color-bg-secondary: oklch(1 0 0);
-    --color-bg-tertiary: oklch(0.95 0.01 260);
-    --color-accent-coral: oklch(0.55 0.22 25);
-    --color-accent-teal: oklch(0.55 0.18 170);
-    --color-accent-gold: oklch(0.65 0.18 85);
-    --color-text-primary: oklch(0.15 0.02 260);
-    --color-text-secondary: oklch(0.4 0.015 260);
-    --color-text-muted: oklch(0.6 0.02 260);
-    --color-border-subtle: oklch(0 0 0 / 0.08);
-    --color-border-accent: oklch(0.55 0.18 170 / 0.3);
-  }
-}
-
 @layer base {
   * {
     box-sizing: border-box;
