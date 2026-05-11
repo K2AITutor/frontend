@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "web": "npm run dev -w @aitutor/web",
-    "mobile": "npm run start -w @aitutor/mobile"
+    "mobile": "npm run start -w @aitutor/mobile",
+    "mobile:web": "npm run web -w @aitutor/mobile"
   }
 }
