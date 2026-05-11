@@ -1,3 +1,9 @@
+import type {
+  Subject,
+  CreateSubjectDto,
+  UpdateSubjectDto,
+} from "@aitutor/shared";
+
 const API_BASE_RAW =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   "http://localhost:4000";
@@ -7,27 +13,7 @@ const API_BASE = (() => {
   return clean.endsWith("/api") ? clean : `${clean}/api`;
 })();
 
-export interface Subject {
-  id: number;
-  name: string;
-  description?: string;
-  icon?: string;
-  order?: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface CreateSubjectDto {
-  name: string;
-  description?: string;
-  icon?: string;
-}
-
-export interface UpdateSubjectDto {
-  name?: string;
-  description?: string;
-  icon?: string;
-}
+export type { Subject, CreateSubjectDto, UpdateSubjectDto };
 
 export async function fetchSubjects(): Promise<Subject[]> {
   const res = await fetch(`${API_BASE}/subjects`, { cache: "no-store" });

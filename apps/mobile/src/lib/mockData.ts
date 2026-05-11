@@ -1,6 +1,6 @@
-// mobile/src/lib/mockData.ts
+import type { StudentDashboardData } from "@aitutor/shared";
 
-export const MOCK_STUDENT_DASHBOARD = {
+export const MOCK_STUDENT_DASHBOARD: StudentDashboardData = {
   profile: {
     id: "dev-student",
     name: "Alex Nguyen",

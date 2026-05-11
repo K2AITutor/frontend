@@ -1,9 +1,11 @@
-import axios from 'axios';
-import { getToken, clearToken } from './secureStore';
-import { MOCK_STUDENT_DASHBOARD } from './mockData';
+import axios from "axios";
+import { getToken, clearToken } from "./secureStore";
+import { MOCK_STUDENT_DASHBOARD } from "./mockData";
+import type { LoginResponse } from "@aitutor/shared";
 
 const apiClient = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:4000/api',
+  baseURL:
+    process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:4000/api",
   timeout: 10000,
 });
 
@@ -16,7 +18,9 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`);
+    console.log(
+      `[API Request] ${config.method?.toUpperCase()} ${config.url}`
+    );
     return config;
   },
   (error) => {
@@ -37,16 +41,20 @@ apiClient.interceptors.response.use(
 
     // DEV MODE: Mock interception if backend is unreachable or forced
     if (USE_MOCKS || !error.response) {
-      console.warn(`[Dev Mode] Intercepting ${originalRequest.url} with mock data`);
-      
-      // Simulate real dashboard response
-      if (originalRequest.url?.includes('/dashboard') || originalRequest.url?.includes('/auth/me')) {
-        return { 
-          data: MOCK_STUDENT_DASHBOARD, 
-          status: 200, 
-          statusText: 'OK', 
-          headers: {}, 
-          config: originalRequest 
+      console.warn(
+        `[Dev Mode] Intercepting ${originalRequest.url} with mock data`
+      );
+
+      if (
+        originalRequest.url?.includes("/dashboard") ||
+        originalRequest.url?.includes("/auth/me")
+      ) {
+        return {
+          data: MOCK_STUDENT_DASHBOARD,
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config: originalRequest,
         };
       }
     }

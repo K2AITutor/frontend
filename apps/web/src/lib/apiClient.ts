@@ -1,5 +1,26 @@
-import { PracticeQuestion } from "@/types/question";
-import { Testimonial } from "@/types/testimonial";
+import type { PracticeQuestion } from "@/types/question";
+import type { Testimonial } from "@/types/testimonial";
+import type {
+  TopicCountsDTO,
+  SubmitAnswerResponse,
+  AiExplainResponse,
+  AiHintResponse,
+  AiSimilarQuestionResponse,
+  TopicProgressRow,
+  ExamDTO,
+  ExamQuestionDTO,
+} from "@aitutor/shared";
+
+export type {
+  TopicCountsDTO,
+  SubmitAnswerResponse,
+  AiExplainResponse,
+  AiHintResponse,
+  AiSimilarQuestionResponse,
+  TopicProgressRow,
+  ExamDTO,
+  ExamQuestionDTO,
+};
 
 function getApiBase() {
   const raw =
@@ -138,87 +159,6 @@ export async function apiDelete<T>(path: string, token?: string): Promise<T> {
   return safeJsonFromResponse<T>(res, url);
 }
 
-export type TopicCountsDTO = {
-  subject: string;
-  counts: Record<string, number>;
-};
-
-export type SubmitAnswerResponse = {
-  correct: boolean | null;
-  correctAnswer?: string | null;
-  explanation?: string | null;
-  workedSolution?: string | null;
-  score?: number | null;
-  maxScore?: number | null;
-  errorTags?: string[];
-  skillGaps?: string[];
-  diagnostics?: Record<string, unknown>;
-};
-
-export type AiExplainResponse = {
-  stepByStep?: string[];
-  finalAdvice?: string;
-};
-
-export type AiHintResponse = {
-  hint: string;
-};
-
-export type AiSimilarQuestionResponse = {
-  question: string;
-};
-
-export type TopicProgressRow = {
-  topicCode: string;
-  topicName?: string | null;
-  strandCode?: string | null;
-  strandName?: string | null;
-  attempts: number;
-  correct: number;
-  mastery: number;
-  status: "Not started" | "Weak" | "Medium" | "Strong";
-};
-
-/* =========================
-   EXAM TYPES + API METHODS
-   ========================= */
-
-export type ExamDTO = {
-  examKey: string;
-  title: string;
-  readingMins?: number | null;
-  writingMins?: number | null;
-  allowCAS?: boolean | null;
-  showHints?: boolean | null;
-  exactRequired?: boolean | null;
-  workingRequired?: boolean | null;
-  instructions?: string | null;
-  pdf?: {
-    url?: string | null;
-    filePath?: string | null;
-  } | null;
-};
-
-export type ExamQuestionDTO = {
-  id: number;
-  examKey: string;
-  questionNumber: string;
-  marks: number;
-  answerType: string;
-  prompt: string;
-  questionText?: string | null;
-  skillCode?: string | null;
-  topicCode?: string | null;
-  subtopicCode?: string | null;
-  difficulty?: string | null;
-  isMarkable?: boolean | null;
-  rubricKey?: string | null;
-  markingMeta?: any;
-  pdfPage?: number | null;
-  groupId?: number | null;
-  partLabel?: string | null;
-};
-
 export async function fetchExam(examKey: string, token?: string): Promise<ExamDTO> {
   return apiGet<ExamDTO>(`/exams/${encodeURIComponent(examKey)}`, token);
 }
@@ -348,7 +288,6 @@ export async function getNextRecommendedQuestions(args: {
   return safeJsonFromResponse<PracticeQuestion[]>(res, url);
 }
 
-/** Compatibility alias for existing PracticeClient import */
 export async function getAdaptiveRecommendation(args: {
   subject: string;
   skillCode?: string;

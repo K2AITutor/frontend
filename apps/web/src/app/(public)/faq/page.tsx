@@ -8,7 +8,7 @@ import { ChevronDown, Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { fetchFAQCategories, fetchFAQs, FAQ, FAQCategory } from '@/lib/api/faq'
+import { fetchFAQCategories, fetchFAQs, PublicFAQ as FAQ, PublicFAQCategory as FAQCategory } from '@/lib/api/faq'
 
 export default function FAQPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null)

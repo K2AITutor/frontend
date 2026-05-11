@@ -11,9 +11,9 @@ import {
   Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { ApiNotificationType } from "@aitutor/shared";
 
 type NotificationType = "grade" | "assignment" | "achievement" | "message";
-export type ApiNotificationType = "info" | "success" | "warning" | "error";
 
 interface NotificationItemProps {
   type?: NotificationType;

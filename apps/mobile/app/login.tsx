@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useRouter } from "expo-router";
 import { View, Text, TextInput, Pressable, useCSSVariable } from "../src/tw";
+import type { LoginResponse } from "@aitutor/shared";
 import apiClient from "../src/lib/apiClient";
 import { saveToken } from "../src/lib/secureStore";
 
@@ -21,7 +22,7 @@ export default function LoginScreen() {
     setError(null);
 
     try {
-      const response = await apiClient.post("/auth/signin", {
+      const response = await apiClient.post<LoginResponse>("/auth/signin", {
         email,
         password,
       });

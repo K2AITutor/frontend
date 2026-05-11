@@ -1,47 +1,22 @@
 import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/apiClient";
+import type {
+  FAQCategory,
+  FAQ,
+  CreateFaqCategoryDto,
+  UpdateFaqCategoryDto,
+  CreateFaqDto,
+  UpdateFaqDto,
+} from "@aitutor/shared";
 
-// Types
-export interface FAQCategory {
-  id: string;
-  label: string;
-  order: number;
-}
+export type {
+  FAQCategory,
+  FAQ,
+  CreateFaqCategoryDto,
+  UpdateFaqCategoryDto,
+  CreateFaqDto,
+  UpdateFaqDto,
+};
 
-export interface FAQ {
-  id: number;
-  categoryId: string;
-  category: FAQCategory;
-  question: string;
-  answer: string;
-  order: number;
-}
-
-export interface CreateFaqCategoryDto {
-  id: string;
-  label: string;
-  order?: number;
-}
-
-export interface UpdateFaqCategoryDto {
-  label?: string;
-  order?: number;
-}
-
-export interface CreateFaqDto {
-  categoryId: string;
-  question: string;
-  answer: string;
-  order?: number;
-}
-
-export interface UpdateFaqDto {
-  categoryId?: string;
-  question?: string;
-  answer?: string;
-  order?: number;
-}
-
-// FAQ Categories
 export async function fetchAdminFaqCategories(token: string): Promise<FAQCategory[]> {
   return apiGet<FAQCategory[]>("/admin/faq-categories", token);
 }
@@ -58,7 +33,6 @@ export async function deleteFaqCategory(id: string, token: string): Promise<void
   return apiDelete<void>(`/admin/faq-categories/${id}`, token);
 }
 
-// FAQs
 export async function fetchAdminFaqs(token: string, categoryId?: string): Promise<FAQ[]> {
   const query = categoryId ? `?category=${encodeURIComponent(categoryId)}` : "";
   return apiGet<FAQ[]>(`/admin/faqs${query}`, token);

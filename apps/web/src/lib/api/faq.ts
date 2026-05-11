@@ -1,3 +1,10 @@
+import type {
+  PublicFAQCategory,
+  PublicFAQ,
+} from "@aitutor/shared";
+
+export type { PublicFAQCategory, PublicFAQ };
+
 const API_BASE_RAW =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   "http://localhost:4000";
@@ -7,24 +14,13 @@ const API_BASE = (() => {
   return clean.endsWith("/api") ? clean : `${clean}/api`;
 })();
 
-export interface FAQCategory {
-  id: string;
-  label: string;
-}
-
-export interface FAQ {
-  category: string;
-  question: string;
-  answer: string;
-}
-
-export async function fetchFAQCategories(): Promise<FAQCategory[]> {
+export async function fetchFAQCategories(): Promise<PublicFAQCategory[]> {
   const res = await fetch(`${API_BASE}/faq-categories`, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch FAQ categories");
   return res.json();
 }
 
-export async function fetchFAQs(category?: string): Promise<FAQ[]> {
+export async function fetchFAQs(category?: string): Promise<PublicFAQ[]> {
   const url = category
     ? `${API_BASE}/faqs?category=${encodeURIComponent(category)}`
     : `${API_BASE}/faqs`;

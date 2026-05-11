@@ -2,36 +2,19 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPost, apiPut } from "@/lib/apiClient";
+import type {
+  Notification,
+  NotificationPreference,
+  UnreadCountResponse,
+  UpdatePreferencesPayload,
+} from "@aitutor/shared";
 
-export interface Notification {
-  id: number;
-  userId: number;
-  type: "info" | "success" | "warning" | "error";
-  title: string;
-  message: string;
-  isRead: boolean;
-  createdAt: string;
-}
-
-export interface NotificationPreference {
-  id: number;
-  userId: number;
-  email: boolean;
-  sms: boolean;
-  marketing: boolean;
-}
-
-export interface UnreadCountResponse {
-  unreadCount: number;
-}
-
-export interface UpdatePreferencesPayload {
-  email?: boolean;
-  sms?: boolean;
-  marketing?: boolean;
-}
-
-// ── Queries ──────────────────────────────────────────────────────────────────
+export type {
+  Notification,
+  NotificationPreference,
+  UnreadCountResponse,
+  UpdatePreferencesPayload,
+};
 
 export function useNotifications(userId?: number, token?: string) {
   return useQuery({
@@ -61,8 +44,6 @@ export function useNotificationPreferences(userId?: number, token?: string) {
     enabled: !!userId && !!token,
   });
 }
-
-// ── Mutations ─────────────────────────────────────────────────────────────────
 
 export function useMarkAsRead(userId?: number, token?: string) {
   const queryClient = useQueryClient();

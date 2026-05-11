@@ -22,7 +22,7 @@ import {
 } from "@/components/dashboard/ui/dialog";
 import { Badge } from "@/components/dashboard/ui/badge";
 import {
-  SubscriptionPlan,
+  AdminSubscriptionPlan as SubscriptionPlan,
   fetchSubscriptionPlans,
   createSubscriptionPlan,
   updateSubscriptionPlan,

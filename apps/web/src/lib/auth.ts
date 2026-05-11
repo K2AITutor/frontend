@@ -1,3 +1,4 @@
+import type { LoginResponse } from "@aitutor/shared";
 import { apiPost } from "./apiClient";
 import { saveToken, clearToken, getToken } from "./storage";
 
@@ -13,7 +14,7 @@ export function getUserIdFromToken(): number | null {
         const payload = JSON.parse(jsonPayload);
         return payload.sub;
     } catch (e) {
-        return null; // Return null if decoding fails
+        return null;
     }
 }
 export function getUserRoleFromToken(): string | null {
@@ -30,13 +31,6 @@ export function getUserRoleFromToken(): string | null {
     } catch (e) {
         return null;
     }
-}
-
-interface LoginResponse {
-    access_token: string;
-    role: string;
-    userId: number;
-    email: string;
 }
 
 export async function login(email: string, password: string) {

@@ -2,50 +2,14 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPost, apiDelete } from "@/lib/apiClient";
+import type {
+  User,
+  UserStats,
+  PaginatedUsers,
+  UseUsersParams,
+} from "@aitutor/shared";
 
-export interface User {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    phone: string | null;
-    yearLevel: string | null;
-    isActive: boolean;
-    emailVerified: boolean;
-    lastLoginAt: string | null;
-    joinedDate: string;
-    status: string;
-    avatar: string | null;
-    subscriptionStatus: string | null;
-}
-
-export interface UserStats {
-    total: number;
-    active: number;
-    inactive: number;
-    verified: number;
-    unverified: number;
-}
-
-export interface PaginatedUsers {
-    users: User[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-    stats: UserStats;
-}
-
-export interface UseUsersParams {
-    page: number;
-    limit: number;
-    search?: string;
-    verified?: string;
-    isActive?: string;
-    startDate?: string;
-    endDate?: string;
-    token?: string;
-}
+export type { User, UserStats, PaginatedUsers, UseUsersParams };
 
 export async function toggleUserActive(userId: string, token: string): Promise<{ id: number; isActive: boolean }> {
     const base = getApiBase();
@@ -119,7 +83,6 @@ export function useUsers({
     });
 }
 
-// Internal helpers
 function getApiBase() {
     const raw = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
     const clean = String(raw).trim().replace(/\/+$/, "");

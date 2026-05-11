@@ -1,46 +1,12 @@
 import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/apiClient";
+import type {
+  Testimonial,
+  CreateTestimonialDto,
+  UpdateTestimonialDto,
+} from "@aitutor/shared";
 
-// Types
-export interface Testimonial {
-  id: number;
-  name: string;
-  role: string;
-  subject: string;
-  image: string | null;
-  quote: string;
-  rating: number;
-  atarImprovement: string | null;
-  order: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+export type { Testimonial, CreateTestimonialDto, UpdateTestimonialDto };
 
-export interface CreateTestimonialDto {
-  name: string;
-  role: string;
-  subject: string;
-  image?: string;
-  quote: string;
-  rating?: number;
-  atarImprovement?: string;
-  order?: number;
-  isActive?: boolean;
-}
-
-export interface UpdateTestimonialDto {
-  name?: string;
-  role?: string;
-  subject?: string;
-  image?: string;
-  quote?: string;
-  rating?: number;
-  atarImprovement?: string;
-  order?: number;
-  isActive?: boolean;
-}
-
-// Testimonials
 export async function fetchAdminTestimonials(token: string, includeInactive?: boolean): Promise<Testimonial[]> {
   const query = includeInactive ? "?includeInactive=true" : "";
   return apiGet<Testimonial[]>(`/admin/testimonials${query}`, token);
