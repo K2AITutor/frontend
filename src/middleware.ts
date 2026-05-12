@@ -4,8 +4,7 @@ import { NextResponse } from "next/server";
 const roleHomeMap: Record<string, string> = {
   admin: "/admin",
   student: "/student",
-  parent: "/parent",
-  teacher: "/teacher",
+  teacher: "/teacher/review",
 };
 
 export default withAuth(
@@ -36,7 +35,13 @@ export default withAuth(
       return NextResponse.redirect(new URL(roleHomeMap[role ?? ""] ?? "/student", req.url));
     }
 
-    const roleRoutes = ["admin", "student", "parent", "teacher"];
+    if (pathname.startsWith("/parent")) {
+      return NextResponse.redirect(
+        new URL(roleHomeMap[role ?? ""] ?? "/auth/login", req.url)
+      );
+    }
+
+    const roleRoutes = ["admin", "student", "teacher"];
     for (const routeRole of roleRoutes) {
       if (pathname.startsWith(`/${routeRole}`) && role !== routeRole) {
         return NextResponse.redirect(

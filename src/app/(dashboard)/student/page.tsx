@@ -100,7 +100,8 @@ export default function StudentDashboardPage() {
     );
   }
 
-  const { profile, courses, assignments, recentActivities, stats } = data;
+  const { profile, courses, recentActivities, stats } = data;
+  const assignments = data.assignments as Assignment[];
   const pendingAssignments = assignments.filter((a) => a.status !== "completed");
 
   return (
@@ -184,11 +185,6 @@ export default function StudentDashboardPage() {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">My Courses</h2>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/student/courses">
-                View all <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {courses.map((course) => (
@@ -240,11 +236,6 @@ export default function StudentDashboardPage() {
               <CalendarDays className="h-5 w-5" />
               Upcoming Assignments
             </CardTitle>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/student/assignments">
-                View all <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
           </div>
         </CardHeader>
         <CardContent>

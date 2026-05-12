@@ -98,29 +98,29 @@ export function useStudentDashboardData() {
             title: "Methods Practice Set 1",
             course: "Mathematical Methods",
             dueDate: new Date(Date.now() + 3 * 86400000).toISOString(),
-            status: "pending",
-            priority: "high",
+            status: "pending" as const,
+            priority: "high" as const,
           },
           {
             id: "a2",
             title: "Physics Checkpoint Questions",
             course: "Physics",
             dueDate: new Date(Date.now() + 5 * 86400000).toISOString(),
-            status: "in_progress",
-            priority: "medium",
+            status: "in_progress" as const,
+            priority: "medium" as const,
           },
         ],
         recentActivities: [
           {
             id: "r1",
-            type: "practice",
+            type: "practice" as const,
             title: "Practice started",
             description: "You started a practice session",
             timestamp: "Just now",
           },
           {
             id: "r2",
-            type: "quiz_completed",
+            type: "quiz_completed" as const,
             title: "Quiz completed",
             description: "Completed a short quiz",
             timestamp: "Yesterday",
@@ -150,4 +150,3 @@ export function useAdminDashboardData() {
     enabled: !!accessToken,
   });
 }
-

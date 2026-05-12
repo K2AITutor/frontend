@@ -17,7 +17,6 @@ import {
   BookOpen,
   Settings,
   LogOut,
-  BarChart3,
   UserCog,
   ChevronLeft,
   ChevronRight,
@@ -25,11 +24,8 @@ import {
   CreditCard,
   Quote,
   HelpCircle,
-  Baby,
-  Bell,
   ClipboardList,
   History,
-  TrendingUp,
   Network,
   Sliders,
   Inbox,
@@ -38,7 +34,7 @@ import {
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
-export type UserRole = "student" | "parent" | "teacher" | "admin";
+export type UserRole = "student" | "teacher" | "admin";
 
 interface NavItem {
   title: string;
@@ -81,35 +77,7 @@ const studentBottomNavItems: NavItem[] = [
   },
 ];
 
-const parentNavItems: NavItem[] = [
-  {
-    title: "Dashboard",
-    href: "/parent",
-    icon: <LayoutDashboard className="h-5 w-5" />,
-  },
-  {
-    title: "Children",
-    href: "/parent/children",
-    icon: <Baby className="h-5 w-5" />,
-  },
-  {
-    title: "Reports",
-    href: "/parent/reports",
-    icon: <BarChart3 className="h-5 w-5" />,
-  },
-  {
-    title: "Alerts",
-    href: "/parent/alerts",
-    icon: <Bell className="h-5 w-5" />,
-  },
-];
-
 const teacherNavItems: NavItem[] = [
-  {
-    title: "Dashboard",
-    href: "/teacher",
-    icon: <LayoutDashboard className="h-5 w-5" />,
-  },
   {
     title: "Review Queue",
     href: "/teacher/review",
@@ -119,11 +87,6 @@ const teacherNavItems: NavItem[] = [
     title: "History",
     href: "/teacher/history",
     icon: <History className="h-5 w-5" />,
-  },
-  {
-    title: "Stats",
-    href: "/teacher/stats",
-    icon: <TrendingUp className="h-5 w-5" />,
   },
 ];
 
@@ -188,14 +151,12 @@ const adminNavItems: NavItem[] = [
 
 const navItemsByRole: Record<UserRole, NavItem[]> = {
   student: studentNavItems,
-  parent: parentNavItems,
   teacher: teacherNavItems,
   admin: adminNavItems,
 };
 
 const roleLabels: Record<UserRole, string> = {
   student: "Student Portal",
-  parent: "Parent Portal",
   teacher: "Teacher Portal",
   admin: "Admin Portal",
 };

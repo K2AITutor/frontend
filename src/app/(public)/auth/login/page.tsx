@@ -22,8 +22,7 @@ export default function LoginPage() {
 
   const roleHomeMap: Record<string, string> = {
     student: '/student',
-    parent: '/parent',
-    teacher: '/teacher',
+    teacher: '/teacher/review',
     admin: '/admin',
   }
 
@@ -230,7 +229,7 @@ export default function LoginPage() {
                 Dev Sign-in
               </p>
               <div className="grid grid-cols-2 gap-2">
-                {(['student', 'parent', 'teacher', 'admin'] as const).map((devRole) => (
+                {(['student', 'teacher', 'admin'] as const).map((devRole) => (
                   <button
                     key={devRole}
                     type="button"

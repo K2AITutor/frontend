@@ -61,7 +61,7 @@ export const authOptions: NextAuthOptions = {
                       name: "Dev Role Switcher",
                       credentials: { role: { label: "Role", type: "text" } },
                       async authorize(credentials) {
-                          const validRoles = ["student", "parent", "teacher", "admin"];
+                          const validRoles = ["student", "teacher", "admin"];
                           const role = validRoles.includes(credentials?.role ?? "")
                               ? credentials!.role
                               : "student";
