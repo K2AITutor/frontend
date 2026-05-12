@@ -1,42 +1,105 @@
+import React from "react";
 import { View, Text, Pressable } from "../tw";
 import { ArrowRight } from "lucide-react-native";
 import type { StudentCourse } from "@aitutor/shared";
+import { Card, CardContent } from "./ui/Card";
+import { cn } from "../lib/utils";
 
-export function StatCard({ title, value, icon: Icon, color }: {
+export function StatCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  color,
+  className,
+}: {
   title: string;
   value: string | number;
+  subtitle?: string;
   icon: React.ComponentType<{ size: number; color: string }>;
   color: string;
+  className?: string;
 }) {
   return (
-    <View className="bg-card p-4 rounded-3xl border border-border flex-1 min-w-[140px] shadow-sm">
-      <View className="flex-row items-center justify-between mb-2">
-        <Text className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-          {title}
-        </Text>
-        <Icon size={14} color={color} />
-      </View>
-      <Text className="text-2xl font-black text-foreground">{value}</Text>
-    </View>
+    <Card className={cn("flex-1 min-w-[140px]", className)}>
+      <CardContent className="p-4">
+        <View className="flex-row items-center justify-between">
+          <View className="flex-1 mr-2">
+            <Text className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+              {title}
+            </Text>
+            <Text className="text-2xl font-black text-foreground">{value}</Text>
+            {subtitle && (
+              <Text className="text-[10px] text-muted-foreground mt-1">
+                {subtitle}
+              </Text>
+            )}
+          </View>
+          <View
+            className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center"
+            style={{ backgroundColor: `${color}15` }}
+          >
+            <Icon size={18} color={color} />
+          </View>
+        </View>
+      </CardContent>
+    </Card>
   );
 }
 
 export function CourseCard({ course }: { course: StudentCourse }) {
+  const getGradeVariant = (grade?: string): any => {
+    if (!grade) return "outline";
+    if (grade.startsWith("A")) return "success";
+    if (grade.startsWith("B")) return "secondary";
+    return "destructive";
+  };
+
   return (
-    <Pressable className="bg-card p-5 rounded-3xl border border-border mb-4 flex-row items-center justify-between active:scale-[0.98]">
-      <View className="flex-row items-center flex-1">
-        <View className="w-12 h-12 rounded-2xl bg-primary/10 items-center justify-center mr-4">
-          <ArrowRight size={24} color="#14b8a6" />
+    <Card className="mb-4">
+      <CardHeader className="pb-3 flex-row items-center justify-between">
+        <View className="flex-row items-center gap-3">
+          <View className="w-10 h-10 rounded-lg bg-primary/10 items-center justify-center">
+            <BookOpen size={20} color="#14b8a6" />
+          </View>
+          <CardTitle className="text-base">{course.name}</CardTitle>
         </View>
-        <View className="flex-1">
-          <Text className="font-bold text-foreground text-base">{course.name}</Text>
-          <Text className="text-xs text-muted-foreground mt-0.5">{course.nextLesson}</Text>
+        {course.grade && (
+          <Badge variant={getGradeVariant(course.grade)} label={course.grade} />
+        )}
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <View className="mb-4">
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-xs text-muted-foreground">Progress</Text>
+            <Text className="text-xs font-bold text-foreground">
+              {course.progress}%
+            </Text>
+          </View>
+          <Progress value={course.progress} className="h-2" />
         </View>
-      </View>
-      <View className="flex-row items-center gap-2">
-        <Text className="text-sm font-bold text-primary">{course.progress}%</Text>
-        <ArrowRight size={16} color="#94a3b8" />
-      </View>
-    </Pressable>
+
+        {course.nextLesson && (
+          <View className="flex-row items-center justify-between pt-2 border-t border-border">
+            <View>
+              <Text className="text-[10px] text-muted-foreground">
+                Next lesson
+              </Text>
+              <Text className="text-sm font-bold text-foreground">
+                {course.nextLesson}
+              </Text>
+            </View>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-row items-center"
+              label="Continue"
+            >
+              <ArrowRight size={14} color="#14b8a6" className="ml-1" />
+            </Button>
+          </View>
+        )}
+      </CardContent>
+    </Card>
   );
 }
