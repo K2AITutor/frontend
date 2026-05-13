@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { usePageTitle } from "@/lib/usePageTitle";
 import {
@@ -27,9 +27,11 @@ type CriterionRow = {
 export default function ContributorRubricBuilderPage({
     params,
 }: {
-    params: { questionId: string };
+    params: Promise<{ questionId: string }>;
 }) {
-    usePageTitle(`Rubric Builder #${params.questionId}`);
+    const resolvedParams = use(params);
+    const { questionId } = resolvedParams;
+    usePageTitle(`Rubric Builder #${questionId}`);
     const router = useRouter();
 
     const [loadingExisting, setLoadingExisting] = useState(true);
@@ -38,7 +40,7 @@ export default function ContributorRubricBuilderPage({
     const [rubricId, setRubricId] = useState<number | null>(null);
 
     const [form, setForm] = useState({
-        questionId: Number(params.questionId),
+        questionId: Number(questionId),
         rubricKey: "",
         maxMarks: 1,
         modelAnswer: "",
@@ -57,12 +59,12 @@ export default function ContributorRubricBuilderPage({
     useEffect(() => {
         async function loadExisting() {
             try {
-                const existing: any = await getRubricByQuestionId(params.questionId);
+                const existing: any = await getRubricByQuestionId(questionId);
 
                 if (existing) {
                     setRubricId(existing.id ?? null);
                     setForm({
-                        questionId: Number(params.questionId),
+                        questionId: Number(questionId),
                         rubricKey: existing.rubricKey || "",
                         maxMarks: existing.maxMarks || 1,
                         modelAnswer: existing.modelAnswer || "",
@@ -97,7 +99,7 @@ export default function ContributorRubricBuilderPage({
         }
 
         loadExisting();
-    }, [params.questionId]);
+    }, [questionId]);
 
     function updateField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
         setForm((prev) => ({ ...prev, [key]: value }));
@@ -195,12 +197,12 @@ export default function ContributorRubricBuilderPage({
                 <div>
                     <h1 className="text-2xl font-bold">Rubric Builder</h1>
                     <p className="text-muted-foreground">
-                        Build a lightweight criterion-based rubric for question #{params.questionId}.
+                        Build a lightweight criterion-based rubric for question #{questionId}.
                     </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline">Question #{params.questionId}</Badge>
+                    <Badge variant="outline">Question #{questionId}</Badge>
                     <Badge>{rubricId ? "Existing Draft" : "New Draft"}</Badge>
                 </div>
             </div>
@@ -308,7 +310,7 @@ export default function ContributorRubricBuilderPage({
                         <CardContent className="space-y-4">
                             <div className="rounded-lg border p-4">
                                 <p className="text-sm text-muted-foreground">Question ID</p>
-                                <p className="text-lg font-semibold">{params.questionId}</p>
+                                <p className="text-lg font-semibold">{questionId}</p>
                             </div>
 
                             <div className="rounded-lg border p-4">

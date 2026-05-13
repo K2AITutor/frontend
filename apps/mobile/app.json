@@ -2,10 +2,11 @@
   "expo": {
     "name": "mobile",
     "slug": "mobile",
+    "scheme": "vcetutor",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -13,9 +14,33 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.k2aitutor.vcetutor",
+      "supportsTablet": true,
+      "associatedDomains": [
+        "applinks:vcetutor.app"
+      ]
     },
     "android": {
+      "package": "com.k2aitutor.vcetutor",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "vcetutor.app"
+            },
+            {
+              "scheme": "vcetutor"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -28,6 +53,27 @@
       "bundler": "metro"
     },
     "plugins": [
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/DMSans.ttf",
+            "./assets/fonts/InstrumentSerif-Regular.ttf"
+          ]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#111827",
+          "image": "./assets/splash-icon.png",
+          "dark": {
+            "backgroundColor": "#111827",
+            "image": "./assets/splash-icon.png"
+          },
+          "imageWidth": 180
+        }
+      ],
       "expo-secure-store",
       "expo-router"
     ]

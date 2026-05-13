@@ -140,13 +140,26 @@ export function useStudentDashboardData() {
   });
 }
 
+export interface AdminDashboardData {
+  systemStats: {
+    totalStudents: number;
+    newUsersThisMonth: number;
+    activeUsers: number;
+    totalSubjects: number;
+    totalTopics: number;
+    totalQuestions: number;
+    totalAttempts: number;
+  };
+  recentUsers: any[]; // Adjust based on UserTable requirements if needed
+}
+
 export function useAdminDashboardData() {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken;
 
-  return useQuery({
+  return useQuery<AdminDashboardData>({
     queryKey: ["adminDashboard", accessToken],
-    queryFn: () => apiGet("/admin/dashboard", accessToken),
+    queryFn: () => apiGet<AdminDashboardData>("/admin/dashboard", accessToken),
     enabled: !!accessToken,
   });
 }

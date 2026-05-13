@@ -2,6 +2,7 @@ import { useCssElement, useNativeVariable as useFunctionalVariable } from "react
 import { Link as RouterLink } from "expo-router";
 import React from "react";
 import { View as RNView, Text as RNText, Pressable as RNPressable, ScrollView as RNScrollView, TextInput as RNTextInput } from "react-native";
+import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 
 export const View = React.forwardRef<RNView, React.ComponentPropsWithoutRef<typeof RNView> & { className?: string }>(
   (props, ref) => useCssElement(RNView, { ...props, ref }, { className: "style" })
@@ -27,6 +28,12 @@ export const ScrollView = React.forwardRef<RNScrollView, React.ComponentPropsWit
   (props, ref) => useCssElement(RNScrollView, { ...props, ref }, { className: "style", contentContainerClassName: "contentContainerStyle" })
 );
 ScrollView.displayName = "CSS(ScrollView)";
+
+export const SafeAreaView = React.forwardRef<
+  React.ElementRef<typeof RNSafeAreaView>,
+  React.ComponentPropsWithoutRef<typeof RNSafeAreaView> & { className?: string }
+>((props, ref) => useCssElement(RNSafeAreaView, { ...props, ref }, { className: "style" }));
+SafeAreaView.displayName = "CSS(SafeAreaView)";
 
 export const Link = React.forwardRef<React.ElementRef<typeof RouterLink>, React.ComponentPropsWithoutRef<typeof RouterLink> & { className?: string }>(
   (props, ref) => useCssElement(RouterLink, { ...props, ref }, { className: "style" })

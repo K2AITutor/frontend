@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import type { ReviewSummary } from '@/types/review';
+import type { ReviewSummary } from '@aitutor/shared';
 import { ReviewQuestionGrid } from '@/components/exam/ReviewQuestionGrid';
 import { SubmitExamModal } from '@/components/exam/SubmitExamModal';
 

@@ -28,8 +28,13 @@ const DEFAULT_TOPIC_BY_SUBJECT: Record<string, string> = {
     MATH_METHODS: "MM_T1",
 };
 
-export default async function SubjectPracticePage({ params }: Props) {
-    const subjectCode = SUBJECT_MAP[params.subject];
+export default async function SubjectPracticePage({
+    params,
+}: {
+    params: Promise<{ subject: string }>;
+}) {
+    const { subject } = await params;
+    const subjectCode = SUBJECT_MAP[subject];
 
     if (!subjectCode) {
         return <div className="p-8 text-slate-400">Subject not found.</div>;
@@ -40,7 +45,7 @@ export default async function SubjectPracticePage({ params }: Props) {
         return (
             <div className="p-8">
                 <h1 className="text-xl font-semibold mb-2">
-                    {params.subject.replace(/-/g, " ").toUpperCase()}
+                    {subject.replace(/-/g, " ").toUpperCase()}
                 </h1>
                 <p className="text-slate-400">This subject is coming soon.</p>
             </div>

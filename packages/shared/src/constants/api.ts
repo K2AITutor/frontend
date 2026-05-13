@@ -9,6 +9,7 @@ export const PATH = {
     resendVerification: "/auth/resend-verification",
     completeProfile: "/auth/complete-profile",
     me: "/auth/me",
+    refresh: "/auth/refresh",
     changePassword: "/auth/change-password",
   },
   billing: {
@@ -18,6 +19,8 @@ export const PATH = {
     cancel: (userId: number) => `/billing/cancel/${userId}`,
     invoices: (userId: number) => `/billing/invoices/${userId}`,
     usage: (userId: number) => `/billing/usage/${userId}`,
+    iapAppleVerify: "/billing/iap/apple/verify",
+    iapGoogleVerify: "/billing/iap/google/verify",
   },
   dashboard: {
     data: "/dashboard/data",

@@ -21,14 +21,17 @@ async function proxy(req: NextRequest, method: string, path: string[]) {
     });
 }
 
-export async function GET(req: NextRequest, ctx: { params: { path: string[] } }) {
-    return proxy(req, 'GET', ctx.params.path);
+export async function GET(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
+    const { path } = await ctx.params;
+    return proxy(req, 'GET', path);
 }
 
-export async function POST(req: NextRequest, ctx: { params: { path: string[] } }) {
-    return proxy(req, 'POST', ctx.params.path);
+export async function POST(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
+    const { path } = await ctx.params;
+    return proxy(req, 'POST', path);
 }
 
-export async function PATCH(req: NextRequest, ctx: { params: { path: string[] } }) {
-    return proxy(req, 'PATCH', ctx.params.path);
+export async function PATCH(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
+    const { path } = await ctx.params;
+    return proxy(req, 'PATCH', path);
 }

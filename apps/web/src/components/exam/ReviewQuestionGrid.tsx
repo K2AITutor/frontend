@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { ReviewSummaryQuestion } from '@/types/review';
+import type { ReviewSummaryQuestion } from '@aitutor/shared';
 
 function tileStyle(q: ReviewSummaryQuestion) {
     const base =

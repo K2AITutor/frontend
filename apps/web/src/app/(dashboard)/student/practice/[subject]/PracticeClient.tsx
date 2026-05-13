@@ -13,7 +13,7 @@ import {
 import { PracticeQuestion } from '@/types/question';
 import { TopicGroup } from '@/types/topic';
 
-type TopicStatus = 'Not started' | 'Early signal' | 'Weak' | 'Monitor' | 'Strong';
+type TopicStatus = 'Not started' | 'Early signal' | 'Weak' | 'Monitor' | 'Medium' | 'Strong';
 
 type SubmissionResult = {
     correct?: boolean | null;
@@ -451,7 +451,7 @@ export default function PracticeClient({
             const topicProgress = result?.topicProgress ?? null;
 
             setSubmissionResult({
-                ...result,
+                ...(result as any),
                 feedback:
                     result?.explanation ||
                     result?.workedSolution ||
@@ -463,10 +463,10 @@ export default function PracticeClient({
                     (currentQuestion as any).answer ||
                     'No model answer available.',
                 commonMistake:
-                    result?.commonMistake ||
+                    (result as any)?.commonMistake ||
                     (result?.errorTags?.length
                         ? result.errorTags.join(', ')
-                        : result?.diagnostics?.mistakeType ||
+                        : (result?.diagnostics as any)?.mistakeType ||
                         'Check substitution, setup, and arithmetic carefully.'),
             });
 
@@ -474,12 +474,13 @@ export default function PracticeClient({
                 setLocalTopicProgress((prev) => ({
                     ...prev,
                     [topicProgress.topicCode]: {
-                        attempted: topicProgress.attempted,
+                        attempted: topicProgress.attempts,
                         correct: topicProgress.correct,
-                        status: topicProgress.status,
+                        status: topicProgress.status as TopicStatus,
                     },
                 }));
-            } else {
+            }
+ else {
                 setLocalTopicProgress((prev) => {
                     const current = prev[selectedTopicCode] ?? { attempted: 0, correct: 0 };
                     const nextAttempted = current.attempted + 1;

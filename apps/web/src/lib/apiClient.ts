@@ -332,6 +332,8 @@ export async function fetchSimilarQuestions(payload: {
   subject: string;
   questionId?: string;
   topicCode?: string;
+  skillCode?: string;
+  difficulty?: string;
   skillGaps?: string[];
   limit?: number;
 }) {

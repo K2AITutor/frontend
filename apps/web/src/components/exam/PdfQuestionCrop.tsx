@@ -39,7 +39,8 @@ export default function PdfQuestionCrop({ pdfUrl, page, crop, title }: Props) {
         let alive = true;
         (async () => {
             try {
-                const mod = await import("pdfjs-dist/legacy/build/pdf");
+                // @ts-ignore
+                const mod = await import("pdfjs-dist/build/pdf");
                 const lib = mod as any;
 
                 // Worker: use CDN worker that matches installed pdfjs version.

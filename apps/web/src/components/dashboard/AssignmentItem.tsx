@@ -14,13 +14,13 @@ interface AssignmentItemProps {
   title: string;
   course: string;
   dueDate: string;
-  status: AssignmentStatus;
-  priority: Priority;
+  status: AssignmentStatus | string;
+  priority: Priority | string;
   className?: string;
 }
 
 const statusConfig: Record<
-  AssignmentStatus,
+  string,
   { icon: React.ReactNode; label: string; className: string }
 > = {
   pending: {
@@ -40,7 +40,7 @@ const statusConfig: Record<
   },
 };
 
-const priorityConfig: Record<Priority, { className: string }> = {
+const priorityConfig: Record<string, { className: string }> = {
   high: { className: "border-l-red-500" },
   medium: { className: "border-l-yellow-500" },
   low: { className: "border-l-green-500" },
@@ -61,7 +61,7 @@ function formatDueDate(dateString: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function getDueDateColor(dateString: string, status: AssignmentStatus): string {
+function getDueDateColor(dateString: string, status: string): string {
   if (status === "completed") return "text-muted-foreground";
 
   const date = new Date(dateString);

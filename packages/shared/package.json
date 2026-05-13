@@ -7,5 +7,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./src/theme.css": "./src/theme.css"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "react": "^19.0.0"
   }
 }

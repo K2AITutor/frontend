@@ -49,6 +49,8 @@ export type ExamQuestionDTO = {
   partLabel?: string | null;
 };
 
+import type { TopicProgressRow } from "./topic";
+
 export type SubmitAnswerResponse = {
   correct: boolean | null;
   correctAnswer?: string | null;
@@ -59,6 +61,7 @@ export type SubmitAnswerResponse = {
   errorTags?: string[];
   skillGaps?: string[];
   diagnostics?: Record<string, unknown>;
+  topicProgress?: TopicProgressRow | null;
 };
 
 export type AttemptRecord = {

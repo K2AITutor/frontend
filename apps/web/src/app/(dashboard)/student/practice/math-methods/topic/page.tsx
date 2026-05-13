@@ -12,8 +12,9 @@ import { PracticeQuestion } from '@/types/question';
 export default async function StudentMathMethodsTopicPracticePage({
     searchParams,
 }: {
-    searchParams?: { topicCode?: string };
+    searchParams: Promise<{ topicCode?: string }>;
 }) {
+    const { topicCode } = await searchParams;
     const subject = 'MATH_METHODS';
 
     // TODO: replace with real authenticated user id once auth is wired properly
@@ -25,7 +26,7 @@ export default async function StudentMathMethodsTopicPracticePage({
 
     const firstTopic = catalogue.groups.flatMap((g) => g.topics)[0];
     const initialTopicCode =
-        searchParams?.topicCode || firstTopic?.topicCode || 'MM_FUNC_BASICS';
+        topicCode || firstTopic?.topicCode || 'MM_FUNC_BASICS';
 
     let initialQuestions: PracticeQuestion[] = [];
     try {

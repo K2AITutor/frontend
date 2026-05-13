@@ -1,100 +1,119 @@
 import React from "react";
-import { View, Text, ScrollView } from "../../src/tw";
+import { Pressable, View, Text, ScrollView, useCSSVariable } from "../../src/tw";
 import { Bell, CheckCircle, FileText, Trophy, MessageSquare } from "lucide-react-native";
 import { EmptyState } from "../../src/components/EmptyState";
-
-const MOCK_NOTIFICATIONS = [
-  {
-    id: 1,
-    type: "achievement" as const,
-    title: "Streak Milestone!",
-    message: "You've hit a 5-day practice streak. Keep going!",
-    timestamp: "2 hours ago",
-    read: false,
-  },
-  {
-    id: 2,
-    type: "assignment" as const,
-    title: "Assignment Due Soon",
-    message: "Methods Calculus Review is due in 2 days.",
-    timestamp: "5 hours ago",
-    read: false,
-  },
-  {
-    id: 3,
-    type: "grade" as const,
-    title: "New Grade Posted",
-    message: "Your Probability quiz score: 100%",
-    timestamp: "1 day ago",
-    read: true,
-  },
-];
+import { Screen, ScreenHeader } from "../../src/components/Screen";
+import { cn } from "../../src/lib/utils";
+import {
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useNotifications,
+  useUserProfile,
+} from "@aitutor/shared";
 
 const iconMap = {
-  achievement: Trophy,
-  assignment: FileText,
-  grade: CheckCircle,
-  message: MessageSquare,
+  success: Trophy,
+  warning: FileText,
+  info: MessageSquare,
+  error: CheckCircle,
 };
 
-const colorMap = {
-  achievement: "#eab308",
-  assignment: "#f97316",
-  grade: "#22c55e",
-  message: "#3b82f6",
+const bgClassMap = {
+  success: "bg-emerald-500/15",
+  warning: "bg-orange-500/15",
+  info: "bg-primary/15",
+  error: "bg-destructive/15",
 };
 
 export default function NotificationsScreen() {
-  if (MOCK_NOTIFICATIONS.length === 0) {
+  const gold = useCSSVariable("--color-accent-gold");
+  const orange = useCSSVariable("--color-accent-coral");
+  const green = useCSSVariable("--color-primary");
+  const primary = useCSSVariable("--color-primary");
+  const destructive = useCSSVariable("--color-destructive");
+  const muted = useCSSVariable("--color-muted-foreground");
+  const { data: profile } = useUserProfile();
+  const userId =
+    typeof profile?.userId === "number"
+      ? profile.userId
+      : typeof profile?.id === "number"
+        ? profile.id
+        : undefined;
+  const { data: notifications = [], isLoading } = useNotifications(userId);
+  const markRead = useMarkNotificationRead(userId);
+  const markAllRead = useMarkAllNotificationsRead(userId);
+
+  if (!isLoading && notifications.length === 0) {
     return (
-      <EmptyState
-        icon={Bell}
-        title="No Notifications"
-        description="You're all caught up! New notifications will appear here."
-      />
+      <Screen>
+        <ScreenHeader title="Notifications" />
+        <EmptyState
+          icon={Bell}
+          title="No Notifications"
+          description="You're all caught up! New notifications will appear here."
+        />
+      </Screen>
     );
   }
 
   return (
-    <View className="flex-1 bg-background">
-      <View className="pt-14 pb-6 px-6 bg-card border-b border-border">
-        <Text className="text-2xl font-bold text-foreground">Notifications</Text>
-      </View>
+    <Screen>
+      <ScreenHeader
+        title="Notifications"
+        rightContent={
+          notifications.length > 0 ? (
+            <Pressable onPress={() => markAllRead.mutate()} className="rounded-full bg-primary/10 px-3 py-2">
+              <Text className="text-xs font-bold text-primary">Mark all read</Text>
+            </Pressable>
+          ) : null
+        }
+      />
 
       <ScrollView className="flex-1 p-4">
-        {MOCK_NOTIFICATIONS.map((notif) => {
+        {isLoading && (
+          <Text className="mb-4 text-sm text-muted-foreground">Loading notifications...</Text>
+        )}
+        {notifications.map((notif) => {
           const Icon = iconMap[notif.type] || MessageSquare;
-          const color = colorMap[notif.type] || "#94a3b8";
+          const colorMap = {
+            success: green,
+            warning: orange,
+            info: primary,
+            error: destructive,
+          };
+          const color = colorMap[notif.type] || muted;
+          const bgClass = bgClassMap[notif.type] || "bg-muted";
 
           return (
-            <View
+            <Pressable
               key={notif.id}
+              onPress={() => !notif.isRead && markRead.mutate(notif.id)}
+              onLongPress={() => !notif.isRead && markRead.mutate(notif.id)}
               className={`bg-card p-4 rounded-2xl border border-border mb-3 flex-row items-start gap-3 ${
-                !notif.read ? "border-primary/30" : ""
+                !notif.isRead ? "border-primary/30" : ""
               }`}
             >
               <View
-                className="w-10 h-10 rounded-xl items-center justify-center"
-                style={{ backgroundColor: `${color}20` }}
+                className={cn("w-10 h-10 rounded-xl items-center justify-center", bgClass)}
               >
                 <Icon size={18} color={color} />
               </View>
               <View className="flex-1">
                 <View className="flex-row items-center justify-between">
-                  <Text className={`font-semibold text-foreground text-sm ${!notif.read ? "" : "opacity-70"}`}>
+                  <Text className={`font-semibold text-foreground text-sm ${!notif.isRead ? "" : "opacity-70"}`}>
                     {notif.title}
                   </Text>
-                  {!notif.read && (
+                  {!notif.isRead && (
                     <View className="h-2 w-2 rounded-full bg-primary" />
                   )}
                 </View>
                 <Text className="text-xs text-muted-foreground mt-1">{notif.message}</Text>
-                <Text className="text-[10px] text-muted-foreground mt-2">{notif.timestamp}</Text>
+                <Text className="text-[10px] text-muted-foreground mt-2">{notif.createdAt}</Text>
               </View>
-            </View>
+            </Pressable>
           );
         })}
       </ScrollView>
-    </View>
+    </Screen>
   );
 }

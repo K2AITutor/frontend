@@ -8,7 +8,9 @@ import { signIn } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from '@/components/dashboard/ui/sonner'
 
-export default function LoginPage() {
+import { Suspense } from 'react'
+
+function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -219,5 +221,17 @@ export default function LoginPage() {
         <AuthBanner />
       </div>
     </main>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-bg-primary flex items-center justify-center">
+        <div className="w-[18px] h-[18px] border-2 border-accent-teal border-t-transparent rounded-full animate-spin" />
+      </main>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }

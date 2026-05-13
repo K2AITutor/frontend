@@ -1,8 +1,8 @@
 import React from "react";
-import { View, Text, Pressable } from "../tw";
-import { ArrowRight } from "lucide-react-native";
+import { View, Text, useCSSVariable } from "../tw";
+import { ArrowRight, BookOpen } from "lucide-react-native";
 import type { StudentCourse } from "@aitutor/shared";
-import { Card, CardContent } from "./ui/Card";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Progress } from "./ui";
 import { cn } from "../lib/utils";
 
 export function StatCard({
@@ -48,6 +48,8 @@ export function StatCard({
 }
 
 export function CourseCard({ course }: { course: StudentCourse }) {
+  const primary = useCSSVariable("--color-primary");
+
   const getGradeVariant = (grade?: string): any => {
     if (!grade) return "outline";
     if (grade.startsWith("A")) return "success";
@@ -60,7 +62,7 @@ export function CourseCard({ course }: { course: StudentCourse }) {
       <CardHeader className="pb-3 flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">
           <View className="w-10 h-10 rounded-lg bg-primary/10 items-center justify-center">
-            <BookOpen size={20} color="#14b8a6" />
+            <BookOpen size={20} color={primary} />
           </View>
           <CardTitle className="text-base">{course.name}</CardTitle>
         </View>
@@ -95,7 +97,7 @@ export function CourseCard({ course }: { course: StudentCourse }) {
               className="flex-row items-center"
               label="Continue"
             >
-              <ArrowRight size={14} color="#14b8a6" className="ml-1" />
+              <ArrowRight size={14} color={primary} />
             </Button>
           </View>
         )}

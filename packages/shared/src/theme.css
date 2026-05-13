@@ -10,11 +10,33 @@
   --color-text-muted: oklch(0.5 0.02 260);
   --color-border-subtle: oklch(1 0 0 / 0.1);
   --color-border-accent: oklch(0.7 0.15 170 / 0.3);
+  --color-destructive-base: oklch(0.62 0.22 25);
+
+  --color-background: var(--color-bg-primary);
+  --color-foreground: var(--color-text-primary);
+  --color-card: var(--color-bg-secondary);
+  --color-card-foreground: var(--color-text-primary);
+  --color-popover: var(--color-bg-secondary);
+  --color-popover-foreground: var(--color-text-primary);
+  --color-primary: var(--color-accent-teal);
+  --color-primary-foreground: oklch(0.12 0.01 260);
+  --color-secondary: var(--color-bg-tertiary);
+  --color-secondary-foreground: var(--color-text-primary);
+  --color-muted: var(--color-bg-tertiary);
+  --color-muted-foreground: var(--color-text-secondary);
+  --color-accent: var(--color-bg-tertiary);
+  --color-accent-foreground: var(--color-text-primary);
+  --color-destructive: var(--color-destructive-base);
+  --color-destructive-foreground: oklch(0.98 0.005 260);
+  --color-border: var(--color-border-subtle);
+  --color-input: var(--color-border-subtle);
+  --color-ring: var(--color-accent-teal);
 
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --font-serif: 'Instrument Serif', Georgia, serif;
 
   --spacing-container: 80rem;
+  --radius: 0.75rem;
 }
 
 @media (prefers-color-scheme: light) {
@@ -30,5 +52,26 @@
     --color-text-muted: oklch(0.6 0.02 260);
     --color-border-subtle: oklch(0 0 0 / 0.08);
     --color-border-accent: oklch(0.55 0.18 170 / 0.3);
+    --color-destructive-base: oklch(0.58 0.22 25);
+
+    --color-background: var(--color-bg-primary);
+    --color-foreground: var(--color-text-primary);
+    --color-card: var(--color-bg-secondary);
+    --color-card-foreground: var(--color-text-primary);
+    --color-popover: var(--color-bg-secondary);
+    --color-popover-foreground: var(--color-text-primary);
+    --color-primary: var(--color-accent-teal);
+    --color-primary-foreground: oklch(0.98 0.005 260);
+    --color-secondary: var(--color-bg-tertiary);
+    --color-secondary-foreground: var(--color-text-primary);
+    --color-muted: var(--color-bg-tertiary);
+    --color-muted-foreground: var(--color-text-secondary);
+    --color-accent: var(--color-bg-tertiary);
+    --color-accent-foreground: var(--color-text-primary);
+    --color-destructive: var(--color-destructive-base);
+    --color-destructive-foreground: oklch(0.98 0.005 260);
+    --color-border: var(--color-border-subtle);
+    --color-input: var(--color-border-subtle);
+    --color-ring: var(--color-accent-teal);
   }
 }

@@ -55,8 +55,8 @@ export default function PricingPage() {
       try {
         const [plansData, subscriptionData] = await Promise.all([
           fetchPlans(),
-          session?.user?.id && accessToken
-            ? getSubscription(Number(session.user.id), accessToken)
+          (session?.user as any)?.id && accessToken
+            ? getSubscription(Number((session?.user as any).id), accessToken)
             : Promise.resolve(null)
         ]);
 
@@ -73,7 +73,7 @@ export default function PricingPage() {
   }, [session, accessToken]);
 
   const handleSubscribe = async (plan: SubscriptionPlan) => {
-    if (!session?.user?.id || !accessToken) {
+    if (!(session?.user as any)?.id || !accessToken) {
       router.push('/auth/login?redirect=/pricing');
       return;
     }
@@ -84,7 +84,7 @@ export default function PricingPage() {
       return;
     }
 
-    const userId = Number(session.user.id);
+    const userId = Number((session?.user as any).id);
 
     setProcessing(plan.id);
     try {

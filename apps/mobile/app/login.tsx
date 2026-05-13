@@ -3,7 +3,9 @@ import { useRouter } from "expo-router";
 import { View, Text, TextInput, Pressable, useCSSVariable } from "../src/tw";
 import type { LoginResponse } from "@aitutor/shared";
 import apiClient from "../src/lib/apiClient";
-import { saveToken } from "../src/lib/secureStore";
+import { saveToken, saveTokens } from "../src/lib/secureStore";
+import { Screen } from "../src/components/Screen";
+import { registerForPushNotifications } from "../src/lib/pushNotifications";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -27,9 +29,14 @@ export default function LoginScreen() {
         password,
       });
 
-      const { access_token } = response.data;
+      const { access_token, refresh_token, role } = response.data;
       if (access_token) {
-        await saveToken(access_token);
+        if (role && String(role).toUpperCase() !== "STUDENT") {
+          setError("The mobile app is currently for students. Please use the web app for this account.");
+          return;
+        }
+        await saveTokens(access_token, refresh_token);
+        registerForPushNotifications().catch(() => undefined);
         router.replace("/");
       } else {
         setError("Login failed. No token received.");
@@ -46,7 +53,7 @@ export default function LoginScreen() {
   const placeholderColor = useCSSVariable("--color-muted-foreground");
 
   return (
-    <View className="flex-1 items-center justify-center bg-background p-6">
+    <Screen className="items-center justify-center p-6">
       <View className="w-full max-w-sm bg-card p-8 rounded-2xl shadow-sm border border-border">
         <Text className="text-3xl font-bold text-foreground mb-2">Welcome Back</Text>
         <Text className="text-muted-foreground mb-8">Sign in to continue your learning</Text>
@@ -95,27 +102,34 @@ export default function LoginScreen() {
             </Text>
           </Pressable>
 
-          {/* Development Bypass Button - Simplified for testing */}
-          <Pressable
-            onPress={async () => {
-              console.log("Bypass clicked");
-              try {
-                await saveToken("mock-dev-token");
-                console.log("Token saved, redirecting...");
-                router.replace("/");
-              } catch (e) {
-                console.error("Bypass failed:", e);
-                setError("Bypass failed. Check console.");
-              }
-            }}
-            className="w-full py-3 rounded-xl mt-4 border border-border bg-muted/50 active:bg-muted"
-          >
-            <Text className="text-muted-foreground font-medium text-center">
-              Dev: Bypass Login (Mock)
-            </Text>
-          </Pressable>
+          <View className="mt-5 flex-row justify-between">
+            <Pressable onPress={() => router.push("/forgot-password")}>
+              <Text className="text-sm font-medium text-primary">Forgot password?</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push("/register")}>
+              <Text className="text-sm font-medium text-primary">Create account</Text>
+            </Pressable>
+          </View>
+
+          {__DEV__ && (
+            <Pressable
+              onPress={async () => {
+                try {
+                  await saveToken("mock-dev-token");
+                  router.replace("/");
+                } catch {
+                  setError("Bypass failed. Check console.");
+                }
+              }}
+              className="w-full py-3 rounded-xl mt-4 border border-border bg-muted/50 active:bg-muted"
+            >
+              <Text className="text-muted-foreground font-medium text-center">
+                Dev: Bypass Login (Mock)
+              </Text>
+            </Pressable>
+          )}
         </View>
       </View>
-    </View>
+    </Screen>
   );
 }

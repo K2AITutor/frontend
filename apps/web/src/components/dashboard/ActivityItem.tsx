@@ -26,7 +26,7 @@ type ActivityType =
   | "success";
 
 interface ActivityItemProps {
-  type: ActivityType;
+  type: ActivityType | string;
   title: string;
   description?: string;
   timestamp: string;
@@ -34,7 +34,7 @@ interface ActivityItemProps {
 }
 
 const activityConfig: Record<
-  ActivityType,
+  string,
   { icon: LucideIcon; bgColor: string; iconColor: string }
 > = {
   quiz_completed: {

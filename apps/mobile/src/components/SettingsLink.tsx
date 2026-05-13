@@ -1,4 +1,4 @@
-import { View, Text, Pressable } from "../tw";
+import { View, Text, Pressable, useCSSVariable } from "../tw";
 import { ChevronRight } from "lucide-react-native";
 
 export function SettingsLink({ icon: Icon, label, sublabel, onPress }: {
@@ -7,6 +7,8 @@ export function SettingsLink({ icon: Icon, label, sublabel, onPress }: {
   sublabel?: string;
   onPress?: () => void;
 }) {
+  const muted = useCSSVariable("--color-muted-foreground");
+
   return (
     <Pressable
       onPress={onPress}
@@ -14,14 +16,14 @@ export function SettingsLink({ icon: Icon, label, sublabel, onPress }: {
     >
       <View className="flex-row items-center">
         <View className="w-10 h-10 rounded-xl bg-muted items-center justify-center mr-3">
-          <Icon size={18} color="#94a3b8" />
+          <Icon size={18} color={muted} />
         </View>
         <View>
           <Text className="font-semibold text-foreground">{label}</Text>
           {sublabel && <Text className="text-xs text-muted-foreground">{sublabel}</Text>}
         </View>
       </View>
-      <ChevronRight size={18} color="#475569" />
+      <ChevronRight size={18} color={muted} />
     </Pressable>
   );
 }
