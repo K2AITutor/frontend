@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { apiGet, apiPost } from "@/lib/apiClient";
 import type { ReviewDecision } from "@/lib/types/review";
 import type { SubmissionFull } from "@/lib/types/marking";
@@ -11,9 +12,13 @@ import type {
 } from "@/lib/types/teacher";
 
 export function useTeacherStats(options?: { refetchInterval?: number }) {
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken as string | undefined;
+
   return useQuery({
-    queryKey: ["teacher", "stats"],
-    queryFn: () => apiGet<TeacherStats>("/teacher/stats"),
+    queryKey: ["teacher", "stats", accessToken],
+    queryFn: () => apiGet<TeacherStats>("/teacher/stats", accessToken),
+    enabled: !!accessToken,
     ...options,
   });
 }
@@ -27,6 +32,9 @@ export interface ReviewQueueFilters {
 }
 
 export function useReviewQueue(filters: ReviewQueueFilters = {}) {
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken as string | undefined;
+
   const params = new URLSearchParams();
   if (filters.subject) params.set("subject", filters.subject);
   if (filters.minConfidence != null) params.set("minConfidence", String(filters.minConfidence));
@@ -36,27 +44,38 @@ export function useReviewQueue(filters: ReviewQueueFilters = {}) {
   const qs = params.toString();
 
   return useQuery({
-    queryKey: ["teacher", "review-queue", filters],
+    queryKey: ["teacher", "review-queue", filters, accessToken],
     queryFn: () =>
-      apiGet<ReviewQueueResponse>(`/teacher/review-queue${qs ? `?${qs}` : ""}`),
+      apiGet<ReviewQueueResponse>(
+        `/teacher/review-queue${qs ? `?${qs}` : ""}`,
+        accessToken
+      ),
+    enabled: !!accessToken,
   });
 }
 
 export function useSubmissionFull(id: string) {
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken as string | undefined;
+
   return useQuery({
-    queryKey: ["teacher", "submissions", id],
-    queryFn: () => apiGet<SubmissionFull>(`/teacher/submissions/${id}`),
-    enabled: !!id,
+    queryKey: ["teacher", "submissions", id, accessToken],
+    queryFn: () => apiGet<SubmissionFull>(`/teacher/submissions/${id}`, accessToken),
+    enabled: !!id && !!accessToken,
   });
 }
 
 export function useSubmitTeacherCorrection(submissionId: string) {
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken as string | undefined;
   const qc = useQueryClient();
+
   return useMutation({
     mutationFn: (decision: ReviewDecision) =>
       apiPost<{ ok: boolean; submissionId: string; newStatus: string }>(
         `/teacher/submissions/${submissionId}/correct`,
-        decision
+        decision,
+        accessToken
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher", "review-queue"] });
@@ -68,20 +87,27 @@ export function useSubmitTeacherCorrection(submissionId: string) {
 }
 
 export function usePostTeacherLabels() {
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken as string | undefined;
+
   return useMutation({
     mutationFn: (payload: {
       submissionId: string;
       errorTags: string[];
       rubricNotes: string;
-    }) => apiPost<{ ok: boolean; labelId: string }>("/teacher/labels", payload),
+    }) => apiPost<{ ok: boolean; labelId: string }>("/teacher/labels", payload, accessToken),
   });
 }
 
 export function useTeacherHistory(range: string = "7d", options?: { refetchInterval?: number }) {
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken as string | undefined;
+
   return useQuery({
-    queryKey: ["teacher", "history", range],
+    queryKey: ["teacher", "history", range, accessToken],
     queryFn: () =>
-      apiGet<TeacherHistoryItem[]>(`/teacher/history?range=${range}`),
+      apiGet<TeacherHistoryItem[]>(`/teacher/history?range=${range}`, accessToken),
+    enabled: !!accessToken,
     ...options,
   });
 }
