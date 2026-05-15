@@ -46,6 +46,7 @@ coverage/
 .cache/
 .tmp/
 .eslintcache
+*.tsbuildinfo
 
 # Logs
 *.log

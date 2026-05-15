@@ -62,7 +62,13 @@ export default function LoginPage() {
       const session = await sessionRes.json()
       const role = session?.user?.role
 
-      const redirectTo = callbackUrl || (role === 'admin' ? '/admin' : '/student')
+      const redirectTo =
+        callbackUrl ||
+        (role === "admin"
+          ? "/admin"
+          : role === "contributor"
+            ? "/contributor"
+            : "/student");
       router.push(redirectTo)
       router.refresh()
     } catch (error) {

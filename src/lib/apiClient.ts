@@ -62,6 +62,22 @@ async function safeJsonFromResponse<T>(
   return data as T;
 }
 
+async function resolveBrowserSessionToken(token?: string): Promise<string | undefined> {
+  if (token || typeof window === "undefined") return token;
+
+  try {
+    const res = await fetch("/api/auth/session", {
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!res.ok) return undefined;
+    const session = await res.json();
+    return session?.user?.accessToken || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function buildHeaders(token?: string): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -71,10 +87,11 @@ function buildHeaders(token?: string): Record<string, string> {
 export async function apiGet<T>(path: string, token?: string): Promise<T> {
   const base = getApiBase();
   const url = `${base}${path}`;
+  const resolvedToken = await resolveBrowserSessionToken(token);
 
   const res = await fetch(url, {
     method: "GET",
-    headers: buildHeaders(token),
+    headers: buildHeaders(resolvedToken),
     credentials: "include",
     cache: "no-store",
   });
@@ -85,10 +102,11 @@ export async function apiGet<T>(path: string, token?: string): Promise<T> {
 export async function apiPost<T>(path: string, body: any, token?: string): Promise<T> {
   const base = getApiBase();
   const url = `${base}${path}`;
+  const resolvedToken = await resolveBrowserSessionToken(token);
 
   const res = await fetch(url, {
     method: "POST",
-    headers: buildHeaders(token),
+    headers: buildHeaders(resolvedToken),
     credentials: "include",
     cache: "no-store",
     body: JSON.stringify(body),
@@ -191,21 +209,30 @@ export type ExamQuestionDTO = {
   marks: number;
   answerType: string;
   prompt: string;
+  questionText?: string | null;
   skillCode?: string | null;
+  topicCode?: string | null;
+  subtopicCode?: string | null;
+  difficulty?: string | null;
+  isMarkable?: boolean | null;
+  rubricKey?: string | null;
+  markingMeta?: any;
   pdfPage?: number | null;
   groupId?: number | null;
   partLabel?: string | null;
 };
 
-export async function fetchExam(examKey: string): Promise<ExamDTO> {
-  return apiGet<ExamDTO>(`/exams/${encodeURIComponent(examKey)}`);
+export async function fetchExam(examKey: string, token?: string): Promise<ExamDTO> {
+  return apiGet<ExamDTO>(`/exams/${encodeURIComponent(examKey)}`, token);
 }
 
 export async function fetchExamQuestionsByExamKey(
-  examKey: string
+  examKey: string,
+  token?: string
 ): Promise<ExamQuestionDTO[]> {
   return apiGet<ExamQuestionDTO[]>(
-    `/exams/${encodeURIComponent(examKey)}/questions`
+    `/exams/${encodeURIComponent(examKey)}/questions`,
+    token
   );
 }
 
@@ -214,8 +241,9 @@ export async function submitExamAnswer(payload: {
   questionId: number | string;
   answer: string;
   userId?: number;
+  token?: string;
 }): Promise<SubmitAnswerResponse> {
-  const { examKey, questionId, answer, userId } = payload;
+  const { examKey, questionId, answer, userId, token } = payload;
 
   return apiPost<SubmitAnswerResponse>(
     `/exams/${encodeURIComponent(examKey)}/submit`,
@@ -223,7 +251,8 @@ export async function submitExamAnswer(payload: {
       questionId: Number(questionId),
       answer,
       ...(typeof userId === "number" ? { userId } : {}),
-    }
+    },
+    token
   );
 }
 

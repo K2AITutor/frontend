@@ -3,8 +3,16 @@ import { NextResponse } from "next/server";
 
 const roleHomeMap: Record<string, string> = {
   admin: "/admin",
+  contributor: "/contributor",
   student: "/student",
   teacher: "/teacher/review",
+};
+
+const routeAccessMap: Record<string, string[]> = {
+  admin: ["admin"],
+  contributor: ["admin", "contributor", "teacher"],
+  student: ["student"],
+  teacher: ["teacher"],
 };
 
 export default withAuth(
@@ -17,7 +25,10 @@ export default withAuth(
     const isAuthPage = pathname.startsWith("/auth");
     const isCompleteProfile = pathname === "/auth/complete-profile";
 
-    const isProfileIncomplete = token && profileCompleted !== true && role !== "admin";
+    const isProfileIncomplete =
+      token &&
+      profileCompleted !== true &&
+      !["admin", "contributor"].includes(String(role));
 
     if (isCompleteProfile) {
       if (!token) return NextResponse.redirect(new URL("/auth/login", req.url));
@@ -41,9 +52,11 @@ export default withAuth(
       );
     }
 
-    const roleRoutes = ["admin", "student", "teacher"];
-    for (const routeRole of roleRoutes) {
-      if (pathname.startsWith(`/${routeRole}`) && role !== routeRole) {
+    for (const [routeRole, allowedRoles] of Object.entries(routeAccessMap)) {
+      if (
+        pathname.startsWith(`/${routeRole}`) &&
+        !allowedRoles.includes(String(role))
+      ) {
         return NextResponse.redirect(
           new URL(roleHomeMap[role ?? ""] ?? "/auth/login", req.url)
         );
@@ -69,6 +82,7 @@ export default withAuth(
 export const config = {
   matcher: [
     "/admin/:path*",
+    "/contributor/:path*",
     "/student/:path*",
     "/parent/:path*",
     "/teacher/:path*",
