@@ -47,9 +47,11 @@ import {
 } from "lucide-react";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { toast } from "@/components/dashboard/ui/sonner";
+import { useAdminToken } from "@/lib/api/useAdminToken";
 
 export default function AdminSubjectsPage() {
   usePageTitle("Subjects Management");
+  const token = useAdminToken();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +117,10 @@ export default function AdminSubjectsPage() {
 
   async function handleSaveSubject() {
     if (!subjectForm.name) return;
+    if (!token) {
+      toast.error("Admin session is not ready");
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (editingSubject) {
@@ -122,13 +128,13 @@ export default function AdminSubjectsPage() {
           name: subjectForm.name,
           description: subjectForm.description,
           icon: subjectForm.icon,
-        });
+        }, token);
       } else {
         await createSubject({
           name: subjectForm.name,
           description: subjectForm.description,
           icon: subjectForm.icon,
-        });
+        }, token);
       }
       setIsDialogOpen(false);
       loadSubjects();
@@ -143,9 +149,13 @@ export default function AdminSubjectsPage() {
 
   async function handleDeleteSubject() {
     if (!deletingSubject) return;
+    if (!token) {
+      toast.error("Admin session is not ready");
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await deleteSubject(deletingSubject);
+      await deleteSubject(deletingSubject, token);
       setIsDeleteDialogOpen(false);
       loadSubjects();
       toast.success("Subject deleted successfully");

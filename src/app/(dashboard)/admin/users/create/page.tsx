@@ -55,7 +55,7 @@ export default function CreateUserPage() {
           avatar: avatarPreview || undefined,
         }, token);
         toast.success("User created successfully");
-        router.push("/admin/users");
+        router.push(value.role === "student" ? "/admin/users" : "/admin/staff");
       } catch (err: any) {
         toast.error(err.message || "Failed to create user");
       }
@@ -245,6 +245,8 @@ export default function CreateUserPage() {
                           <SelectItem value="student">Student</SelectItem>
                           <SelectItem value="teacher">Teacher</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="contributor">Contributor</SelectItem>
+                          <SelectItem value="parent">Parent</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

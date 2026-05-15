@@ -18,6 +18,7 @@ import {
   Settings,
   LogOut,
   UserCog,
+  Users,
   Sparkles,
   CreditCard,
   Quote,
@@ -97,9 +98,14 @@ const adminNavItems: NavItem[] = [
     icon: <LayoutDashboard className="h-5 w-5" />,
   },
   {
-    title: "Users",
+    title: "Students",
     href: "/admin/users",
     icon: <UserCog className="h-5 w-5" />,
+  },
+  {
+    title: "Staff",
+    href: "/admin/staff",
+    icon: <Users className="h-5 w-5" />,
   },
   {
     title: "Subjects",

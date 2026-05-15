@@ -53,6 +53,7 @@ interface User {
 interface UserTableProps {
   users: User[];
   className?: string;
+  variant?: "students" | "staff";
   onToggleActive?: (userId: string) => void;
   onResendVerification?: (userId: string) => void;
   onDeleteUser?: (userId: string) => void;
@@ -72,6 +73,7 @@ function formatDate(dateString: string): string {
 export function UserTable({
   users,
   className,
+  variant = "students",
   onToggleActive,
   onResendVerification,
   onDeleteUser,
@@ -109,7 +111,17 @@ export function UserTable({
         );
       },
     }),
-    columnHelper.accessor("subscriptionStatus", {
+    ...(variant === "staff" ? [
+      columnHelper.accessor("role", {
+        header: "Role",
+        cell: (info) => (
+          <Badge variant="outline" className="capitalize">
+            {info.getValue()}
+          </Badge>
+        ),
+      }),
+    ] : [
+      columnHelper.accessor("subscriptionStatus", {
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -137,15 +149,16 @@ export function UserTable({
           </Badge>
         );
       },
-    }),
-    columnHelper.accessor("yearLevel", {
-      header: "Year Level",
-      cell: (info) => {
-        const val = info.getValue();
-        if (!val) return <span className="text-xs text-muted-foreground italic">-</span>;
-        return <span className="text-sm">{val}</span>;
-      },
-    }),
+      }),
+      columnHelper.accessor("yearLevel", {
+        header: "Year Level",
+        cell: (info) => {
+          const val = info.getValue();
+          if (!val) return <span className="text-xs text-muted-foreground italic">-</span>;
+          return <span className="text-sm">{val}</span>;
+        },
+      }),
+    ]),
     columnHelper.accessor("isActive", {
       header: "Active",
       cell: (info) => {
@@ -157,7 +170,8 @@ export function UserTable({
         );
       },
     }),
-    columnHelper.accessor("emailVerified", {
+    ...(variant === "students" ? [
+      columnHelper.accessor("emailVerified", {
       header: "Verified",
       cell: (info) => {
         const verified = info.getValue();
@@ -167,7 +181,8 @@ export function UserTable({
           <Clock className="h-4 w-4 text-amber-500" />
         );
       },
-    }),
+      }),
+    ] : []),
     columnHelper.accessor("lastLoginAt", {
       header: ({ column }) => (
         <Button
