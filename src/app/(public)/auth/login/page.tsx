@@ -20,6 +20,13 @@ export default function LoginPage() {
   const callbackUrl = searchParams.get('callbackUrl') || ''
   const router = useRouter()
 
+  const roleHomeMap: Record<string, string> = {
+    student: '/student',
+    teacher: '/teacher/review',
+    admin: '/admin',
+    contributor: '/contributor',
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -48,13 +55,7 @@ export default function LoginPage() {
       const session = await sessionRes.json()
       const role = session?.user?.role
 
-      const redirectTo =
-        callbackUrl ||
-        (role === "admin"
-          ? "/admin"
-          : role === "contributor"
-            ? "/contributor"
-            : "/student");
+      const redirectTo = callbackUrl || roleHomeMap[role] || '/student'
       router.push(redirectTo)
       router.refresh()
     } catch (error) {
@@ -214,6 +215,7 @@ export default function LoginPage() {
               </Link>
             </p>
           </div>
+
         </div>
 
         <AuthBanner />

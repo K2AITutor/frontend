@@ -12,6 +12,11 @@ import {
 } from '@/lib/apiClient';
 import { PracticeQuestion } from '@/types/question';
 import { TopicGroup } from '@/types/topic';
+import { HybridMarkingBadge } from '@/components/marking/HybridMarkingBadge';
+import { ConfidenceMeter } from '@/components/marking/ConfidenceMeter';
+import { ErrorTagPicker } from '@/components/marking/ErrorTagPicker';
+import { MarkingSourceTimeline } from '@/components/marking/MarkingSourceTimeline';
+import type { HybridMarkingResult } from '@/lib/types/marking';
 
 type TopicStatus = 'Not started' | 'Early signal' | 'Weak' | 'Monitor' | 'Strong';
 
@@ -41,6 +46,9 @@ type SubmissionResult = {
         masteryPercent: number;
         status: TopicStatus;
     } | null;
+    submissionId?: string;
+    humanReviewPending?: boolean;
+    aiMarking?: Record<string, any>; // any: shape varies by question type
 };
 
 type TopicMeta = {
@@ -1070,6 +1078,72 @@ export default function PracticeClient({
                                                             : 'Check your substitution and arithmetic carefully.')}
                                                 </div>
                                             </div>
+
+                                            {/* Hybrid marking enrichment */}
+                                            {submissionResult.aiMarking && (() => {
+                                                const am = submissionResult.aiMarking as HybridMarkingResult;
+                                                return (
+                                                    <div className="mt-5 space-y-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                                                        <div className="text-base font-semibold text-white">AI Marking Details</div>
+
+                                                        {/* pending review banner */}
+                                                        {submissionResult.humanReviewPending && (
+                                                            <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                                                                <span>⏳</span>
+                                                                <span>
+                                                                    <strong>Đang chờ giáo viên xem xét.</strong>{' '}
+                                                                    Điểm có thể thay đổi sau khi giáo viên kiểm tra.
+                                                                </span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Source badge + confidence */}
+                                                        <div className="flex flex-wrap items-center gap-3">
+                                                            <HybridMarkingBadge source={am.routingDecision?.chosenSource ?? 'rule'} />
+                                                            <span className="text-sm text-slate-300">
+                                                                Confidence: {Math.round((am.finalConfidence ?? 0) * 100)}%
+                                                            </span>
+                                                        </div>
+
+                                                        <ConfidenceMeter value={am.finalConfidence ?? 0} />
+
+                                                        {/* Error tags */}
+                                                        {am.errorTags?.length > 0 && (
+                                                            <div>
+                                                                <p className="mb-1.5 text-xs text-slate-400">Detected Issues</p>
+                                                                <ErrorTagPicker
+                                                                    available={am.errorTags}
+                                                                    value={am.errorTags.map((t: { tagCode: string }) => t.tagCode)}
+                                                                    readOnly
+                                                                />
+                                                            </div>
+                                                        )}
+
+                                                        {/* Source timeline */}
+                                                        {am.sources?.length > 0 && (
+                                                            <div>
+                                                                <p className="mb-1.5 text-xs text-slate-400">Marking Sources</p>
+                                                                <MarkingSourceTimeline
+                                                                    sources={am.sources}
+                                                                    routingDecision={am.routingDecision}
+                                                                />
+                                                            </div>
+                                                        )}
+
+                                                        {/* Link to full submission */}
+                                                        {submissionResult.submissionId && (
+                                                            <p className="text-xs text-slate-400">
+                                                                <a
+                                                                    href={`/student/submissions/${submissionResult.submissionId}`}
+                                                                    className="underline hover:text-white"
+                                                                >
+                                                                    View full submission →
+                                                                </a>
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
 
                                             <div className="mt-5">
                                                 <div className="mb-2 text-lg font-semibold text-white">

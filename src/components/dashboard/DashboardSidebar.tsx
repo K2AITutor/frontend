@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -21,18 +22,26 @@ import {
   CreditCard,
   Quote,
   HelpCircle,
+  ClipboardList,
+  History,
+  Network,
+  Sliders,
+  Inbox,
+  Cpu,
+  Database,
   ShieldCheck,
   BarChart3,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
-export type UserRole = "student" | "admin" | "contributor";
+export type UserRole = "student" | "teacher" | "admin" | "contributor";
 
 interface NavItem {
   title: string;
   href: string;
   icon: React.ReactNode;
   badge?: string;
+  sectionStart?: string;
 }
 
 interface DashboardSidebarProps {
@@ -68,6 +77,19 @@ const studentBottomNavItems: NavItem[] = [
   },
 ];
 
+const teacherNavItems: NavItem[] = [
+  {
+    title: "Review Queue",
+    href: "/teacher/review",
+    icon: <ClipboardList className="h-5 w-5" />,
+  },
+  {
+    title: "History",
+    href: "/teacher/history",
+    icon: <History className="h-5 w-5" />,
+  },
+];
+
 const adminNavItems: NavItem[] = [
   {
     title: "Dashboard",
@@ -99,6 +121,32 @@ const adminNavItems: NavItem[] = [
     href: "/admin/subscription-plans",
     icon: <CreditCard className="h-5 w-5" />,
   },
+  {
+    title: "Marking Routing",
+    href: "/admin/marking/routing",
+    icon: <Network className="h-5 w-5" />,
+    sectionStart: "AI Operations",
+  },
+  {
+    title: "Confidence Tuning",
+    href: "/admin/marking/confidence",
+    icon: <Sliders className="h-5 w-5" />,
+  },
+  {
+    title: "Annotation Queue",
+    href: "/admin/marking/queue",
+    icon: <Inbox className="h-5 w-5" />,
+  },
+  {
+    title: "Model Registry",
+    href: "/admin/models",
+    icon: <Cpu className="h-5 w-5" />,
+  },
+  {
+    title: "Datasets",
+    href: "/admin/datasets",
+    icon: <Database className="h-5 w-5" />,
+  },
 ];
 
 const contributorNavItems: NavItem[] = [
@@ -121,12 +169,14 @@ const contributorNavItems: NavItem[] = [
 
 const navItemsByRole: Record<UserRole, NavItem[]> = {
   student: studentNavItems,
+  teacher: teacherNavItems,
   admin: adminNavItems,
   contributor: contributorNavItems,
 };
 
 const roleLabels: Record<UserRole, string> = {
   student: "Student Portal",
+  teacher: "Teacher Portal",
   admin: "Admin Portal",
   contributor: "Contributor Portal",
 };
@@ -179,49 +229,59 @@ export function DashboardSidebar({
           <nav className="flex flex-col gap-1">
             {navItems.map((item) => {
               const active = isActive(item.href);
-
-              if (collapsed) {
-                return (
-                  <Tooltip key={item.href}>
-                    <TooltipTrigger asChild>
-                      <Link href={item.href}>
-                        <Button
-                          variant={active ? "secondary" : "ghost"}
-                          size="icon"
-                          className={cn(
-                            "h-10 w-10",
-                            active &&
-                            "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
-                          )}
-                        >
-                          {item.icon}
-                        </Button>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">{item.title}</TooltipContent>
-                  </Tooltip>
-                );
-              }
-
               return (
-                <Link key={item.href} href={item.href}>
-                  <Button
-                    variant={active ? "secondary" : "ghost"}
-                    className={cn(
-                      "w-full justify-start gap-3",
-                      active &&
-                      "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
-                    )}
-                  >
-                    {item.icon}
-                    <span>{item.title}</span>
-                    {item.badge && (
-                      <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                        {item.badge}
-                      </span>
-                    )}
-                  </Button>
-                </Link>
+                <React.Fragment key={item.href}>
+                  {item.sectionStart && (
+                    collapsed ? (
+                      <div className="my-1 h-px bg-border mx-1" />
+                    ) : (
+                      <div className="mt-3 mb-0.5 px-2 flex items-center gap-2">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          {item.sectionStart}
+                        </span>
+                        <span className="flex-1 h-px bg-border" />
+                      </div>
+                    )
+                  )}
+
+                  {collapsed ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link href={item.href}>
+                          <Button
+                            variant={active ? "secondary" : "ghost"}
+                            size="icon"
+                            className={cn(
+                              "h-10 w-10",
+                              active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                            )}
+                          >
+                            {item.icon}
+                          </Button>
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{item.title}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Link href={item.href}>
+                      <Button
+                        variant={active ? "secondary" : "ghost"}
+                        className={cn(
+                          "w-full justify-start gap-3",
+                          active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                        )}
+                      >
+                        {item.icon}
+                        <span>{item.title}</span>
+                        {item.badge && (
+                          <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                            {item.badge}
+                          </span>
+                        )}
+                      </Button>
+                    </Link>
+                  )}
+                </React.Fragment>
               );
             })}
           </nav>

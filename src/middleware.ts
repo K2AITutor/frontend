@@ -1,6 +1,20 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
+const roleHomeMap: Record<string, string> = {
+  admin: "/admin",
+  contributor: "/contributor",
+  student: "/student",
+  teacher: "/teacher/review",
+};
+
+const routeAccessMap: Record<string, string[]> = {
+  admin: ["admin"],
+  contributor: ["admin", "contributor", "teacher"],
+  student: ["student"],
+  teacher: ["teacher"],
+};
+
 export default withAuth(
   function middleware(req) {
     const { pathname } = req.nextUrl;
@@ -19,9 +33,7 @@ export default withAuth(
     if (isCompleteProfile) {
       if (!token) return NextResponse.redirect(new URL("/auth/login", req.url));
       if (!isProfileIncomplete) {
-        if (role === "admin") return NextResponse.redirect(new URL("/admin", req.url));
-        if (role === "contributor") return NextResponse.redirect(new URL("/contributor", req.url));
-        return NextResponse.redirect(new URL("/student", req.url));
+        return NextResponse.redirect(new URL(roleHomeMap[role ?? ""] ?? "/student", req.url));
       }
       return NextResponse.next();
     }
@@ -31,25 +43,24 @@ export default withAuth(
     }
 
     if (token && isAuthPage) {
-      if (role === "admin") return NextResponse.redirect(new URL("/admin", req.url));
-      if (role === "contributor") return NextResponse.redirect(new URL("/contributor", req.url));
-      return NextResponse.redirect(new URL("/student", req.url));
+      return NextResponse.redirect(new URL(roleHomeMap[role ?? ""] ?? "/student", req.url));
     }
 
-    if (pathname.startsWith("/admin") && role !== "admin") {
-      if (role === "contributor") return NextResponse.redirect(new URL("/contributor", req.url));
-      return NextResponse.redirect(new URL("/student", req.url));
+    if (pathname.startsWith("/parent")) {
+      return NextResponse.redirect(
+        new URL(roleHomeMap[role ?? ""] ?? "/auth/login", req.url)
+      );
     }
 
-    if (pathname.startsWith("/contributor") && !["contributor", "teacher", "admin"].includes(String(role))) {
-      if (role === "admin") return NextResponse.redirect(new URL("/admin", req.url));
-      return NextResponse.redirect(new URL("/auth/login", req.url));
-    }
-
-    if (pathname.startsWith("/student") && role !== "student") {
-      if (role === "admin") return NextResponse.redirect(new URL("/admin", req.url));
-      if (role === "contributor") return NextResponse.redirect(new URL("/contributor", req.url));
-      return NextResponse.redirect(new URL("/auth/login", req.url));
+    for (const [routeRole, allowedRoles] of Object.entries(routeAccessMap)) {
+      if (
+        pathname.startsWith(`/${routeRole}`) &&
+        !allowedRoles.includes(String(role))
+      ) {
+        return NextResponse.redirect(
+          new URL(roleHomeMap[role ?? ""] ?? "/auth/login", req.url)
+        );
+      }
     }
 
     return NextResponse.next();
@@ -69,5 +80,12 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/admin/:path*", "/student/:path*", "/contributor/:path*", "/auth/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/contributor/:path*",
+    "/student/:path*",
+    "/parent/:path*",
+    "/teacher/:path*",
+    "/auth/:path*",
+  ],
 };
