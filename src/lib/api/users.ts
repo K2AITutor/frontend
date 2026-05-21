@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiPost, apiDelete } from "@/lib/apiClient";
+import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/apiClient";
 
 export interface User {
     id: string;
@@ -17,6 +17,27 @@ export interface User {
     status: string;
     avatar: string | null;
     subscriptionStatus: string | null;
+}
+
+export type AdminUserRole = "student" | "teacher" | "admin" | "contributor" | "parent";
+export type AdminUserStatus = "active" | "pending" | "suspended";
+export type AdminUserRoleScope = "students" | "staff";
+
+export interface CreateAdminUserPayload {
+    name: string;
+    email: string;
+    password: string;
+    role: AdminUserRole;
+    status: AdminUserStatus;
+    avatar?: string;
+}
+
+export interface UpdateAdminUserPayload {
+    name?: string;
+    email?: string;
+    role?: AdminUserRole;
+    status?: AdminUserStatus;
+    avatar?: string;
 }
 
 export interface UserStats {
@@ -44,6 +65,8 @@ export interface UseUsersParams {
     isActive?: string;
     startDate?: string;
     endDate?: string;
+    roleScope?: AdminUserRoleScope;
+    role?: AdminUserRole | "all";
     token?: string;
 }
 
@@ -63,6 +86,18 @@ export async function resendVerification(userId: string, token: string): Promise
 
 export async function deleteUser(userId: string, token: string): Promise<{ message: string }> {
     return apiDelete<{ message: string }>(`/admin/users/${userId}`, token);
+}
+
+export async function getUser(userId: string, token: string): Promise<User> {
+    return apiGet<User>(`/admin/users/${userId}`, token);
+}
+
+export async function createUser(payload: CreateAdminUserPayload, token: string): Promise<User> {
+    return apiPost<User>("/admin/users", payload, token);
+}
+
+export async function updateUser(userId: string, payload: UpdateAdminUserPayload, token: string): Promise<User> {
+    return apiPut<User>(`/admin/users/${userId}`, payload, token);
 }
 
 export function useToggleUserActive(token?: string) {
@@ -97,16 +132,20 @@ export function useUsers({
     isActive,
     startDate,
     endDate,
+    roleScope = "students",
+    role,
     token,
 }: UseUsersParams) {
     return useQuery({
-        queryKey: ["users", page, limit, search, verified, isActive, startDate, endDate],
+        queryKey: ["users", roleScope, role, page, limit, search, verified, isActive, startDate, endDate],
         queryFn: async (): Promise<PaginatedUsers> => {
             const params = new URLSearchParams({
                 page: page.toString(),
                 limit: limit.toString(),
+                roleScope,
             });
 
+            if (role && role !== "all") params.append('role', role);
             if (search) params.append('search', search);
             if (verified && verified !== 'all') params.append('verified', verified);
             if (isActive && isActive !== 'all') params.append('isActive', isActive);

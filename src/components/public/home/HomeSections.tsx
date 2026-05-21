@@ -641,10 +641,10 @@ export function TestimonialsSection() {
     {
       id: 3,
       name: 'Sarah Thompson',
-      role: 'Parent',
-      subject: 'Daughter in Year 11',
+      role: 'Year 11 Student',
+      subject: 'Maths Methods',
       image: null,
-      quote: 'As a parent, I can see my daughter\'s progress in real-time. The detailed analytics give me peace of mind that she\'s on track for her goals.',
+      quote: 'The topic-by-topic practice helped me spot weak areas before SACs. I knew exactly what to revise next instead of guessing.',
       rating: 5,
       atarImprovement: null,
       order: 2,
@@ -706,7 +706,7 @@ export function TestimonialsSection() {
             transition={{ delay: 0.2 }}
             className="text-[1.125rem] text-text-secondary max-w-[37.5rem] mx-auto"
           >
-            Hear from students and parents who have transformed their VCE journey with our AI tutor.
+            Hear from students who have transformed their VCE journey with our AI tutor.
           </motion.p>
         </div>
 

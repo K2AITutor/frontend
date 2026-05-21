@@ -34,7 +34,6 @@ function getGradeColor(grade?: string): string {
 }
 
 export function CourseCard({
-  id,
   name,
   progress,
   grade,
@@ -74,8 +73,8 @@ export function CourseCard({
               <p className="text-sm font-medium">{nextLesson}</p>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <Link href={`/student/courses/${id}`}>
-                Continue <ArrowRight className="ml-1 h-4 w-4" />
+              <Link href="/student/practice">
+                Practice <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
           </div>

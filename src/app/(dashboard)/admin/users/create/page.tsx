@@ -19,13 +19,16 @@ import { ArrowLeft, Upload, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { toast } from "@/components/dashboard/ui/sonner";
+import { createUser, type AdminUserRole, type AdminUserStatus } from "@/lib/api/users";
+import { useAdminToken } from "@/lib/api/useAdminToken";
 
-type UserRole = "student" | "parent" | "teacher" | "admin";
-type UserStatus = "active" | "pending" | "suspended";
+type UserRole = AdminUserRole;
+type UserStatus = AdminUserStatus;
 
 export default function CreateUserPage() {
   usePageTitle("Create New User");
   const router = useRouter();
+  const token = useAdminToken();
   const [avatarPreview, setAvatarPreview] = useState<string>("");
 
   const form = useForm({
@@ -38,12 +41,23 @@ export default function CreateUserPage() {
       status: "active" as UserStatus,
     },
     onSubmit: async ({ value }) => {
+      if (!token) {
+        toast.error("Admin session is not ready");
+        return;
+      }
       try {
-        console.log("Form submitted:", value);
+        await createUser({
+          name: value.name,
+          email: value.email,
+          password: value.password,
+          role: value.role,
+          status: value.status,
+          avatar: avatarPreview || undefined,
+        }, token);
         toast.success("User created successfully");
-        router.push("/admin/users");
-      } catch {
-        toast.error("Failed to create user");
+        router.push(value.role === "student" ? "/admin/users" : "/admin/staff");
+      } catch (err: any) {
+        toast.error(err.message || "Failed to create user");
       }
     },
   });
@@ -229,9 +243,10 @@ export default function CreateUserPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="student">Student</SelectItem>
-                          <SelectItem value="parent">Parent</SelectItem>
                           <SelectItem value="teacher">Teacher</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="contributor">Contributor</SelectItem>
+                          <SelectItem value="parent">Parent</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

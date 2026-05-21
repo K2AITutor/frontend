@@ -35,7 +35,7 @@ export interface UpdatePreferencesPayload {
 
 export function useNotifications(userId?: number, token?: string) {
   return useQuery({
-    queryKey: ["notifications", userId],
+    queryKey: ["notifications", userId, token],
     queryFn: () =>
       apiGet<Notification[]>(`/notifications/me/${userId}`, token),
     enabled: !!userId && !!token,
@@ -45,7 +45,7 @@ export function useNotifications(userId?: number, token?: string) {
 
 export function useUnreadCount(userId?: number, token?: string) {
   return useQuery({
-    queryKey: ["notifications-unread", userId],
+    queryKey: ["notifications-unread", userId, token],
     queryFn: () =>
       apiGet<UnreadCountResponse>(`/notifications/me/${userId}/unread-count`, token),
     enabled: !!userId && !!token,
@@ -55,7 +55,7 @@ export function useUnreadCount(userId?: number, token?: string) {
 
 export function useNotificationPreferences(userId?: number, token?: string) {
   return useQuery({
-    queryKey: ["notification-preferences", userId],
+    queryKey: ["notification-preferences", userId, token],
     queryFn: () =>
       apiGet<NotificationPreference>(`/notifications/preferences/${userId}`, token),
     enabled: !!userId && !!token,
@@ -74,8 +74,8 @@ export function useMarkAsRead(userId?: number, token?: string) {
         token
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications", userId] });
-      queryClient.invalidateQueries({ queryKey: ["notifications-unread", userId] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", userId, token] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread", userId, token] });
     },
   });
 }
@@ -90,8 +90,8 @@ export function useMarkAllAsRead(userId?: number, token?: string) {
         token
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications", userId] });
-      queryClient.invalidateQueries({ queryKey: ["notifications-unread", userId] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", userId, token] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread", userId, token] });
     },
   });
 }
@@ -106,7 +106,7 @@ export function useUpdateNotificationPreferences(userId?: number, token?: string
         token
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notification-preferences", userId] });
+      queryClient.invalidateQueries({ queryKey: ["notification-preferences", userId, token] });
     },
   });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getSession } from "next-auth/react";
+import { getSession, useSession } from "next-auth/react";
 import { apiGet, apiPost, apiPut } from "@/lib/apiClient";
 
 export type ContributorTaskStatus =
@@ -128,6 +128,7 @@ export function useContributorDashboardData() {
             const token = await getAccessToken();
             return apiGet<ContributorDashboardData>("/contributor/dashboard", token);
         },
+        enabled: !!token,
         staleTime: 30_000,
     });
 }
@@ -139,17 +140,19 @@ export function useContributorTasks() {
             const token = await getAccessToken();
             return apiGet<ContributorTask[]>("/contributor/tasks/me", token);
         },
+        enabled: !!token,
         staleTime: 30_000,
     });
 }
 
 export function useContributorRubricDrafts() {
+    const { data: session } = useSession();
+    const token = (session?.user as any)?.accessToken as string | undefined;
+
     return useQuery({
-        queryKey: ["contributorRubricDrafts"],
-        queryFn: async () => {
-            const token = await getAccessToken();
-            return apiGet<ContributorRubricDraft[]>("/contributor/rubrics/mine", token);
-        },
+        queryKey: ["contributorRubricDrafts", token],
+        queryFn: () => apiGet<ContributorRubricDraft[]>("/contributor/rubrics/mine", token),
+        enabled: !!token,
         staleTime: 30_000,
     });
 }
@@ -173,16 +176,17 @@ export async function updateRubricDraft(
 }
 
 export function useDatasetQaQuestions(examKey: string, enabled = true) {
+    const { data: session } = useSession();
+    const token = (session?.user as any)?.accessToken as string | undefined;
+
     return useQuery({
-        queryKey: ["datasetQaQuestions", examKey],
-        queryFn: async () => {
-            const token = await getAccessToken();
-            return apiGet<DatasetQaQuestion[]>(
+        queryKey: ["datasetQaQuestions", examKey, token],
+        queryFn: () =>
+            apiGet<DatasetQaQuestion[]>(
                 `/contributor/dataset-qa?examKey=${encodeURIComponent(examKey)}`,
                 token
-            );
-        },
-        enabled,
+            ),
+        enabled: enabled && !!token,
         staleTime: 15_000,
     });
 }
