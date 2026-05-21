@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { BarChart3, CheckCircle2, FlaskConical, Save, Search, ShieldCheck, XCircle } from "lucide-react";
+import { BarChart3, CheckCircle2, FileText, FlaskConical, Save, Search, ShieldCheck, XCircle } from "lucide-react";
 import { usePageTitle } from "@/lib/usePageTitle";
 import {
     DatasetQaQuestion,
@@ -30,6 +30,34 @@ import { Textarea } from "@/components/dashboard/ui/textarea";
 const EXAMS = [
     { key: "VCE_MM_EXAM1_2025", label: "2025 Mathematical Methods Exam 1" },
     { key: "VCE_MM_EXAM1_2024", label: "2024 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2023", label: "2023 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2022", label: "2022 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2021", label: "2021 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2020", label: "2020 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2019", label: "2019 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2018", label: "2018 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2017", label: "2017 Mathematical Methods Exam 1" },
+    { key: "VCE_MM_EXAM1_2016", label: "2016 Mathematical Methods Exam 1" },
+];
+
+const PRACTICE_QA_SOURCES = [
+    { key: "PRACTICE_MM_CH01_FUNCTIONS_RELATIONS", label: "Practice QA - Chapter 1 Functions and relations" },
+    { key: "PRACTICE_MM_CH02_COORDINATE_GEOMETRY", label: "Practice QA - Chapter 2 Coordinate geometry" },
+    { key: "PRACTICE_MM_CH03_TRANSFORMATIONS", label: "Practice QA - Chapter 3 Transformations" },
+    { key: "PRACTICE_MM_CH04_POLYNOMIAL_FUNCTIONS", label: "Practice QA - Chapter 4 Polynomial functions" },
+    { key: "PRACTICE_MM_CH05_EXPONENTIAL_LOG_FUNCTIONS", label: "Practice QA - Chapter 5 Exponential/log functions" },
+    { key: "PRACTICE_MM_CH06_CIRCULAR_FUNCTIONS", label: "Practice QA - Chapter 6 Circular functions" },
+    { key: "PRACTICE_MM_CH07_FURTHER_FUNCTIONS", label: "Practice QA - Chapter 7 Further functions" },
+    { key: "PRACTICE_MM_CH09_DIFFERENTIATION", label: "Practice QA - Chapter 9 Differentiation" },
+    {
+        key: "PRACTICE_MM_CH10_APPLICATIONS_OF_DIFFERENTIATION",
+        label: "Practice QA - Chapter 10 Applications of differentiation",
+    },
+    { key: "PRACTICE_MM_CH11_INTEGRATION", label: "Practice QA - Chapter 11 Integration" },
+    { key: "PRACTICE_MM_CH13_DISCRETE_RANDOM_VARIABLES", label: "Practice QA - Chapter 13 Discrete random variables" },
+    { key: "PRACTICE_MM_CH14_BINOMIAL_DISTRIBUTION", label: "Practice QA - Chapter 14 Binomial distribution" },
+    { key: "PRACTICE_MM_CH15_CONTINUOUS_RANDOM_VARIABLES", label: "Practice QA - Chapter 15 Continuous random variables" },
+    { key: "PRACTICE_MM_CH16_NORMAL_DISTRIBUTION", label: "Practice QA - Chapter 16 Normal distribution" },
 ];
 
 const STATUS_LABELS: Record<DatasetQaStatus, string> = {
@@ -55,8 +83,13 @@ const TOPIC_LABELS: Record<string, string> = {
     MM_CIRC: "Circular functions",
     MM_STAT_RANDOM_VARIABLES: "Random variables",
     MM_STAT_BINOMIAL: "Binomial distributions",
+    MM_STAT_NORMAL: "Normal distribution",
+    MM_STAT_MODEL_INTERPRET: "Continuous random variables",
     MM_FUNC_POLYNOMIAL: "Polynomial functions",
+    MM_FUNC_COMBINED_TRANSFORMS: "Transformations",
+    MM_FUNC_RATIONAL: "Further functions",
     MM_FUNC_RESTRICTED_DOMAIN: "Restricted domains and inverse functions",
+    MM_ALG_LINES: "Coordinate geometry",
     MM_ALG_EQUATIONS_EXP_LOG: "Exponential and logarithmic equations",
     MM_EXP_LOG: "Exponential and logarithmic functions",
     MM_ALG_PARAMETERS: "Parameter analysis",
@@ -82,6 +115,36 @@ const SUBTOPIC_LABELS: Record<string, string> = {
     POINTS_OF_INFLECTION: "Points of inflection",
     STATIONARY_POINTS: "Stationary points",
     PARAMETER_ANALYSIS: "Parameter analysis",
+    AVERAGE_RATE: "Average rate of change",
+    DERIVATIVE_BASICS: "Derivative basics",
+    CHAIN_RULE: "Chain rule",
+    QUOTIENT_RULE: "Quotient rule",
+    TRIG_EXP_LOG_DERIVATIVES: "Trigonometric, exponential and logarithmic derivatives",
+    GRADIENTS: "Gradients",
+    LINE_EQUATIONS: "Line equations",
+    INTERSECTIONS: "Intersections",
+    DISTANCE_MIDPOINT: "Distance and midpoint",
+    TRANSLATIONS: "Translations",
+    DILATIONS: "Dilations",
+    REFLECTIONS: "Reflections",
+    COMBINED_TRANSFORMS: "Combined transformations",
+    RATIONAL_FUNCTIONS: "Rational functions",
+    RADICAL_FUNCTIONS: "Radical functions",
+    ASYMPTOTES: "Asymptotes",
+    RESTRICTED_DOMAIN: "Restricted domain",
+    VARIANCE: "Variance",
+    PROBABILITY_MODELS: "Probability models",
+    BINOMIAL_MODEL: "Binomial model",
+    BINOMIAL_PROBABILITY: "Binomial probability",
+    BINOMIAL_APPLICATIONS: "Binomial applications",
+    CONTINUOUS_RV: "Continuous random variables",
+    PDF_PROPERTIES: "Density function properties",
+    CONTINUOUS_PROBABILITY: "Continuous probability",
+    TRANSFORMED_DENSITIES: "Transformed densities",
+    NORMAL_MODEL: "Normal model",
+    STANDARD_NORMAL: "Standard normal",
+    Z_SCORES: "Z-scores",
+    NORMAL_APPLICATIONS: "Normal applications",
 };
 
 function readableCode(code: string | null | undefined, labels: Record<string, string>) {
@@ -102,11 +165,18 @@ function statusCounts(rows: DatasetQaQuestion[]) {
 export default function ContributorDatasetQaPage() {
     usePageTitle("Dataset QA");
 
-    const [examKey, setExamKey] = useState(EXAMS[0].key);
+    const [datasetSourceKey, setDatasetSourceKey] = useState(EXAMS[0].key);
     const [reviewerName, setReviewerName] = useState("");
     const [statusFilter, setStatusFilter] = useState<"ALL" | DatasetQaStatus>("ALL");
     const [search, setSearch] = useState("");
-    const { data = [], isLoading, isError, refetch } = useDatasetQaQuestions(examKey);
+    const datasetSources = useMemo(
+        () => [
+            ...EXAMS.map((exam) => ({ ...exam, kind: "exam" as const })),
+            ...PRACTICE_QA_SOURCES.map((source) => ({ ...source, kind: "practiceQa" as const })),
+        ],
+        []
+    );
+    const { data = [], isLoading: loading, isError: hasError, refetch } = useDatasetQaQuestions(datasetSourceKey);
     const [selectedId, setSelectedId] = useState<number | null>(null);
 
     const filtered = useMemo(() => {
@@ -139,7 +209,7 @@ export default function ContributorDatasetQaPage() {
                         <h1 className="text-2xl font-bold">Dataset QA</h1>
                     </div>
                     <p className="text-muted-foreground">
-                        Review seeded exam questions, test the expected answer, and record a reviewer decision.
+                        Review seeded exam and practice-topic QA records from the backend database.
                     </p>
                 </div>
 
@@ -151,18 +221,18 @@ export default function ContributorDatasetQaPage() {
                         </Link>
                     </Button>
                     <div className="space-y-2">
-                        <Label>Past exam</Label>
-                        <Select value={examKey} onValueChange={(value) => {
-                            setExamKey(value);
+                        <Label>Dataset source</Label>
+                        <Select value={datasetSourceKey} onValueChange={(value) => {
+                            setDatasetSourceKey(value);
                             setSelectedId(null);
                         }}>
                             <SelectTrigger>
-                                <SelectValue placeholder="Select exam" />
+                                <SelectValue placeholder="Select dataset" />
                             </SelectTrigger>
                             <SelectContent>
-                                {EXAMS.map((exam) => (
-                                    <SelectItem key={exam.key} value={exam.key}>
-                                        {exam.label}
+                                {datasetSources.map((source) => (
+                                    <SelectItem key={source.key} value={source.key}>
+                                        {source.label}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -190,9 +260,59 @@ export default function ContributorDatasetQaPage() {
                 ))}
             </div>
 
-            {isLoading ? (
+            <Card>
+                <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <FileText className="h-5 w-5" />
+                        QA review guideline
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                    <div>
+                        <p className="text-sm text-muted-foreground">
+                            Review each record as if you are preparing it for a student and for future model training.
+                            Do not approve a record only because it loads on screen.
+                        </p>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            {[
+                                "Enter your reviewer name before saving any decision.",
+                                "Select the exam year and open the first Ready for QA record.",
+                                "Compare the rendered question with the original exam or trusted source.",
+                                "Check topic, subtopic, marks, answer type, and manual-review flag.",
+                                "For auto-check questions, run the marker using the expected answer.",
+                                "Read the worked solution and marking rubric for accuracy and clarity.",
+                                "Choose Approve, Needs Fix, Manual, or Reject, then write a short note.",
+                                "Move to the next question and repeat until the queue is complete.",
+                            ].map((step, index) => (
+                                <div key={step} className="rounded-md border p-3 text-sm">
+                                    <span className="mr-2 font-semibold text-primary">{index + 1}.</span>
+                                    {step}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="rounded-lg border bg-muted/30 p-4">
+                        <p className="font-semibold">Golden example: 2025 Question 1a</p>
+                        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                            <p>Question: differentiate y = x^2 cos(x).</p>
+                            <p>Expected answer: 2x cos(x) - x^2 sin(x).</p>
+                            <p>Marker test: paste the expected answer and confirm it scores 1 / 1.</p>
+                            <p>Topic check: Differentiation rules / Product rule.</p>
+                            <p>Decision: Approve only if the rendered question, answer, solution, rubric, and marker result all match.</p>
+                            <p>Reviewer note example: Checked against source. Expected answer marks correct. Product rule topic is correct.</p>
+                        </div>
+                        <Button className="mt-4 w-full" variant="outline" asChild>
+                            <Link href="/docs/contributor-dataset-qa-guide.pdf" target="_blank">
+                                Open full guide
+                            </Link>
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {loading ? (
                 <DatasetQaSkeleton />
-            ) : isError ? (
+            ) : hasError ? (
                 <Card>
                     <CardContent className="p-8 text-center text-muted-foreground">
                         Failed to load dataset QA questions.

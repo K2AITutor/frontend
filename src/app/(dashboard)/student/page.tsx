@@ -100,8 +100,7 @@ export default function StudentDashboardPage() {
     );
   }
 
-  const { profile, courses, recentActivities, stats } = data;
-  const assignments = data.assignments as Assignment[];
+  const { profile, courses, assignments, recentActivities, stats } = data as DashboardData;
   const pendingAssignments = assignments.filter((a) => a.status !== "completed");
 
   return (

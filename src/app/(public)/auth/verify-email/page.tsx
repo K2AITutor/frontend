@@ -2,12 +2,12 @@
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { CheckCircle2, XCircle, Loader2, Mail } from 'lucide-react'
 
 type VerifyState = 'loading' | 'success' | 'error' | 'expired' | 'check-inbox'
 
-export default function VerifyEmailPage() {
+function VerifyEmailPageContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const registered = searchParams.get('registered')
@@ -156,5 +156,13 @@ export default function VerifyEmailPage() {
         )}
       </div>
     </main>
+  )
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={null}>
+      <VerifyEmailPageContent />
+    </Suspense>
   )
 }

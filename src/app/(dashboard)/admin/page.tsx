@@ -35,6 +35,20 @@ export default function AdminDashboardPage() {
   }
 
   const { systemStats, recentUsers } = data;
+  const userTableRows = recentUsers.map((user) => ({
+    id: String(user.id),
+    name: user.name ?? user.email ?? "Unknown user",
+    email: user.email ?? "",
+    role: user.role ?? "STUDENT",
+    status: user.status ?? "ACTIVE",
+    joinedDate: user.joinedDate ?? user.createdAt ?? new Date().toISOString(),
+    lastLoginAt: user.lastLoginAt ?? null,
+    isActive: user.isActive ?? user.status !== "INACTIVE",
+    emailVerified: user.emailVerified ?? false,
+    yearLevel: user.yearLevel ?? null,
+    avatar: user.avatar ?? null,
+    subscriptionStatus: user.subscriptionStatus ?? null,
+  }));
 
   return (
     <div className="space-y-6 p-6">
@@ -122,7 +136,7 @@ export default function AdminDashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <UserTable users={recentUsers} />
+          <UserTable users={userTableRows} />
         </CardContent>
       </Card>
     </div>

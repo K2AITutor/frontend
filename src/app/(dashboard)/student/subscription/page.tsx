@@ -214,7 +214,7 @@ export default function SubscriptionPage() {
                                             <span className="font-medium text-sm text-orange-700 dark:text-orange-400">Subscription ending</span>
                                         </div>
                                         <p className="text-xs text-orange-600 dark:text-orange-400/80">
-                                            Full access until {format(new Date(status.subscription.currentPeriodEnd), 'PPP')}. After that, you'll be downgraded to Free.
+                                            Full access until {format(new Date(status.subscription.currentPeriodEnd), 'PPP')}. After that, you&apos;ll be downgraded to Free.
                                         </p>
                                     </div>
                                 )}
@@ -242,7 +242,7 @@ export default function SubscriptionPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Zap className="h-5 w-5" />
-                            Today's Usage
+                            Today&apos;s Usage
                         </CardTitle>
                         <CardDescription>Your daily usage resets at midnight</CardDescription>
                     </CardHeader>

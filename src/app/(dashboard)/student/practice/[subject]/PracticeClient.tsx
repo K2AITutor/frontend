@@ -53,7 +53,8 @@ type SubmissionResult = {
 
 type TopicMeta = {
     attempted: number;
-    total: number;
+    available: number;
+    target: number;
     mastery: number;
     status: TopicStatus;
 };
@@ -241,7 +242,8 @@ export default function PracticeClient({
 
         for (const group of groupedTopics) {
             for (const topic of group.topics) {
-                const total = topicCounts[topic.topicCode] ?? topic.questionCount ?? 0;
+                const available = topicCounts[topic.topicCode] ?? 0;
+                const target = topic.questionCount ?? available;
                 const local = localTopicProgress[topic.topicCode] ?? { attempted: 0, correct: 0 };
 
                 const attempted = local.attempted;
@@ -250,7 +252,8 @@ export default function PracticeClient({
 
                 map[topic.topicCode] = {
                     attempted,
-                    total,
+                    available,
+                    target,
                     mastery,
                     status: local.status ?? getStatusFromMastery(mastery, attempted),
                 };
@@ -262,7 +265,8 @@ export default function PracticeClient({
 
     const activeTopicMeta: TopicMeta = topicMetaMap[selectedTopicCode] || {
         attempted: 0,
-        total: 0,
+        available: 0,
+        target: 0,
         mastery: 0,
         status: 'Not started',
     };
@@ -822,7 +826,8 @@ export default function PracticeClient({
                                             const isActive = selectedTopicCode === topic.topicCode;
                                             const meta = topicMetaMap[topic.topicCode] || {
                                                 attempted: 0,
-                                                total: topicCounts[topic.topicCode] ?? topic.questionCount ?? 0,
+                                                available: topicCounts[topic.topicCode] ?? 0,
+                                                target: topic.questionCount ?? topicCounts[topic.topicCode] ?? 0,
                                                 mastery: 0,
                                                 status: 'Not started' as const,
                                             };
@@ -843,7 +848,7 @@ export default function PracticeClient({
                                                                 {topic.name}
                                                             </div>
                                                             <div className="mt-1 text-xs text-slate-400">
-                                                                {meta.attempted}/{meta.total} attempted
+                                                                {meta.attempted}/{meta.available} attempted
                                                             </div>
                                                             <div className="mt-1 text-xs text-slate-400">
                                                                 Mastery {meta.mastery}%
@@ -859,8 +864,13 @@ export default function PracticeClient({
                                                                 {meta.status}
                                                             </span>
                                                             <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-slate-300">
-                                                                {meta.total} total
+                                                                {meta.available} available
                                                             </span>
+                                                            {meta.target !== meta.available ? (
+                                                                <span className="rounded-full bg-white/5 px-2 py-0.5 text-xs text-slate-400">
+                                                                    {meta.target} target
+                                                                </span>
+                                                            ) : null}
                                                         </div>
                                                     </div>
                                                 </button>
@@ -887,7 +897,10 @@ export default function PracticeClient({
                             Session set: {filteredQuestionCount}
                         </span>
                         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">
-                            Attempted: {activeTopicMeta.attempted}/{activeTopicMeta.total}
+                            Available: {activeTopicMeta.available}/{activeTopicMeta.target} target
+                        </span>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">
+                            Attempted: {activeTopicMeta.attempted}/{activeTopicMeta.available}
                         </span>
                         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">
                             Mastery: {activeTopicMeta.mastery}%
@@ -913,11 +926,15 @@ export default function PracticeClient({
                     ) : !currentQuestion ? (
                         <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-8 text-center">
                             <div className="text-xl font-semibold text-white">
-                                No questions available yet
+                                No student-ready questions yet
                             </div>
                             <div className="mt-3 text-sm leading-6 text-slate-300">
-                                This topic is in the catalogue, but the question bank for the
-                                selected difficulty is still empty.
+                                This topic has {activeTopicMeta.available} active question
+                                {activeTopicMeta.available === 1 ? '' : 's'} available for students
+                                {activeTopicMeta.target > 0
+                                    ? `, with a target set of ${activeTopicMeta.target}.`
+                                    : '.'}{' '}
+                                Draft and QA questions stay hidden until approved.
                             </div>
                             <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
                                 <button
