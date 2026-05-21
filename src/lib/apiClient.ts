@@ -148,11 +148,24 @@ export type SubmitAnswerResponse = {
   correctAnswer?: string | null;
   explanation?: string | null;
   workedSolution?: string | null;
+  commonMistake?: string | null;
   score?: number | null;
   maxScore?: number | null;
   errorTags?: string[];
   skillGaps?: string[];
-  diagnostics?: Record<string, unknown>;
+  diagnostics?: Record<string, any>;
+  topicProgress?: {
+    subjectCode?: string | null;
+    topicCode: string;
+    topicName?: string | null;
+    strandCode?: string | null;
+    strandName?: string | null;
+    attempted: number;
+    correct: number;
+    accuracy: number;
+    masteryPercent: number;
+    status: "Not started" | "Early signal" | "Weak" | "Monitor" | "Strong";
+  } | null;
 };
 
 export type AiExplainResponse = {
@@ -393,6 +406,8 @@ export async function fetchSimilarQuestions(payload: {
   subject: string;
   questionId?: string;
   topicCode?: string;
+  skillCode?: string;
+  difficulty?: string;
   skillGaps?: string[];
   limit?: number;
 }) {

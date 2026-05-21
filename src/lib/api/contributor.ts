@@ -121,64 +121,12 @@ async function getAccessToken() {
     return (session?.user as any)?.accessToken as string | undefined;
 }
 
-const mockTasks: ContributorTask[] = [
-    {
-        id: 101,
-        type: "QUESTION_ENTRY",
-        status: "TODO",
-        priority: 3,
-        title: "Enter VCAA Exam 1 Question 3a",
-        description: "Create a draft question record with source metadata and answer type.",
-        dueAt: new Date(Date.now() + 2 * 86400000).toISOString(),
-        questionId: 3001,
-    },
-    {
-        id: 102,
-        type: "RUBRIC_BUILD",
-        status: "IN_PROGRESS",
-        priority: 2,
-        title: "Build rubric for stationary points question",
-        description: "Add 3 lightweight criteria and a model answer.",
-        dueAt: new Date(Date.now() + 4 * 86400000).toISOString(),
-        questionId: 3002,
-    },
-];
-
-const mockRubricDrafts: ContributorRubricDraft[] = [
-    {
-        id: 5001,
-        questionId: 3002,
-        rubricKey: "mm_stationary_q1",
-        maxMarks: 3,
-        status: "DRAFT",
-        updatedAt: new Date().toISOString(),
-    },
-];
-
-function buildMockDashboard(): ContributorDashboardData {
-    return {
-        summary: {
-            assignedTasks: mockTasks.length,
-            todoTasks: mockTasks.filter((t) => t.status === "TODO").length,
-            inReviewTasks: mockTasks.filter((t) => t.status === "IN_REVIEW").length,
-            draftQuestions: 0,
-            draftRubrics: mockRubricDrafts.filter((r) => r.status === "DRAFT").length,
-        },
-        recentTasks: mockTasks,
-    };
-}
-
 export function useContributorDashboardData() {
     return useQuery({
         queryKey: ["contributorDashboard"],
         queryFn: async () => {
             const token = await getAccessToken();
-
-            try {
-                return await apiGet<ContributorDashboardData>("/contributor/dashboard", token);
-            } catch {
-                return buildMockDashboard();
-            }
+            return apiGet<ContributorDashboardData>("/contributor/dashboard", token);
         },
         staleTime: 30_000,
     });
@@ -189,12 +137,7 @@ export function useContributorTasks() {
         queryKey: ["contributorTasks"],
         queryFn: async () => {
             const token = await getAccessToken();
-
-            try {
-                return await apiGet<ContributorTask[]>("/contributor/tasks/me", token);
-            } catch {
-                return mockTasks;
-            }
+            return apiGet<ContributorTask[]>("/contributor/tasks/me", token);
         },
         staleTime: 30_000,
     });

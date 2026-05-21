@@ -144,10 +144,37 @@ export function useAdminDashboardData() {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken;
 
-  return useQuery({
+  return useQuery<AdminDashboardData>({
     queryKey: ["adminDashboard", accessToken],
-    queryFn: () => apiGet("/admin/dashboard", accessToken),
+    queryFn: () => apiGet<AdminDashboardData>("/admin/dashboard", accessToken),
     enabled: !!accessToken,
   });
 }
+
+export type AdminDashboardData = {
+  systemStats: {
+    totalStudents: number;
+    newUsersThisMonth: number;
+    activeUsers: number;
+    totalSubjects: number;
+    totalTopics: number;
+    totalQuestions: number;
+    totalAttempts: number;
+  };
+  recentUsers: Array<{
+    id: number | string;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+    status?: string | null;
+    joinedDate?: string | null;
+    createdAt?: string | null;
+    lastLoginAt?: string | null;
+    isActive?: boolean | null;
+    emailVerified?: boolean | null;
+    yearLevel?: string | null;
+    avatar?: string | null;
+    subscriptionStatus?: string | null;
+  }>;
+};
 

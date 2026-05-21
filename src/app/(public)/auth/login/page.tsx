@@ -3,12 +3,12 @@
 import Link from 'next/link'
 import { Lock, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import AuthBanner from '@/components/auth/AuthBanner'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from '@/components/dashboard/ui/sonner'
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -219,5 +219,13 @@ export default function LoginPage() {
         <AuthBanner />
       </div>
     </main>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   )
 }

@@ -60,6 +60,32 @@ const SUBJECTS: SubjectOption[] = [
         exams: [
             { key: "VCE_MM_EXAM1_2025", label: "2025 Exam 1", available: true },
             { key: "VCE_MM_EXAM1_2024", label: "2024 Exam 1", available: true },
+            { key: "VCE_MM_EXAM1_2023", label: "2023 Exam 1", available: true },
+            { key: "VCE_MM_EXAM1_2022", label: "2022 Exam 1", available: true },
+            { key: "VCE_MM_EXAM1_2021", label: "2021 Exam 1", available: true },
+            { key: "VCE_MM_EXAM1_2020", label: "2020 Exam 1", available: true },
+            { key: "VCE_MM_EXAM1_2019", label: "2019 Exam 1", available: true },
+            { key: "VCE_MM_EXAM1_2018", label: "2018 Exam 1", available: true },
+            { key: "VCE_MM_EXAM1_2017", label: "2017 Exam 1", available: true },
+            { key: "VCE_MM_EXAM1_2016", label: "2016 Exam 1", available: true },
+            { key: "PRACTICE_MM_CH01_FUNCTIONS_RELATIONS", label: "Practice Ch 1 Functions and relations", available: true },
+            { key: "PRACTICE_MM_CH02_COORDINATE_GEOMETRY", label: "Practice Ch 2 Coordinate geometry", available: true },
+            { key: "PRACTICE_MM_CH03_TRANSFORMATIONS", label: "Practice Ch 3 Transformations", available: true },
+            { key: "PRACTICE_MM_CH04_POLYNOMIAL_FUNCTIONS", label: "Practice Ch 4 Polynomial functions", available: true },
+            { key: "PRACTICE_MM_CH05_EXPONENTIAL_LOG_FUNCTIONS", label: "Practice Ch 5 Exponential/log functions", available: true },
+            { key: "PRACTICE_MM_CH06_CIRCULAR_FUNCTIONS", label: "Practice Ch 6 Circular functions", available: true },
+            { key: "PRACTICE_MM_CH07_FURTHER_FUNCTIONS", label: "Practice Ch 7 Further functions", available: true },
+            { key: "PRACTICE_MM_CH09_DIFFERENTIATION", label: "Practice Ch 9 Differentiation", available: true },
+            {
+                key: "PRACTICE_MM_CH10_APPLICATIONS_OF_DIFFERENTIATION",
+                label: "Practice Ch 10 Applications of differentiation",
+                available: true,
+            },
+            { key: "PRACTICE_MM_CH11_INTEGRATION", label: "Practice Ch 11 Integration", available: true },
+            { key: "PRACTICE_MM_CH13_DISCRETE_RANDOM_VARIABLES", label: "Practice Ch 13 Discrete random variables", available: true },
+            { key: "PRACTICE_MM_CH14_BINOMIAL_DISTRIBUTION", label: "Practice Ch 14 Binomial distribution", available: true },
+            { key: "PRACTICE_MM_CH15_CONTINUOUS_RANDOM_VARIABLES", label: "Practice Ch 15 Continuous random variables", available: true },
+            { key: "PRACTICE_MM_CH16_NORMAL_DISTRIBUTION", label: "Practice Ch 16 Normal distribution", available: true },
         ],
     },
     {
@@ -130,8 +156,13 @@ const TOPIC_LABELS: Record<string, string> = {
     MM_CIRC: "Circular functions",
     MM_STAT_RANDOM_VARIABLES: "Random variables",
     MM_STAT_BINOMIAL: "Binomial distributions",
+    MM_STAT_NORMAL: "Normal distribution",
+    MM_STAT_MODEL_INTERPRET: "Continuous random variables",
     MM_FUNC_POLYNOMIAL: "Polynomial functions",
+    MM_FUNC_COMBINED_TRANSFORMS: "Transformations",
+    MM_FUNC_RATIONAL: "Further functions",
     MM_FUNC_RESTRICTED_DOMAIN: "Restricted domains and inverse functions",
+    MM_ALG_LINES: "Coordinate geometry",
     MM_ALG_EQUATIONS_EXP_LOG: "Exponential and logarithmic equations",
     MM_EXP_LOG: "Exponential and logarithmic functions",
     MM_ALG_PARAMETERS: "Parameter analysis",
@@ -157,6 +188,31 @@ const SUBTOPIC_LABELS: Record<string, string> = {
     POINTS_OF_INFLECTION: "Points of inflection",
     STATIONARY_POINTS: "Stationary points",
     PARAMETER_ANALYSIS: "Parameter analysis",
+    GRADIENTS: "Gradients",
+    LINE_EQUATIONS: "Line equations",
+    INTERSECTIONS: "Intersections",
+    DISTANCE_MIDPOINT: "Distance and midpoint",
+    TRANSLATIONS: "Translations",
+    DILATIONS: "Dilations",
+    REFLECTIONS: "Reflections",
+    COMBINED_TRANSFORMS: "Combined transformations",
+    RATIONAL_FUNCTIONS: "Rational functions",
+    RADICAL_FUNCTIONS: "Radical functions",
+    ASYMPTOTES: "Asymptotes",
+    RESTRICTED_DOMAIN: "Restricted domain",
+    VARIANCE: "Variance",
+    PROBABILITY_MODELS: "Probability models",
+    BINOMIAL_MODEL: "Binomial model",
+    BINOMIAL_PROBABILITY: "Binomial probability",
+    BINOMIAL_APPLICATIONS: "Binomial applications",
+    CONTINUOUS_RV: "Continuous random variables",
+    PDF_PROPERTIES: "Density function properties",
+    CONTINUOUS_PROBABILITY: "Continuous probability",
+    TRANSFORMED_DENSITIES: "Transformed densities",
+    NORMAL_MODEL: "Normal model",
+    STANDARD_NORMAL: "Standard normal",
+    Z_SCORES: "Z-scores",
+    NORMAL_APPLICATIONS: "Normal applications",
 };
 
 function readableCode(code: string | null | undefined, labels: Record<string, string>) {
@@ -361,7 +417,7 @@ export default function ContributorDatasetAnalyticsPage() {
                             <div>
                                 <p className="font-medium">No QA dataset loaded for this subject yet.</p>
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    Add seed data and expose it through Dataset QA before analytics can calculate coverage.
+                                    Import records into the backend QA queue before analytics can calculate coverage.
                                 </p>
                             </div>
                         </div>

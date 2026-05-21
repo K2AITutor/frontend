@@ -164,7 +164,7 @@ export default function AdminUsersPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
         <p className="text-muted-foreground">
-          Monitor your platform's student base, growth and activity.
+          Monitor your platform&apos;s student base, growth and activity.
         </p>
       </div>
 

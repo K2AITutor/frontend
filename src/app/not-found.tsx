@@ -26,7 +26,7 @@ export default function NotFound() {
                     </div>
 
                     <p className="mt-4 max-w-lg text-lg text-text-secondary md:text-xl">
-                        Oops! The page you're looking for seems to have wandered off into the digital void.
+                        Oops! The page you&apos;re looking for seems to have wandered off into the digital void.
                     </p>
 
                     <div className="mt-8 flex flex-col gap-4 sm:flex-row">
