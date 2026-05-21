@@ -21,6 +21,7 @@ import {
   Users,
   Sparkles,
   CreditCard,
+  HeartPulse,
   Quote,
   HelpCircle,
   ClipboardList,
@@ -32,6 +33,10 @@ import {
   Database,
   ShieldCheck,
   BarChart3,
+  FileQuestion,
+  ListChecks,
+  ClipboardCheck,
+  ChevronDown,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -42,7 +47,11 @@ interface NavItem {
   href: string;
   icon: React.ReactNode;
   badge?: string;
-  sectionStart?: string;
+}
+
+interface NavGroup {
+  title: string;
+  items: NavItem[];
 }
 
 interface DashboardSidebarProps {
@@ -91,67 +100,121 @@ const teacherNavItems: NavItem[] = [
   },
 ];
 
-const adminNavItems: NavItem[] = [
+const adminNavGroups: NavGroup[] = [
   {
-    title: "Dashboard",
-    href: "/admin",
-    icon: <LayoutDashboard className="h-5 w-5" />,
+    title: "Overview",
+    items: [
+      {
+        title: "Dashboard",
+        href: "/admin",
+        icon: <LayoutDashboard className="h-5 w-5" />,
+      },
+    ],
   },
   {
-    title: "Students",
-    href: "/admin/users",
-    icon: <UserCog className="h-5 w-5" />,
+    title: "People",
+    items: [
+      {
+        title: "Students",
+        href: "/admin/users",
+        icon: <UserCog className="h-5 w-5" />,
+      },
+      {
+        title: "Staff",
+        href: "/admin/staff",
+        icon: <Users className="h-5 w-5" />,
+      },
+    ],
   },
   {
-    title: "Staff",
-    href: "/admin/staff",
-    icon: <Users className="h-5 w-5" />,
+    title: "Content",
+    items: [
+      {
+        title: "Subjects",
+        href: "/admin/subjects",
+        icon: <BookOpen className="h-5 w-5" />,
+      },
+      {
+        title: "Topics",
+        href: "/admin/content/topics",
+        icon: <BookOpen className="h-5 w-5" />,
+      },
+      {
+        title: "Skills",
+        href: "/admin/content/skills",
+        icon: <ListChecks className="h-5 w-5" />,
+      },
+      {
+        title: "Questions",
+        href: "/admin/content/questions",
+        icon: <FileQuestion className="h-5 w-5" />,
+      },
+      {
+        title: "Rubrics",
+        href: "/admin/content/rubrics",
+        icon: <ClipboardCheck className="h-5 w-5" />,
+      },
+      {
+        title: "Tasks",
+        href: "/admin/content/tasks",
+        icon: <ClipboardList className="h-5 w-5" />,
+      },
+      {
+        title: "FAQs",
+        href: "/admin/faqs",
+        icon: <HelpCircle className="h-5 w-5" />,
+      },
+      {
+        title: "Testimonials",
+        href: "/admin/testimonials",
+        icon: <Quote className="h-5 w-5" />,
+      },
+    ],
   },
   {
-    title: "Subjects",
-    href: "/admin/subjects",
-    icon: <BookOpen className="h-5 w-5" />,
+    title: "Billing",
+    items: [
+      {
+        title: "Subscription Plans",
+        href: "/admin/subscription-plans",
+        icon: <CreditCard className="h-5 w-5" />,
+      },
+      {
+        title: "Billing Health",
+        href: "/admin/billing",
+        icon: <HeartPulse className="h-5 w-5" />,
+      },
+    ],
   },
   {
-    title: "FAQs",
-    href: "/admin/faqs",
-    icon: <HelpCircle className="h-5 w-5" />,
-  },
-  {
-    title: "Testimonials",
-    href: "/admin/testimonials",
-    icon: <Quote className="h-5 w-5" />,
-  },
-  {
-    title: "Subscription Plans",
-    href: "/admin/subscription-plans",
-    icon: <CreditCard className="h-5 w-5" />,
-  },
-  {
-    title: "Marking Routing",
-    href: "/admin/marking/routing",
-    icon: <Network className="h-5 w-5" />,
-    sectionStart: "AI Operations",
-  },
-  {
-    title: "Confidence Tuning",
-    href: "/admin/marking/confidence",
-    icon: <Sliders className="h-5 w-5" />,
-  },
-  {
-    title: "Annotation Queue",
-    href: "/admin/marking/queue",
-    icon: <Inbox className="h-5 w-5" />,
-  },
-  {
-    title: "Model Registry",
-    href: "/admin/models",
-    icon: <Cpu className="h-5 w-5" />,
-  },
-  {
-    title: "Datasets",
-    href: "/admin/datasets",
-    icon: <Database className="h-5 w-5" />,
+    title: "AI Operations",
+    items: [
+      {
+        title: "Marking Routing",
+        href: "/admin/marking/routing",
+        icon: <Network className="h-5 w-5" />,
+      },
+      {
+        title: "Confidence Tuning",
+        href: "/admin/marking/confidence",
+        icon: <Sliders className="h-5 w-5" />,
+      },
+      {
+        title: "Annotation Queue",
+        href: "/admin/marking/queue",
+        icon: <Inbox className="h-5 w-5" />,
+      },
+      {
+        title: "Model Registry",
+        href: "/admin/models",
+        icon: <Cpu className="h-5 w-5" />,
+      },
+      {
+        title: "Datasets",
+        href: "/admin/datasets",
+        icon: <Database className="h-5 w-5" />,
+      },
+    ],
   },
 ];
 
@@ -176,7 +239,7 @@ const contributorNavItems: NavItem[] = [
 const navItemsByRole: Record<UserRole, NavItem[]> = {
   student: studentNavItems,
   teacher: teacherNavItems,
-  admin: adminNavItems,
+  admin: adminNavGroups.flatMap((group) => group.items),
   contributor: contributorNavItems,
 };
 
@@ -193,7 +256,63 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const navItems = navItemsByRole[role];
+  const navGroups: NavGroup[] =
+    role === "admin" ? adminNavGroups : [{ title: "", items: navItems }];
   const bottomNavItems = role === "student" ? studentBottomNavItems : [];
+  const activeAdminGroupTitle = React.useMemo(() => {
+    if (role !== "admin") return null;
+    const activeGroup = adminNavGroups.find((group) =>
+      group.items.some((item) => {
+        if (item.href === "/admin") return pathname === item.href;
+        return pathname.startsWith(item.href);
+      })
+    );
+
+    return activeGroup?.title ?? null;
+  }, [pathname, role]);
+  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>(
+    () =>
+      adminNavGroups.reduce<Record<string, boolean>>((groups, group) => {
+        groups[group.title] = true;
+        return groups;
+      }, {})
+  );
+
+  React.useEffect(() => {
+    if (role !== "admin") return;
+
+    const storedGroups = window.localStorage.getItem("adminSidebarOpenGroups");
+    if (!storedGroups) return;
+
+    try {
+      const parsedGroups = JSON.parse(storedGroups) as Record<string, boolean>;
+      setOpenGroups((currentGroups) => ({
+        ...currentGroups,
+        ...parsedGroups,
+        ...(activeAdminGroupTitle ? { [activeAdminGroupTitle]: true } : {}),
+      }));
+    } catch {
+      window.localStorage.removeItem("adminSidebarOpenGroups");
+    }
+  }, [activeAdminGroupTitle, role]);
+
+  React.useEffect(() => {
+    if (role !== "admin" || !activeAdminGroupTitle) return;
+
+    setOpenGroups((currentGroups) => {
+      if (currentGroups[activeAdminGroupTitle]) return currentGroups;
+
+      const nextGroups = {
+        ...currentGroups,
+        [activeAdminGroupTitle]: true,
+      };
+      window.localStorage.setItem(
+        "adminSidebarOpenGroups",
+        JSON.stringify(nextGroups)
+      );
+      return nextGroups;
+    });
+  }, [activeAdminGroupTitle, role]);
 
   const isActive = (href: string) => {
     if (href === `/${role}`) {
@@ -203,6 +322,20 @@ export function DashboardSidebar({
       return pathname === href;
     }
     return pathname.startsWith(href);
+  };
+
+  const toggleGroup = (title: string) => {
+    setOpenGroups((currentGroups) => {
+      const nextGroups = {
+        ...currentGroups,
+        [title]: !currentGroups[title],
+      };
+      window.localStorage.setItem(
+        "adminSidebarOpenGroups",
+        JSON.stringify(nextGroups)
+      );
+      return nextGroups;
+    });
   };
 
   return (
@@ -232,26 +365,44 @@ export function DashboardSidebar({
         </div>
 
         <ScrollArea className="flex-1 px-3 py-4">
-          <nav className="flex flex-col gap-1">
-            {navItems.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <React.Fragment key={item.href}>
-                  {item.sectionStart && (
-                    collapsed ? (
-                      <div className="my-1 h-px bg-border mx-1" />
-                    ) : (
-                      <div className="mt-3 mb-0.5 px-2 flex items-center gap-2">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                          {item.sectionStart}
-                        </span>
-                        <span className="flex-1 h-px bg-border" />
-                      </div>
-                    )
-                  )}
+          <nav className="flex flex-col gap-4">
+            {navGroups.map((group, groupIndex) => (
+              <div
+                key={group.title || `nav-group-${groupIndex}`}
+                className="flex flex-col gap-1"
+              >
+                {group.title ? (
+                  collapsed ? (
+                    groupIndex > 0 ? (
+                      <div className="mx-1 my-1 h-px bg-border" />
+                    ) : null
+                  ) : (
+                    <button
+                      type="button"
+                      className="mb-0.5 flex items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-muted"
+                      onClick={() => toggleGroup(group.title)}
+                    >
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {group.title}
+                      </span>
+                      <span className="h-px flex-1 bg-border" />
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                          !openGroups[group.title] && "-rotate-90"
+                        )}
+                      />
+                    </button>
+                  )
+                ) : null}
 
-                  {collapsed ? (
-                    <Tooltip>
+                {(collapsed || openGroups[group.title] !== false
+                  ? group.items
+                  : []
+                ).map((item) => {
+                  const active = isActive(item.href);
+                  return collapsed ? (
+                    <Tooltip key={item.href}>
                       <TooltipTrigger asChild>
                         <Link href={item.href}>
                           <Button
@@ -259,7 +410,8 @@ export function DashboardSidebar({
                             size="icon"
                             className={cn(
                               "h-10 w-10",
-                              active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                              active &&
+                                "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                             )}
                           >
                             {item.icon}
@@ -269,12 +421,13 @@ export function DashboardSidebar({
                       <TooltipContent side="right">{item.title}</TooltipContent>
                     </Tooltip>
                   ) : (
-                    <Link href={item.href}>
+                    <Link key={item.href} href={item.href}>
                       <Button
                         variant={active ? "secondary" : "ghost"}
                         className={cn(
                           "w-full justify-start gap-3",
-                          active && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                          active &&
+                            "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                         )}
                       >
                         {item.icon}
@@ -286,10 +439,10 @@ export function DashboardSidebar({
                         )}
                       </Button>
                     </Link>
-                  )}
-                </React.Fragment>
-              );
-            })}
+                  );
+                })}
+              </div>
+            ))}
           </nav>
         </ScrollArea>
 
