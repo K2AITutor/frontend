@@ -66,7 +66,7 @@ export default function EditUserPage() {
           avatar: avatarPreview || undefined,
         }, token);
         toast.success("User updated successfully");
-        router.push("/admin/users");
+        router.push(value.role === "student" ? "/admin/users" : "/admin/staff");
       } catch (err: any) {
         toast.error(err.message || "Failed to update user");
       }
@@ -233,6 +233,8 @@ export default function EditUserPage() {
                           <SelectItem value="student">Student</SelectItem>
                           <SelectItem value="teacher">Teacher</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="contributor">Contributor</SelectItem>
+                          <SelectItem value="parent">Parent</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

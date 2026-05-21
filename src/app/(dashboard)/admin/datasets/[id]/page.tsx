@@ -16,10 +16,18 @@ import { toast } from "@/components/dashboard/ui/sonner";
 import { Loader2, AlertCircle, ChevronLeft, Download } from "lucide-react";
 import { useDatasets, useDatasetRows } from "@/lib/api/admin-datasets";
 import type { SplitFilter } from "@/lib/api/admin-datasets";
+import { useAdminToken } from "@/lib/api/useAdminToken";
 import { DatasetRowTable } from "@/components/marking/DatasetRowTable";
+
+function getApiBase() {
+  const raw = process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
+  const clean = String(raw).replace(/\/+$/, "");
+  return clean.endsWith("/api") ? clean : `${clean}/api`;
+}
 
 export default function AdminDatasetDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const token = useAdminToken();
   const [page, setPage] = useState(1);
   const [splitFilter, setSplitFilter] = useState<SplitFilter>("all");
 
@@ -28,17 +36,30 @@ export default function AdminDatasetDetailPage() {
 
   const dataset = datasets?.find((d) => d.id === id);
 
-  function handleExport() {
-    const apiBase = (
-      process.env.NEXT_PUBLIC_API_BASE ?? ""
-    ).replace(/\/+$/, "");
-    const url = `${apiBase}/admin/datasets/${id}/export?format=jsonl`;
+  async function handleExport() {
+    if (!token) {
+      toast.error("Admin session is not ready");
+      return;
+    }
+    const url = `${getApiBase()}/admin/datasets/${id}/export?format=jsonl`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      toast.error("Failed to export dataset");
+      return;
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = url;
+    link.href = objectUrl;
     link.download = `${dataset?.name ?? id}.jsonl`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
     toast.success("Export started");
   }
 

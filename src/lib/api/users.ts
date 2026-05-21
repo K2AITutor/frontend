@@ -19,8 +19,9 @@ export interface User {
     subscriptionStatus: string | null;
 }
 
-export type AdminUserRole = "student" | "teacher" | "admin";
+export type AdminUserRole = "student" | "teacher" | "admin" | "contributor" | "parent";
 export type AdminUserStatus = "active" | "pending" | "suspended";
+export type AdminUserRoleScope = "students" | "staff";
 
 export interface CreateAdminUserPayload {
     name: string;
@@ -64,6 +65,8 @@ export interface UseUsersParams {
     isActive?: string;
     startDate?: string;
     endDate?: string;
+    roleScope?: AdminUserRoleScope;
+    role?: AdminUserRole | "all";
     token?: string;
 }
 
@@ -129,16 +132,20 @@ export function useUsers({
     isActive,
     startDate,
     endDate,
+    roleScope = "students",
+    role,
     token,
 }: UseUsersParams) {
     return useQuery({
-        queryKey: ["users", page, limit, search, verified, isActive, startDate, endDate],
+        queryKey: ["users", roleScope, role, page, limit, search, verified, isActive, startDate, endDate],
         queryFn: async (): Promise<PaginatedUsers> => {
             const params = new URLSearchParams({
                 page: page.toString(),
                 limit: limit.toString(),
+                roleScope,
             });
 
+            if (role && role !== "all") params.append('role', role);
             if (search) params.append('search', search);
             if (verified && verified !== 'all') params.append('verified', verified);
             if (isActive && isActive !== 'all') params.append('isActive', isActive);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { getSession } from "next-auth/react";
+import { getSession, useSession } from "next-auth/react";
 import { apiGet, apiPost, apiPut } from "@/lib/apiClient";
 
 const API_BASE_RAW =
@@ -94,12 +94,13 @@ export function useSubmitAnswer() {
 }
 
 export function useContributorQuestionDrafts() {
+  const { data: session } = useSession();
+  const token = (session?.user as any)?.accessToken as string | undefined;
+
   return useQuery({
-    queryKey: ["contributorQuestionDrafts"],
-    queryFn: async () => {
-      const token = await getAccessToken();
-      return apiGet<QuestionDraftDTO[]>("/questions/drafts/mine", token);
-    },
+    queryKey: ["contributorQuestionDrafts", token],
+    queryFn: () => apiGet<QuestionDraftDTO[]>("/questions/drafts/mine", token),
+    enabled: !!token,
     staleTime: 30_000,
   });
 }
