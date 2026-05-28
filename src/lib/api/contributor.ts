@@ -122,24 +122,24 @@ async function getAccessToken() {
 }
 
 export function useContributorDashboardData() {
+    const { data: session } = useSession();
+    const token = (session?.user as any)?.accessToken as string | undefined;
+
     return useQuery({
-        queryKey: ["contributorDashboard"],
-        queryFn: async () => {
-            const token = await getAccessToken();
-            return apiGet<ContributorDashboardData>("/contributor/dashboard", token);
-        },
+        queryKey: ["contributorDashboard", token],
+        queryFn: () => apiGet<ContributorDashboardData>("/contributor/dashboard", token),
         enabled: !!token,
         staleTime: 30_000,
     });
 }
 
 export function useContributorTasks() {
+    const { data: session } = useSession();
+    const token = (session?.user as any)?.accessToken as string | undefined;
+
     return useQuery({
-        queryKey: ["contributorTasks"],
-        queryFn: async () => {
-            const token = await getAccessToken();
-            return apiGet<ContributorTask[]>("/contributor/tasks/me", token);
-        },
+        queryKey: ["contributorTasks", token],
+        queryFn: () => apiGet<ContributorTask[]>("/contributor/tasks/me", token),
         enabled: !!token,
         staleTime: 30_000,
     });

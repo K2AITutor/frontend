@@ -64,7 +64,21 @@ export interface AdminDashboardData {
     totalTopics: number;
     totalAttempts: number;
   };
-  recentUsers: any[];
+  recentUsers: Array<{
+    id: number | string;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+    status?: string | null;
+    joinedDate?: string | null;
+    createdAt?: string | null;
+    lastLoginAt?: string | null;
+    isActive?: boolean | null;
+    emailVerified?: boolean | null;
+    yearLevel?: string | null;
+    avatar?: string | null;
+    subscriptionStatus?: string | null;
+  }>;
 }
 
 export function useDashboardStats() {
@@ -101,29 +115,3 @@ export function useAdminDashboardData() {
   });
 }
 
-export type AdminDashboardData = {
-  systemStats: {
-    totalStudents: number;
-    newUsersThisMonth: number;
-    activeUsers: number;
-    totalSubjects: number;
-    totalTopics: number;
-    totalQuestions: number;
-    totalAttempts: number;
-  };
-  recentUsers: Array<{
-    id: number | string;
-    name?: string | null;
-    email?: string | null;
-    role?: string | null;
-    status?: string | null;
-    joinedDate?: string | null;
-    createdAt?: string | null;
-    lastLoginAt?: string | null;
-    isActive?: boolean | null;
-    emailVerified?: boolean | null;
-    yearLevel?: string | null;
-    avatar?: string | null;
-    subscriptionStatus?: string | null;
-  }>;
-};
