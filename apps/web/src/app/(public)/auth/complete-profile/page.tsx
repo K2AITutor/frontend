@@ -8,6 +8,9 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { toast } from '@/components/dashboard/ui/sonner'
 
+import { apiPost } from '@/lib/apiClient'
+import { PATH } from '@aitutor/shared'
+
 export default function CompleteProfilePage() {
   const { data: session, update } = useSession()
   const router = useRouter()
@@ -26,23 +29,11 @@ export default function CompleteProfilePage() {
     setIsLoading(true)
     try {
       const accessToken = (session?.user as any)?.accessToken
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api'
 
-      const res = await fetch(`${apiBase}/auth/complete-profile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          yearLevel,
-          vcaaStudentNumber: studentId || undefined,
-        }),
-      })
-
-      if (!res.ok) {
-        throw new Error('Failed to update profile')
-      }
+      await apiPost<any>(PATH.auth.completeProfile, {
+        yearLevel,
+        vcaaStudentNumber: studentId || undefined,
+      }, accessToken)
 
       // Update session to reflect profileCompleted = true
       await update({ profileCompleted: true })

@@ -25,7 +25,7 @@ import {
 } from "@/components/dashboard/ui/table";
 import { useReviewQueue, type ReviewQueueFilters } from "@/lib/api/teacher";
 import { usePageTitle } from "@/lib/usePageTitle";
-import type { ReviewQueueItem } from "@/lib/types/review";
+import type { ReviewQueueItem } from "@aitutor/shared";
 
 const REASON_OPTIONS = [
   { value: "all", label: "All reasons" },

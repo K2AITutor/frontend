@@ -39,8 +39,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
-
-export type UserRole = "student" | "teacher" | "admin" | "contributor";
+import type { UserRole } from "@aitutor/shared";
 
 interface NavItem {
   title: string;
@@ -241,6 +240,7 @@ const navItemsByRole: Record<UserRole, NavItem[]> = {
   teacher: teacherNavItems,
   admin: adminNavGroups.flatMap((group) => group.items),
   contributor: contributorNavItems,
+  parent: [], // Add parent items if any, or empty array for now
 };
 
 const roleLabels: Record<UserRole, string> = {
@@ -248,6 +248,7 @@ const roleLabels: Record<UserRole, string> = {
   teacher: "Teacher Portal",
   admin: "Admin Portal",
   contributor: "Contributor Portal",
+  parent: "Parent Portal",
 };
 
 export function DashboardSidebar({

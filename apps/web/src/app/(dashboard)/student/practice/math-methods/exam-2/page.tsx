@@ -3,40 +3,21 @@ import Link from "next/link";
 import PracticeClient from "../../[subject]/PracticeClient";
 import type { PracticeQuestion } from "@/types/question";
 import { SUBJECT } from "@/lib/subjects";
-
-/**
- * Ensure base includes /api (your backend logs show routes under /api)
- * Examples:
- *  - http://backend:4000      -> http://backend:4000/api
- *  - http://backend:4000/api  -> unchanged
- */
-function ensureApiBase(base: string) {
-    return base.endsWith("/api") ? base : `${base.replace(/\/$/, "")}/api`;
-}
+import { apiGet } from "@/lib/apiClient";
+import { PATH } from "@aitutor/shared";
 
 async function fetchExam2Questions(): Promise<PracticeQuestion[]> {
-    // Server-side fetch inside Docker network
-    const rawBase =
-        process.env.INTERNAL_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://backend:4000";
-    const API_BASE = ensureApiBase(rawBase);
-
-    // ✅ For now: reuse your existing practice endpoint to get a “mock Exam 2 set”
-    // Later you can replace this with a dedicated endpoint like:
-    //   GET /api/questions/exam?subject=MATH_METHODS&exam=2&year=2025
-    //
-    // Exam 2 tends to be mixed + more applied, so we pull from multiple topics.
     const topicCodes = ["MM_T3", "MM_T4", "MM_T5", "MM_T6", "MM_T7", "MM_T8"]; // Diff + Apps + Int + Prob/Stats
 
     const results = await Promise.all(
         topicCodes.map(async (topicCode) => {
-            const res = await fetch(
-                `${API_BASE}/questions/practice?subject=MATH_METHODS&topicCode=${encodeURIComponent(
-                    topicCode
-                )}`,
-                { cache: "no-store" }
-            );
-            if (!res.ok) return [];
-            return (await res.json()) as PracticeQuestion[];
+            try {
+                return await apiGet<PracticeQuestion[]>(
+                    `${PATH.questions.practice}?subject=MATH_METHODS&topicCode=${encodeURIComponent(topicCode)}`
+                );
+            } catch (err) {
+                return [];
+            }
         })
     );
 

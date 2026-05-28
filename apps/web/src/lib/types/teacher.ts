@@ -1,4 +1,4 @@
-import type { ReviewQueueItem } from "@/lib/types/review";
+import type { ReviewQueueItem } from "@aitutor/shared";
 
 export interface TeacherStats {
   queueDepth: number;

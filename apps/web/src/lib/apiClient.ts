@@ -9,6 +9,7 @@ import type {
   TopicProgressRow,
   ExamDTO,
   ExamQuestionDTO,
+  Fetcher,
 } from "@aitutor/shared";
 
 export type {
@@ -22,7 +23,70 @@ export type {
   ExamQuestionDTO,
 };
 
-function getApiBase() {
+export const webFetcher: Fetcher = {
+  async get<T>(path: string, opts?: { signal?: AbortSignal }) {
+    const base = getApiBase();
+    const url = `${base}${path}`;
+    const resolvedToken = await resolveBrowserSessionToken();
+
+    const res = await fetch(url, {
+      method: "GET",
+      headers: buildHeaders(resolvedToken),
+      credentials: "include",
+      cache: "no-store",
+      signal: opts?.signal,
+    });
+
+    return safeJsonFromResponse<T>(res, url);
+  },
+  async post<T>(path: string, body?: unknown, opts?: { signal?: AbortSignal }) {
+    const base = getApiBase();
+    const url = `${base}${path}`;
+    const resolvedToken = await resolveBrowserSessionToken();
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: buildHeaders(resolvedToken),
+      credentials: "include",
+      cache: "no-store",
+      body: JSON.stringify(body),
+      signal: opts?.signal,
+    });
+
+    return safeJsonFromResponse<T>(res, url);
+  },
+  async put<T>(path: string, body?: unknown, opts?: { signal?: AbortSignal }) {
+    const base = getApiBase();
+    const url = `${base}${path}`;
+    const resolvedToken = await resolveBrowserSessionToken();
+
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: buildHeaders(resolvedToken),
+      credentials: "include",
+      body: JSON.stringify(body),
+      signal: opts?.signal,
+    });
+
+    return safeJsonFromResponse<T>(res, url);
+  },
+  async del<T>(path: string, opts?: { signal?: AbortSignal }) {
+    const base = getApiBase();
+    const url = `${base}${path}`;
+    const resolvedToken = await resolveBrowserSessionToken();
+
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: buildHeaders(resolvedToken),
+      credentials: "include",
+      signal: opts?.signal,
+    });
+
+    return safeJsonFromResponse<T>(res, url);
+  },
+};
+
+export function getApiBase() {
   const raw =
     typeof window === "undefined"
       ? process.env.INTERNAL_API_BASE_URL ||
@@ -142,6 +206,20 @@ export async function apiPut<T>(path: string, body: any, token?: string): Promis
   const res = await fetch(url, {
     method: "PUT",
     headers: buildHeaders(token),
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  return safeJsonFromResponse<T>(res, url);
+}
+
+export async function apiPatch<T>(path: string, body: any, token?: string): Promise<T> {
+  const base = getApiBase();
+  const url = `${base}${path}`;
+  const resolvedToken = await resolveBrowserSessionToken(token);
+
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: buildHeaders(resolvedToken),
     credentials: "include",
     body: JSON.stringify(body),
   });

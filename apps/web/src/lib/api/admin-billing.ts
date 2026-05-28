@@ -1,4 +1,7 @@
+import { PATH } from "@aitutor/shared";
 import { apiGet } from "@/lib/apiClient";
+
+// ... (keep interfaces)
 
 export interface AdminBillingPaymentEvent {
   id: number;
@@ -75,7 +78,7 @@ function toQuery(params: Record<string, string | number | undefined>) {
 }
 
 export function fetchAdminBillingOverview(token: string) {
-  return apiGet<AdminBillingOverview>("/admin/billing/overview", token);
+  return apiGet<AdminBillingOverview>(PATH.admin.billing.overview, token);
 }
 
 export function fetchAdminBillingSubscriptions(
@@ -90,7 +93,7 @@ export function fetchAdminBillingSubscriptions(
   },
 ) {
   return apiGet<AdminBillingListResponse<AdminBillingSubscription>>(
-    `/admin/billing/subscriptions${toQuery(params)}`,
+    `${PATH.admin.billing.subscriptions}${toQuery(params)}`,
     token,
   );
 }
@@ -107,7 +110,7 @@ export function fetchAdminBillingPaymentEvents(
   },
 ) {
   return apiGet<AdminBillingPaymentEventsResponse>(
-    `/admin/billing/payment-events${toQuery(params)}`,
+    `${PATH.admin.billing.paymentEvents}${toQuery(params)}`,
     token,
   );
 }

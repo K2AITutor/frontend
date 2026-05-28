@@ -19,11 +19,7 @@ import type { SplitFilter } from "@/lib/api/admin-datasets";
 import { useAdminToken } from "@/lib/api/useAdminToken";
 import { DatasetRowTable } from "@/components/marking/DatasetRowTable";
 
-function getApiBase() {
-  const raw = process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
-  const clean = String(raw).replace(/\/+$/, "");
-  return clean.endsWith("/api") ? clean : `${clean}/api`;
-}
+import { getApiBase } from "@/lib/apiClient";
 
 export default function AdminDatasetDetailPage() {
   const { id } = useParams<{ id: string }>();

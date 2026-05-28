@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft, Loader2, AlertCircle, Clock, CheckCircle, XCircle, HelpCircle } from "lucide-react";
+import { use } from "react";
 import Link from "next/link";
 import { useStudentSubmission } from "@/lib/api/student-submissions";
 import { HybridMarkingBadge } from "@/components/marking/HybridMarkingBadge";
@@ -20,9 +21,9 @@ const STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
 export default function StudentSubmissionPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = params;
+  const { id } = use(params);
   const { data, isLoading, error, refetch } = useStudentSubmission(id);
 
   if (isLoading) {

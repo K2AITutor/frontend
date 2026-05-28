@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { DashboardSidebar, UserRole } from "./DashboardSidebar";
+import { DashboardSidebar } from "./DashboardSidebar";
+import type { UserRole } from "@aitutor/shared";
 import { DashboardHeader } from "./DashboardHeader";
 
 interface DashboardLayoutProps {

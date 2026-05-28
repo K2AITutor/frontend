@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { apiGet, apiPost } from "@/lib/apiClient";
-import type { ReviewDecision } from "@/lib/types/review";
+import type { ReviewDecision, ReviewQueueItem } from "@aitutor/shared";
 import type { SubmissionFull } from "@/lib/types/marking";
 import type {
   TeacherStats,

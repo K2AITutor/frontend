@@ -25,7 +25,8 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/dashboard/ui/sheet";
-import { DashboardSidebar, UserRole } from "./DashboardSidebar";
+import { DashboardSidebar } from "./DashboardSidebar";
+import type { UserRole } from "@aitutor/shared";
 import { NotificationBell } from "./NotificationBell";
 import {
   Menu,

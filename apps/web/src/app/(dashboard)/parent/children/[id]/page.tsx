@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, use } from "react";
 import { Loader2, AlertCircle, TrendingUp, TrendingDown, Minus, ArrowLeft, ChevronLeft, ChevronRight, BookOpen, Activity, Award, Target } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
@@ -505,8 +505,8 @@ function WeeklyTab({
   );
 }
 
-export default function ChildDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function ChildDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
 
   const { data: child, isLoading: childLoading, error: childError, refetch } = useParentChild(id);
   const {

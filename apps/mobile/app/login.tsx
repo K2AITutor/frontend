@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { useRouter } from "expo-router";
-import { View, Text, TextInput, Pressable, useCSSVariable } from "../src/tw";
-import type { LoginResponse } from "@aitutor/shared";
+import { type LoginResponse } from "@aitutor/shared";
 import apiClient from "../src/lib/apiClient";
 import { saveToken, saveTokens } from "../src/lib/secureStore";
 import { Screen } from "../src/components/Screen";
 import { registerForPushNotifications } from "../src/lib/pushNotifications";
+import { Button, Input, Label } from "../src/components/ui";
+import { Text, View } from "../src/tw";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -50,8 +51,6 @@ export default function LoginScreen() {
     }
   };
 
-  const placeholderColor = useCSSVariable("--color-muted-foreground");
-
   return (
     <Screen className="items-center justify-center p-6">
       <View className="w-full max-w-sm bg-card p-8 rounded-2xl shadow-sm border border-border">
@@ -64,13 +63,11 @@ export default function LoginScreen() {
           </View>
         )}
 
-        <View className="space-y-4">
+        <View className="gap-4">
           <View>
-            <Text className="text-sm font-medium text-muted-foreground mb-2 ml-1">Email</Text>
-            <TextInput
-              className="w-full bg-muted border border-border px-4 py-4 rounded-xl text-foreground"
+            <Label>Email</Label>
+            <Input
               placeholder="name@example.com"
-              placeholderTextColor={placeholderColor}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -79,40 +76,42 @@ export default function LoginScreen() {
           </View>
 
           <View>
-            <Text className="text-sm font-medium text-muted-foreground mb-2 mt-4 ml-1">Password</Text>
-            <TextInput
-              className="w-full bg-muted border border-border px-4 py-4 rounded-xl text-foreground"
+            <Label>Password</Label>
+            <Input
               placeholder="••••••••"
               value={password}
-              placeholderTextColor={placeholderColor}
               onChangeText={setPassword}
               secureTextEntry={true}
             />
           </View>
 
-          <Pressable
+          <Button
+            label={isLoading ? "Signing in..." : "Login"}
             onPress={handleLogin}
-            disabled={isLoading}
-            className={`w-full py-4 rounded-xl mt-8 ${
-              isLoading ? "bg-primary opacity-50" : "bg-primary active:opacity-80"
-            }`}
-          >
-            <Text className="text-primary-foreground font-semibold text-center text-lg">
-              {isLoading ? "Signing in..." : "Login"}
-            </Text>
-          </Pressable>
+            loading={isLoading}
+            className="mt-4"
+          />
 
-          <View className="mt-5 flex-row justify-between">
-            <Pressable onPress={() => router.push("/forgot-password")}>
-              <Text className="text-sm font-medium text-primary">Forgot password?</Text>
-            </Pressable>
-            <Pressable onPress={() => router.push("/register")}>
-              <Text className="text-sm font-medium text-primary">Create account</Text>
-            </Pressable>
+          <View className="mt-2 flex-row justify-between">
+            <Button
+              variant="link"
+              size="sm"
+              label="Forgot password?"
+              onPress={() => router.push("/forgot-password")}
+            />
+            <Button
+              variant="link"
+              size="sm"
+              label="Create account"
+              onPress={() => router.push("/register")}
+            />
           </View>
 
           {__DEV__ && (
-            <Pressable
+            <Button
+              variant="outline"
+              className="mt-4"
+              label="Dev: Bypass Login (Mock)"
               onPress={async () => {
                 try {
                   await saveToken("mock-dev-token");
@@ -121,12 +120,7 @@ export default function LoginScreen() {
                   setError("Bypass failed. Check console.");
                 }
               }}
-              className="w-full py-3 rounded-xl mt-4 border border-border bg-muted/50 active:bg-muted"
-            >
-              <Text className="text-muted-foreground font-medium text-center">
-                Dev: Bypass Login (Mock)
-              </Text>
-            </Pressable>
+            />
           )}
         </View>
       </View>

@@ -52,21 +52,6 @@ export interface StudentDashboardData {
   };
 }
 
-export interface AdminDashboardData {
-  systemStats: {
-    totalStudents: number;
-    totalParents: number;
-    totalTeachers: number;
-    activeUsers: number;
-    newUsersThisMonth: number;
-    totalQuestions: number;
-    totalSubjects: number;
-    totalTopics: number;
-    totalAttempts: number;
-  };
-  recentUsers: any[];
-}
-
 export function useDashboardStats() {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken;
@@ -90,38 +75,16 @@ export function useStudentDashboardData() {
   });
 }
 
-export interface AdminDashboardData {
-  systemStats: {
-    totalStudents: number;
-    newUsersThisMonth: number;
-    activeUsers: number;
-    totalSubjects: number;
-    totalTopics: number;
-    totalQuestions: number;
-    totalAttempts: number;
-  };
-  recentUsers: any[]; // Adjust based on UserTable requirements if needed
-}
-
-export function useAdminDashboardData() {
-  const { data: session } = useSession();
-  const accessToken = (session?.user as any)?.accessToken;
-
-  return useQuery<AdminDashboardData>({
-    queryKey: ["adminDashboard", accessToken],
-    queryFn: () => apiGet<AdminDashboardData>("/admin/dashboard", accessToken),
-    enabled: !!accessToken,
-  });
-}
-
 export type AdminDashboardData = {
   systemStats: {
     totalStudents: number;
-    newUsersThisMonth: number;
+    totalParents: number;
+    totalTeachers: number;
     activeUsers: number;
+    newUsersThisMonth: number;
+    totalQuestions: number;
     totalSubjects: number;
     totalTopics: number;
-    totalQuestions: number;
     totalAttempts: number;
   };
   recentUsers: Array<{
@@ -140,3 +103,14 @@ export type AdminDashboardData = {
     subscriptionStatus?: string | null;
   }>;
 };
+
+export function useAdminDashboardData() {
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken;
+
+  return useQuery<AdminDashboardData>({
+    queryKey: ["adminDashboard", accessToken],
+    queryFn: () => apiGet<AdminDashboardData>("/admin/dashboard", accessToken),
+    enabled: !!accessToken,
+  });
+}

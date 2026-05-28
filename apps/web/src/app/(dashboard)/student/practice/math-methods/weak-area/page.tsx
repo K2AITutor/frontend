@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { apiGet } from '@/lib/apiClient';
+import { PATH } from '@aitutor/shared';
 
 type TopicStatus = 'Not started' | 'Early signal' | 'Weak' | 'Monitor' | 'Strong';
 
@@ -37,26 +39,19 @@ type WeakAreaResponse = {
     recommendedRecoveryPath?: string[];
 };
 
-function getApiBase() {
-    const raw =
-        process.env.INTERNAL_API_BASE_URL ||
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
-        'http://aitutor-backend:4000/api';
-
-    const clean = String(raw).trim().replace(/\/+$/, '');
-    return clean.endsWith('/api') ? clean : `${clean}/api`;
-}
-
 async function fetchWeakAreaData(): Promise<WeakAreaResponse> {
-    const base = getApiBase();
-    const url = `${base}/progress/weak-area?userId=1&subjectCode=MATH_METHODS`;
-
-    const res = await fetch(url, {
-        cache: 'no-store',
-        headers: { 'Content-Type': 'application/json' },
-    });
-
-    if (!res.ok) {
+    try {
+        const data = await apiGet<any>(`${PATH.analytics.weakArea}?userId=1&subjectCode=MATH_METHODS`);
+        return {
+            weakestSubtopics: Array.isArray(data.weakestSubtopics) ? data.weakestSubtopics : [],
+            earlySignalTopics: Array.isArray(data.earlySignalTopics) ? data.earlySignalTopics : [],
+            topicProgress: Array.isArray(data.topicProgress) ? data.topicProgress : [],
+            recentMistakes: Array.isArray(data.recentMistakes) ? data.recentMistakes : [],
+            recommendedRecoveryPath: Array.isArray(data.recommendedRecoveryPath)
+                ? data.recommendedRecoveryPath
+                : [],
+        };
+    } catch (err) {
         return {
             weakestSubtopics: [],
             earlySignalTopics: [],
@@ -65,28 +60,6 @@ async function fetchWeakAreaData(): Promise<WeakAreaResponse> {
             recommendedRecoveryPath: [],
         };
     }
-
-    const data = await res.json().catch(() => null);
-
-    if (!data || typeof data !== 'object') {
-        return {
-            weakestSubtopics: [],
-            earlySignalTopics: [],
-            topicProgress: [],
-            recentMistakes: [],
-            recommendedRecoveryPath: [],
-        };
-    }
-
-    return {
-        weakestSubtopics: Array.isArray(data.weakestSubtopics) ? data.weakestSubtopics : [],
-        earlySignalTopics: Array.isArray(data.earlySignalTopics) ? data.earlySignalTopics : [],
-        topicProgress: Array.isArray(data.topicProgress) ? data.topicProgress : [],
-        recentMistakes: Array.isArray(data.recentMistakes) ? data.recentMistakes : [],
-        recommendedRecoveryPath: Array.isArray(data.recommendedRecoveryPath)
-            ? data.recommendedRecoveryPath
-            : [],
-    };
 }
 
 function statusClasses(status: TopicStatus) {

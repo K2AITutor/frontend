@@ -5,6 +5,9 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { CheckCircle2, XCircle, Loader2, Mail } from 'lucide-react'
 
+import { apiGet, apiPost } from '@/lib/apiClient'
+import { PATH } from '@aitutor/shared'
+
 type VerifyState = 'loading' | 'success' | 'error' | 'expired' | 'check-inbox'
 
 function VerifyEmailPageContent() {
@@ -28,24 +31,16 @@ function VerifyEmailPageContent() {
 
     const verify = async () => {
       try {
-        const base = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
-        const res = await fetch(`${base}/auth/verify-email?token=${token}`)
-        const data = await res.json()
-
-        if (res.ok) {
-          setState('success')
-          setMessage(data.message || 'Email verified successfully!')
+        const data = await apiGet<any>(`${PATH.auth.verifyEmail}?token=${token}`)
+        setState('success')
+        setMessage(data.message || 'Email verified successfully!')
+      } catch (err: any) {
+        if (err.message?.includes('expired')) {
+          setState('expired')
         } else {
-          if (data.message?.includes('expired')) {
-            setState('expired')
-          } else {
-            setState('error')
-          }
-          setMessage(data.message || 'Verification failed.')
+          setState('error')
         }
-      } catch {
-        setState('error')
-        setMessage('Something went wrong. Please try again later.')
+        setMessage(err.message || 'Verification failed.')
       }
     }
 
@@ -58,13 +53,7 @@ function VerifyEmailPageContent() {
     setResendMessage('')
 
     try {
-      const base = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
-      const res = await fetch(`${base}/auth/resend-verification`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resendEmail }),
-      })
-      const data = await res.json()
+      const data = await apiPost<any>(PATH.auth.resendVerification, { email: resendEmail })
       setResendMessage(data.message || 'Verification email sent.')
     } catch {
       setResendMessage('Failed to resend. Please try again.')

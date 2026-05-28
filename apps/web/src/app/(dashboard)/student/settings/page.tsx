@@ -1,5 +1,7 @@
 "use client";
 
+import { apiGet, apiPatch, apiPost } from "@/lib/apiClient";
+import { PATH } from "@aitutor/shared";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
@@ -60,11 +62,7 @@ export default function StudentSettingsPage() {
 
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`${apiBase}/auth/me`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (!res.ok) throw new Error("Failed to fetch profile");
-        const data = await res.json();
+        const data = await apiGet<any>(PATH.auth.me, accessToken);
         setProfile({
           firstName: data.firstName || "",
           lastName: data.lastName || "",
@@ -81,7 +79,7 @@ export default function StudentSettingsPage() {
     };
 
     fetchProfile();
-  }, [accessToken, apiBase]);
+  }, [accessToken]);
 
   const handleSaveProfile = async () => {
     setSaveSuccess("");
@@ -89,21 +87,12 @@ export default function StudentSettingsPage() {
     setIsSaving(true);
 
     try {
-      const res = await fetch(`${apiBase}/auth/me`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          firstName: profile.firstName,
-          lastName: profile.lastName,
-          yearLevel: profile.yearLevel || undefined,
-          vcaaStudentNumber: profile.vcaaStudentNumber || undefined,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Failed to update profile");
+      await apiPatch<any>(PATH.auth.me, {
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        yearLevel: profile.yearLevel || undefined,
+        vcaaStudentNumber: profile.vcaaStudentNumber || undefined,
+      }, accessToken);
 
       setSaveSuccess("Profile updated successfully");
     } catch (err) {
@@ -138,28 +127,15 @@ export default function StudentSettingsPage() {
     }
 
     try {
-      const res = await fetch(`${apiBase}/auth/change-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword,
-        }),
-      });
-
-      if (!res.ok) {
-        const error = await res.json().catch(() => null);
-        setPasswordError(error?.message || "Failed to change password");
-        return;
-      }
+      await apiPost<any>(PATH.auth.changePassword, {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      }, accessToken);
 
       setPasswordSuccess("Password changed successfully");
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-    } catch (err) {
-      setPasswordError("An error occurred. Please try again.");
+    } catch (err: any) {
+      setPasswordError(err.message || "An error occurred. Please try again.");
     }
   };
 
