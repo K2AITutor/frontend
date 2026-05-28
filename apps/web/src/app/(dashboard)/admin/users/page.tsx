@@ -1,42 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
-import { Button } from "@/components/dashboard/ui/button";
-import { Input } from "@/components/dashboard/ui/input";
-import { UserTable } from "@/components/dashboard/UserTable";
-import { useUsers, useToggleUserActive, useResendVerification, useDeleteUser } from "@/lib/api/users";
-import {
-  Users,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  Calendar,
-  UserCheck,
-  UserX,
-  ShieldCheck,
-  ShieldOff,
-} from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/dashboard/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/dashboard/ui/dialog";
-import { StatsCard } from "@/components/dashboard/StatsCard";
-import { useAdminToken } from "@/lib/api/useAdminToken";
-import { usePageTitle } from "@/lib/usePageTitle";
-import { toast } from "@/components/dashboard/ui/sonner";
+import { AdminUsersDirectory } from "@/components/dashboard/AdminUsersDirectory";
 
 export default function AdminUsersPage() {
   usePageTitle("User Management");
@@ -164,7 +128,7 @@ export default function AdminUsersPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
         <p className="text-muted-foreground">
-          Monitor your platform's student base, growth and activity.
+          Monitor your platform&apos;s student base, growth and activity.
         </p>
       </div>
 

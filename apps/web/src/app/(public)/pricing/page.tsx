@@ -49,14 +49,15 @@ export default function PricingPage() {
   const [processing, setProcessing] = useState<number | null>(null);
 
   const accessToken = (session?.user as any)?.accessToken as string | undefined;
+  const sessionUserId = (session?.user as any)?.id;
 
   useEffect(() => {
     async function init() {
       try {
         const [plansData, subscriptionData] = await Promise.all([
           fetchPlans(),
-          (session?.user as any)?.id && accessToken
-            ? getSubscription(Number((session?.user as any).id), accessToken)
+          sessionUserId && accessToken
+            ? getSubscription(Number(sessionUserId), accessToken)
             : Promise.resolve(null)
         ]);
 
@@ -70,10 +71,10 @@ export default function PricingPage() {
       }
     }
     init();
-  }, [session, accessToken]);
+  }, [session, accessToken, sessionUserId]);
 
   const handleSubscribe = async (plan: SubscriptionPlan) => {
-    if (!(session?.user as any)?.id || !accessToken) {
+    if (!sessionUserId || !accessToken) {
       router.push('/auth/login?redirect=/pricing');
       return;
     }
@@ -84,7 +85,7 @@ export default function PricingPage() {
       return;
     }
 
-    const userId = Number((session?.user as any).id);
+    const userId = Number(sessionUserId);
 
     setProcessing(plan.id);
     try {

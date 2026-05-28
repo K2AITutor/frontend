@@ -20,9 +20,11 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { toast } from "@/components/dashboard/ui/sonner";
+import { getUser, updateUser, type AdminUserRole, type AdminUserStatus } from "@/lib/api/users";
+import { useAdminToken } from "@/lib/api/useAdminToken";
 
-type UserRole = "student" | "parent" | "teacher" | "admin";
-type UserStatus = "active" | "pending" | "suspended";
+type UserRole = AdminUserRole;
+type UserStatus = AdminUserStatus;
 
 interface User {
   id: string;
@@ -33,100 +35,15 @@ interface User {
   avatar?: string;
 }
 
-const mockUsers: User[] = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    email: "sarah.johnson@email.com",
-    role: "student",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Michael Chen",
-    email: "michael.chen@email.com",
-    role: "student",
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Emily Davis",
-    email: "emily.davis@email.com",
-    role: "parent",
-    status: "active",
-  },
-  {
-    id: "4",
-    name: "Robert Wilson",
-    email: "robert.wilson@email.com",
-    role: "teacher",
-    status: "active",
-  },
-  {
-    id: "5",
-    name: "Jennifer Lee",
-    email: "jennifer.lee@email.com",
-    role: "student",
-    status: "pending",
-  },
-  {
-    id: "6",
-    name: "David Martinez",
-    email: "david.martinez@email.com",
-    role: "student",
-    status: "active",
-  },
-  {
-    id: "7",
-    name: "Amanda Brown",
-    email: "amanda.brown@email.com",
-    role: "parent",
-    status: "active",
-  },
-  {
-    id: "8",
-    name: "Christopher Taylor",
-    email: "christopher.taylor@email.com",
-    role: "student",
-    status: "suspended",
-  },
-  {
-    id: "9",
-    name: "Jessica Anderson",
-    email: "jessica.anderson@email.com",
-    role: "teacher",
-    status: "active",
-  },
-  {
-    id: "10",
-    name: "Daniel Thomas",
-    email: "daniel.thomas@email.com",
-    role: "student",
-    status: "active",
-  },
-];
-
 export default function EditUserPage() {
   usePageTitle("Edit User");
   const router = useRouter();
   const params = useParams();
   const userId = params.id as string;
+  const token = useAdminToken();
   const [avatarPreview, setAvatarPreview] = useState<string>("");
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const userData = mockUsers.find((u) => u.id === userId);
-    setUser(userData || null);
-    setAvatarPreview(userData?.avatar || "");
-    setLoading(false);
-  }, [userId]);
-
-  useEffect(() => {
-    const userData = mockUsers.find((u) => u.id === userId);
-    setUser(userData || null);
-    setAvatarPreview(userData?.avatar || "");
-  }, [userId]);
 
   const form = useForm({
     defaultValues: {
@@ -136,15 +53,52 @@ export default function EditUserPage() {
       status: user?.status || ("active" as UserStatus),
     },
     onSubmit: async ({ value }) => {
+      if (!token) {
+        toast.error("Admin session is not ready");
+        return;
+      }
       try {
-        console.log("Form submitted:", value);
+        await updateUser(userId, {
+          name: value.name,
+          email: value.email,
+          role: value.role,
+          status: value.status,
+          avatar: avatarPreview || undefined,
+        }, token);
         toast.success("User updated successfully");
-        router.push("/admin/users");
-      } catch {
-        toast.error("Failed to update user");
+        router.push(value.role === "student" ? "/admin/users" : "/admin/staff");
+      } catch (err: any) {
+        toast.error(err.message || "Failed to update user");
       }
     },
   });
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    setLoading(true);
+    getUser(userId, token)
+      .then((userData) => {
+        if (cancelled) return;
+        setUser(userData as User);
+        setAvatarPreview(userData.avatar || "");
+        form.setFieldValue("name", userData.name);
+        form.setFieldValue("email", userData.email);
+        form.setFieldValue("role", userData.role as UserRole);
+        form.setFieldValue("status", userData.status as UserStatus);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error(err);
+        setUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, token, form]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -277,9 +231,10 @@ export default function EditUserPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="student">Student</SelectItem>
-                          <SelectItem value="parent">Parent</SelectItem>
                           <SelectItem value="teacher">Teacher</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="contributor">Contributor</SelectItem>
+                          <SelectItem value="parent">Parent</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

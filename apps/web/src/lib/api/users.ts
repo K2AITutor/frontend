@@ -1,24 +1,23 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiPost, apiDelete } from "@/lib/apiClient";
+import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/apiClient";
 import type {
   User,
   UserStats,
   PaginatedUsers,
   UseUsersParams,
+  CreateAdminUserPayload,
+  UpdateAdminUserPayload,
+  AdminUserRole,
+  AdminUserStatus,
+  AdminUserRoleScope,
 } from "@aitutor/shared";
 
-export type { User, UserStats, PaginatedUsers, UseUsersParams };
+export type { User, UserStats, PaginatedUsers, UseUsersParams, CreateAdminUserPayload, UpdateAdminUserPayload, AdminUserRole, AdminUserStatus, AdminUserRoleScope };
 
 export async function toggleUserActive(userId: string, token: string): Promise<{ id: number; isActive: boolean }> {
-    const base = getApiBase();
-    const res = await fetch(`${base}/admin/users/${userId}/toggle-active`, {
-        method: 'PATCH',
-        headers: buildAuthHeaders(token),
-    });
-    if (!res.ok) throw new Error("Failed to toggle user active status");
-    return res.json();
+    return apiPost<{ id: number; isActive: boolean }>(`/admin/users/${userId}/toggle-active`, {}, token);
 }
 
 export async function resendVerification(userId: string, token: string): Promise<{ message: string }> {
@@ -27,6 +26,18 @@ export async function resendVerification(userId: string, token: string): Promise
 
 export async function deleteUser(userId: string, token: string): Promise<{ message: string }> {
     return apiDelete<{ message: string }>(`/admin/users/${userId}`, token);
+}
+
+export async function getUser(userId: string, token: string): Promise<User> {
+    return apiGet<User>(`/admin/users/${userId}`, token);
+}
+
+export async function createUser(payload: CreateAdminUserPayload, token: string): Promise<User> {
+    return apiPost<User>("/admin/users", payload, token);
+}
+
+export async function updateUser(userId: string, payload: UpdateAdminUserPayload, token: string): Promise<User> {
+    return apiPut<User>(`/admin/users/${userId}`, payload, token);
 }
 
 export function useToggleUserActive(token?: string) {
@@ -61,16 +72,20 @@ export function useUsers({
     isActive,
     startDate,
     endDate,
+    roleScope = "students",
+    role,
     token,
 }: UseUsersParams) {
     return useQuery({
-        queryKey: ["users", page, limit, search, verified, isActive, startDate, endDate],
+        queryKey: ["users", roleScope, role, page, limit, search, verified, isActive, startDate, endDate],
         queryFn: async (): Promise<PaginatedUsers> => {
             const params = new URLSearchParams({
                 page: page.toString(),
                 limit: limit.toString(),
+                roleScope: roleScope || "students",
             });
 
+            if (role && role !== "all") params.append('role', role);
             if (search) params.append('search', search);
             if (verified && verified !== 'all') params.append('verified', verified);
             if (isActive && isActive !== 'all') params.append('isActive', isActive);
@@ -81,17 +96,4 @@ export function useUsers({
         },
         enabled: !!token,
     });
-}
-
-function getApiBase() {
-    const raw = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
-    const clean = String(raw).trim().replace(/\/+$/, "");
-    return clean.endsWith("/api") ? clean : `${clean}/api`;
-}
-
-function buildAuthHeaders(token: string): Record<string, string> {
-    return {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-    };
 }

@@ -27,11 +27,12 @@ export async function fetchSubjectById(id: number): Promise<Subject> {
   return res.json();
 }
 
-export async function createSubject(dto: CreateSubjectDto): Promise<Subject> {
-  const res = await fetch(`${API_BASE}/subjects`, {
+export async function createSubject(dto: CreateSubjectDto, token?: string): Promise<Subject> {
+  const res = await fetch(`${API_BASE}/admin/subjects`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(dto),
     credentials: "include",
@@ -40,11 +41,12 @@ export async function createSubject(dto: CreateSubjectDto): Promise<Subject> {
   return res.json();
 }
 
-export async function updateSubject(id: number, dto: UpdateSubjectDto): Promise<Subject> {
-  const res = await fetch(`${API_BASE}/subjects/${id}`, {
+export async function updateSubject(id: number, dto: UpdateSubjectDto, token?: string): Promise<Subject> {
+  const res = await fetch(`${API_BASE}/admin/subjects/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(dto),
     credentials: "include",
@@ -53,9 +55,12 @@ export async function updateSubject(id: number, dto: UpdateSubjectDto): Promise<
   return res.json();
 }
 
-export async function deleteSubject(id: number): Promise<void> {
-  const res = await fetch(`${API_BASE}/subjects/${id}`, {
+export async function deleteSubject(id: number, token?: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/subjects/${id}`, {
     method: "DELETE",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to delete subject");

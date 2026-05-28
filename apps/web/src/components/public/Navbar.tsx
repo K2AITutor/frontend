@@ -10,13 +10,20 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import Button from './Button'
 
+function getDashboardHref(role?: string) {
+  if (role === 'admin') return '/admin'
+  if (role === 'teacher') return '/teacher/review'
+  return '/student'
+}
+
 export default function Navbar() {
   const { theme, setTheme } = useTheme();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
+  const dashboardHref = getDashboardHref((session?.user as any)?.role)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -103,7 +110,7 @@ export default function Navbar() {
             <div className="flex items-center gap-4">
               {status === "authenticated" ? (
                 <>
-                  <Link href="/student" className="text-text-primary py-2 px-4 hover:text-accent-teal transition-colors duration-200">
+                  <Link href={dashboardHref} className="text-text-primary py-2 px-4 hover:text-accent-teal transition-colors duration-200">
                     Dashboard
                   </Link>
                   <Button variant="primary" size="md" onClick={() => signOut()}>
@@ -220,7 +227,7 @@ export default function Navbar() {
 
                 {status === "authenticated" ? (
                   <>
-                    <Link href="/parent" onClick={() => setMobileMenuOpen(false)}>
+                    <Link href={dashboardHref} onClick={() => setMobileMenuOpen(false)}>
                       <Button variant="secondary" className="w-full">
                         Dashboard
                       </Button>
@@ -236,8 +243,10 @@ export default function Navbar() {
                         Login
                       </Button>
                     </Link>
-                    <Button variant="primary" className="w-full">
-                      Start Free Trial
+                    <Button variant="primary" className="w-full" asChild>
+                      <Link href="/auth/register" onClick={() => setMobileMenuOpen(false)}>
+                        Start Free Trial
+                      </Link>
                     </Button>
                   </>
                 )}
@@ -249,5 +258,4 @@ export default function Navbar() {
     </>
   )
 }
-
 

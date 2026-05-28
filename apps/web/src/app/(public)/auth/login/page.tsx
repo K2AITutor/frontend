@@ -3,12 +3,10 @@
 import Link from 'next/link'
 import { Lock, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import AuthBanner from '@/components/auth/AuthBanner'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from '@/components/dashboard/ui/sonner'
-
-import { Suspense } from 'react'
 
 function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
@@ -21,6 +19,13 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || ''
   const router = useRouter()
+
+  const roleHomeMap: Record<string, string> = {
+    student: '/student',
+    teacher: '/teacher/review',
+    admin: '/admin',
+    contributor: '/contributor',
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,13 +55,7 @@ function LoginForm() {
       const session = await sessionRes.json()
       const role = session?.user?.role
 
-      const redirectTo =
-        callbackUrl ||
-        (role === "admin"
-          ? "/admin"
-          : role === "contributor"
-            ? "/contributor"
-            : "/student");
+      const redirectTo = callbackUrl || roleHomeMap[role] || '/student'
       router.push(redirectTo)
       router.refresh()
     } catch (error) {
@@ -216,6 +215,7 @@ function LoginForm() {
               </Link>
             </p>
           </div>
+
         </div>
 
         <AuthBanner />

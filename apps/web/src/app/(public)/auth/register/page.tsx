@@ -4,14 +4,14 @@ import Button from '@/components/public/Button'
 import Link from 'next/link'
 import { Eye, EyeOff, ArrowRight } from 'lucide-react'
 import AuthBanner from '@/components/auth/AuthBanner'
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { signIn } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { register } from '@/lib/auth'
 import { toast } from '@/components/dashboard/ui/sonner'
 
-export default function RegisterPage() {
+function RegisterPageContent() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [password, setPassword] = useState('')
@@ -352,6 +352,14 @@ export default function RegisterPage() {
         <AuthBanner />
       </div>
     </main>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterPageContent />
+    </Suspense>
   )
 }
 

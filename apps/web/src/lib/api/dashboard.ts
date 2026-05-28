@@ -4,138 +4,88 @@ import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { apiGet } from "@/lib/apiClient";
 
-const API_BASE_RAW =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:4000";
+type ActivityType = "quiz_completed" | "lesson_completed" | "achievement" | "practice";
+type AssignmentStatus = "pending" | "in_progress" | "completed";
+type Priority = "high" | "medium" | "low";
 
-const API_BASE = (() => {
-  const clean = String(API_BASE_RAW).replace(/\/+$/, "");
-  return clean.endsWith("/api") ? clean : `${clean}/api`;
-})();
+export interface StudentDashboardData {
+  profile: {
+    id: string;
+    name: string;
+    email: string;
+    avatar: string;
+    grade: string;
+    enrollmentDate: string;
+    overallProgress: number;
+    streak: number;
+  };
+  courses: Array<{
+    id: string;
+    name: string;
+    progress: number;
+    grade: string;
+    nextLesson: string;
+    icon: string;
+  }>;
+  assignments: Array<{
+    id: string;
+    title: string;
+    course: string;
+    dueDate: string;
+    status: AssignmentStatus;
+    priority: Priority;
+  }>;
+  recentActivities: Array<{
+    id: string;
+    type: ActivityType;
+    title: string;
+    description: string;
+    timestamp: string;
+  }>;
+  stats: {
+    totalHoursLearned: number;
+    questionsAnswered: number;
+    averageScore: number;
+    coursesEnrolled: number;
+    assignmentsCompleted: number;
+    assignmentsPending: number;
+  };
+}
 
-/**
- * Existing hook (kept for compatibility).
- * NOTE: Backend currently exposes GET /api/dashboard/data, not /api/dashboard/stats.
- * We keep this hook but point it at /dashboard/data so it actually works when backend is ready.
- */
+export interface AdminDashboardData {
+  systemStats: {
+    totalStudents: number;
+    totalParents: number;
+    totalTeachers: number;
+    activeUsers: number;
+    newUsersThisMonth: number;
+    totalQuestions: number;
+    totalSubjects: number;
+    totalTopics: number;
+    totalAttempts: number;
+  };
+  recentUsers: any[];
+}
+
 export function useDashboardStats() {
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken;
+
   return useQuery({
-    queryKey: ["dashboardData"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE}/dashboard/data`, {
-        cache: "no-store",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to fetch dashboard data");
-      return res.json();
-    },
+    queryKey: ["dashboardData", accessToken],
+    queryFn: () => apiGet<StudentDashboardData>("/dashboard/data", accessToken),
+    enabled: !!accessToken,
   });
 }
 
-
 export function useStudentDashboardData() {
   const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken;
 
   return useQuery({
-    queryKey: ["studentDashboardData", session?.user?.email],
-    queryFn: async () => {
-      const name =
-        (session?.user as any)?.name ||
-        session?.user?.email?.split("@")[0] ||
-        "Student";
-
-      const email = session?.user?.email || "student@example.com";
-
-      // ✅ SAFE mock data that matches StudentDashboardPage interfaces
-      return {
-        profile: {
-          id: "dev-student",
-          name,
-          email,
-          avatar: "",
-          grade: "VCE Student",
-          enrollmentDate: new Date().toISOString(),
-          overallProgress: 32,
-          streak: 3,
-        },
-        courses: [
-          {
-            id: "math-methods",
-            name: "Mathematical Methods",
-            progress: 28,
-            grade: "Units 3–4",
-            nextLesson: "Functions & Graphs",
-            icon: "calculator",
-          },
-          {
-            id: "specialist-maths",
-            name: "Specialist Mathematics",
-            progress: 15,
-            grade: "Units 3–4",
-            nextLesson: "Vectors",
-            icon: "sigma",
-          },
-          {
-            id: "physics",
-            name: "Physics",
-            progress: 21,
-            grade: "Units 3–4",
-            nextLesson: "Motion",
-            icon: "atom",
-          },
-          {
-            id: "chemistry",
-            name: "Chemistry",
-            progress: 12,
-            grade: "Units 3–4",
-            nextLesson: "Organic Chemistry",
-            icon: "flask",
-          },
-        ],
-        assignments: [
-          {
-            id: "a1",
-            title: "Methods Practice Set 1",
-            course: "Mathematical Methods",
-            dueDate: new Date(Date.now() + 3 * 86400000).toISOString(),
-            status: "pending",
-            priority: "high",
-          },
-          {
-            id: "a2",
-            title: "Physics Checkpoint Questions",
-            course: "Physics",
-            dueDate: new Date(Date.now() + 5 * 86400000).toISOString(),
-            status: "in_progress",
-            priority: "medium",
-          },
-        ],
-        recentActivities: [
-          {
-            id: "r1",
-            type: "practice",
-            title: "Practice started",
-            description: "You started a practice session",
-            timestamp: "Just now",
-          },
-          {
-            id: "r2",
-            type: "quiz_completed",
-            title: "Quiz completed",
-            description: "Completed a short quiz",
-            timestamp: "Yesterday",
-          },
-        ],
-        stats: {
-          totalHoursLearned: 6,
-          questionsAnswered: 24,
-          averageScore: 68,
-          coursesEnrolled: 4,
-          assignmentsCompleted: 0,
-          assignmentsPending: 2,
-        },
-      };
-    },
+    queryKey: ["studentDashboardData", accessToken],
+    queryFn: () => apiGet<StudentDashboardData>("/dashboard/data", accessToken),
+    enabled: !!accessToken,
     staleTime: 30_000,
   });
 }
@@ -164,3 +114,29 @@ export function useAdminDashboardData() {
   });
 }
 
+export type AdminDashboardData = {
+  systemStats: {
+    totalStudents: number;
+    newUsersThisMonth: number;
+    activeUsers: number;
+    totalSubjects: number;
+    totalTopics: number;
+    totalQuestions: number;
+    totalAttempts: number;
+  };
+  recentUsers: Array<{
+    id: number | string;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+    status?: string | null;
+    joinedDate?: string | null;
+    createdAt?: string | null;
+    lastLoginAt?: string | null;
+    isActive?: boolean | null;
+    emailVerified?: boolean | null;
+    yearLevel?: string | null;
+    avatar?: string | null;
+    subscriptionStatus?: string | null;
+  }>;
+};

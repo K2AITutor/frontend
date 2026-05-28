@@ -58,7 +58,7 @@ export default function ContactPage() {
                         transition={{ duration: 0.5, delay: 0.1 }}
                         className="text-[1.25rem] text-text-secondary max-w-[37.5rem] mx-auto"
                     >
-                        Have questions or need support? We're here to help you on your learning journey.
+                        Have questions or need support? We&apos;re here to help you on your learning journey.
                     </motion.p>
                 </div>
             </section>
@@ -102,7 +102,7 @@ export default function ContactPage() {
                                 </div>
                                 <h3 className="font-serif text-[1.75rem] mb-4">Response Time</h3>
                                 <p className="text-text-secondary leading-relaxed">
-                                    We aim to respond to all inquiries within 24 hours during business days. For urgent matters related to your subscription, please include "URGENT" in the subject line.
+                                    We aim to respond to all inquiries within 24 hours during business days. For urgent matters related to your subscription, please include &quot;URGENT&quot; in the subject line.
                                 </p>
                             </div>
                         </motion.div>
@@ -207,7 +207,7 @@ export default function ContactPage() {
                                         animate={{ opacity: 1, y: 0 }}
                                         className="text-center text-accent-teal font-medium"
                                     >
-                                        Thank you! We'll get back to you soon.
+                                        Thank you! We&apos;ll get back to you soon.
                                     </motion.p>
                                 )}
                             </form>

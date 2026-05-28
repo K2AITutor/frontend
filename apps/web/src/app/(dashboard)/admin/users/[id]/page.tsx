@@ -59,6 +59,7 @@ interface UserProfile {
   subscription: {
     status: string;
     plan: string | null;
+    stripeSubscriptionId: string | null;
     currentPeriodEnd: string | null;
   } | null;
   recentAttempts: {
@@ -248,8 +249,9 @@ export default function UserProfilePage() {
               <div className="space-y-3">
                 <DetailRow icon={CreditCard} label="Status" value={user.subscription.status} />
                 <DetailRow icon={CreditCard} label="Plan" value={user.subscription.plan || "-"} />
+                <DetailRow icon={CreditCard} label="Stripe Subscription" value={user.subscription.stripeSubscriptionId || "-"} />
                 {user.subscription.currentPeriodEnd && (
-                  <DetailRow icon={Calendar} label="Renews" value={formatDate(user.subscription.currentPeriodEnd)} />
+                  <DetailRow icon={Calendar} label="Current Period End" value={formatDate(user.subscription.currentPeriodEnd)} />
                 )}
               </div>
             ) : (

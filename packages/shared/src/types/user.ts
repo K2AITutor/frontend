@@ -31,6 +31,27 @@ export interface PaginatedUsers {
   stats: UserStats;
 }
 
+export type AdminUserRole = "student" | "teacher" | "admin" | "contributor" | "parent";
+export type AdminUserStatus = "active" | "pending" | "suspended";
+export type AdminUserRoleScope = "students" | "staff";
+
+export interface CreateAdminUserPayload {
+  name: string;
+  email: string;
+  password?: string;
+  role: AdminUserRole;
+  status: AdminUserStatus;
+  avatar?: string;
+}
+
+export interface UpdateAdminUserPayload {
+  name?: string;
+  email?: string;
+  role?: AdminUserRole;
+  status?: AdminUserStatus;
+  avatar?: string;
+}
+
 export interface UseUsersParams {
   page: number;
   limit: number;
@@ -39,5 +60,7 @@ export interface UseUsersParams {
   isActive?: string;
   startDate?: string;
   endDate?: string;
+  roleScope?: AdminUserRoleScope;
+  role?: AdminUserRole | "all";
   token?: string;
 }

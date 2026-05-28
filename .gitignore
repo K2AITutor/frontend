@@ -49,6 +49,9 @@ pnpm-lock.yaml
 .parcel-cache/
 .next/
 .nuxt/
+.tmp/
+.eslintcache
+*.tsbuildinfo
 
 
 # AI related 

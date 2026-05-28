@@ -1,10 +1,8 @@
 "use client";
 
 import { Badge } from "@/components/dashboard/ui/badge";
-import { Button } from "@/components/dashboard/ui/button";
-import { Clock, CheckCircle, Circle, ArrowRight } from "lucide-react";
+import { Clock, CheckCircle, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 
 type AssignmentStatus = "pending" | "in_progress" | "completed";
 type Priority = "high" | "medium" | "low";
@@ -76,7 +74,6 @@ function getDueDateColor(dateString: string, status: string): string {
 }
 
 export function AssignmentItem({
-  id,
   title,
   course,
   dueDate,
@@ -113,13 +110,6 @@ export function AssignmentItem({
         <Badge className={cn("text-xs", statusCfg.className)}>
           {statusCfg.label}
         </Badge>
-        {status !== "completed" && (
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={`/student/assignments/${id}`}>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        )}
       </div>
     </div>
   );

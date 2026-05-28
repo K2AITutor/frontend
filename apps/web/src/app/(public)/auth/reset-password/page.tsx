@@ -3,13 +3,13 @@
 import Link from 'next/link'
 import { Eye, EyeOff, ArrowRight, CheckCircle, XCircle } from 'lucide-react'
 import AuthBanner from '@/components/auth/AuthBanner'
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { resetPassword } from '@/lib/auth'
 import { signIn } from 'next-auth/react'
 
-export default function ResetPasswordPage() {
+function ResetPasswordPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const token = searchParams.get('token') || ''
@@ -260,5 +260,13 @@ export default function ResetPasswordPage() {
         <AuthBanner />
       </div>
     </main>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordPageContent />
+    </Suspense>
   )
 }

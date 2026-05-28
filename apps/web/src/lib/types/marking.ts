@@ -1,0 +1,108 @@
+export type MarkingSource = 'rule' | 'llm' | 'ml' | 'human';
+
+export type ConfidenceLevel = 'high' | 'medium' | 'low';
+
+export interface MarkingSourceResult {
+  source: MarkingSource;
+  score: number;
+  confidence: number;
+  latencyMs: number;
+  modelVersion?: string;
+  ruleId?: string;
+  evidence: string;
+}
+
+export interface RoutingDecision {
+  chosenSource: MarkingSource;
+  threshold: number;
+  reason: string;
+}
+
+export interface ErrorTag {
+  tagCode: string;
+  label: string;
+  confidence: number;
+}
+
+export interface RubricDescriptor {
+  level: number;
+  text: string;
+}
+
+export interface RubricCriterion {
+  id: string;
+  label: string;
+  weight: number;
+  descriptors: RubricDescriptor[];
+}
+
+export interface Rubric {
+  id: string;
+  criteria: RubricCriterion[];
+}
+
+export interface CriterionScore {
+  criterionId: string;
+  score: number;
+  level: number;
+  justification: string;
+}
+
+export interface RubricEvidence {
+  criterionId: string;
+  similarity: number;
+  rubricSnippetId: string;
+}
+
+export interface HybridMarkingResult {
+  finalScore: number;
+  finalConfidence: number;
+  perCriterion: CriterionScore[];
+  sources: MarkingSourceResult[];
+  routingDecision: RoutingDecision;
+  errorTags: ErrorTag[];
+  rubricEvidence: RubricEvidence[];
+}
+
+export interface SubmissionFlag {
+  type: string;
+  message: string;
+  raisedAt: string;
+}
+
+export interface WorkingStep {
+  step: number;
+  latex: string;
+}
+
+export interface StudentAnswer {
+  text?: string;
+  imageUrl?: string;
+  ocrText?: string;
+  working?: WorkingStep[];
+}
+
+export interface QuestionSummary {
+  id: string;
+  prompt: string;
+  type: string;
+  maxScore: number;
+  expectedAnswer?: string;
+}
+
+export interface SubmissionSummary {
+  id: string;
+  studentId: string;
+  studentName: string;
+  submittedAt: string;
+  status: string;
+}
+
+export interface SubmissionFull {
+  submission: SubmissionSummary;
+  question: QuestionSummary;
+  studentAnswer: StudentAnswer;
+  rubric: Rubric;
+  aiMarking: HybridMarkingResult;
+  flags: SubmissionFlag[];
+}
