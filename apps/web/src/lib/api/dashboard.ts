@@ -52,30 +52,7 @@ export interface StudentDashboardData {
   };
 }
 
-export function useDashboardStats() {
-  const { data: session } = useSession();
-  const accessToken = (session?.user as any)?.accessToken;
-
-  return useQuery({
-    queryKey: ["dashboardData", accessToken],
-    queryFn: () => apiGet<StudentDashboardData>("/dashboard/data", accessToken),
-    enabled: !!accessToken,
-  });
-}
-
-export function useStudentDashboardData() {
-  const { data: session } = useSession();
-  const accessToken = (session?.user as any)?.accessToken;
-
-  return useQuery({
-    queryKey: ["studentDashboardData", accessToken],
-    queryFn: () => apiGet<StudentDashboardData>("/dashboard/data", accessToken),
-    enabled: !!accessToken,
-    staleTime: 30_000,
-  });
-}
-
-export type AdminDashboardData = {
+export interface AdminDashboardData {
   systemStats: {
     totalStudents: number;
     totalParents: number;
@@ -102,7 +79,30 @@ export type AdminDashboardData = {
     avatar?: string | null;
     subscriptionStatus?: string | null;
   }>;
-};
+}
+
+export function useDashboardStats() {
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken;
+
+  return useQuery({
+    queryKey: ["dashboardData", accessToken],
+    queryFn: () => apiGet<StudentDashboardData>("/dashboard/data", accessToken),
+    enabled: !!accessToken,
+  });
+}
+
+export function useStudentDashboardData() {
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken;
+
+  return useQuery({
+    queryKey: ["studentDashboardData", accessToken],
+    queryFn: () => apiGet<StudentDashboardData>("/dashboard/data", accessToken),
+    enabled: !!accessToken,
+    staleTime: 30_000,
+  });
+}
 
 export function useAdminDashboardData() {
   const { data: session } = useSession();
@@ -114,3 +114,4 @@ export function useAdminDashboardData() {
     enabled: !!accessToken,
   });
 }
+

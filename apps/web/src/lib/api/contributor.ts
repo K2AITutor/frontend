@@ -42,9 +42,7 @@ export function useContributorDashboardData() {
 
     return useQuery({
         queryKey: ["contributorDashboard", token],
-        queryFn: async () => {
-            return apiGet<ContributorDashboardData>("/contributor/dashboard", token);
-        },
+        queryFn: () => apiGet<ContributorDashboardData>("/contributor/dashboard", token),
         enabled: !!token,
         staleTime: 30_000,
     });
@@ -56,9 +54,7 @@ export function useContributorTasks() {
 
     return useQuery({
         queryKey: ["contributorTasks", token],
-        queryFn: async () => {
-            return apiGet<ContributorTask[]>("/contributor/tasks/me", token);
-        },
+        queryFn: () => apiGet<ContributorTask[]>("/contributor/tasks/me", token),
         enabled: !!token,
         staleTime: 30_000,
     });

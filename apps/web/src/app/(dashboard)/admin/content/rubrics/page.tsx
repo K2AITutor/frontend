@@ -1,3 +1,5 @@
+"use client";
+
 import { ClipboardCheck } from "lucide-react";
 import AdminContentListPage, {
   formatDate,
