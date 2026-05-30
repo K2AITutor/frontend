@@ -1,13 +1,24 @@
 {
   "name": "@aitutor/monorepo",
   "private": true,
+  "packageManager": "npm@10.9.3",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "dev": "turbo run dev",
     "web": "npm run dev -w @aitutor/web",
     "mobile": "npm run start -w @aitutor/mobile",
-    "mobile:web": "npm run web -w @aitutor/mobile"
+    "mobile:web": "npm run web -w @aitutor/mobile",
+    "clean": "find . -name '.next' -o -name '.expo' -o -name 'dist' | xargs rm -rf"
+  },
+  "devDependencies": {
+    "expo": "^54.0.34",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "turbo": "^2.9.16"
   }
 }
