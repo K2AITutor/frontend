@@ -30,7 +30,7 @@ export default function TabLayout() {
           return;
         }
 
-        const me = await apiClient.get("/auth/me");
+        const me: any = await apiClient.get("/auth/me");
         const role = String(me.data?.role || me.data?.user?.role || "").toUpperCase();
         if (role && role !== "STUDENT") {
           router.replace("/unsupported-role");

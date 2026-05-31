@@ -33,7 +33,7 @@ export default function ExamAttemptScreen() {
       const cached = await loadExamAnswers(attemptId);
       if (mounted) setAnswers(cached);
 
-      const response = await apiClient.get(`/attempts/${attemptId}`);
+      const response = await apiClient.get<any>(`/attempts/${attemptId}`);
       if (mounted) {
         setQuestions(response.data.questions || []);
         setSecondsRemaining(response.data.secondsRemaining || 60 * 60);

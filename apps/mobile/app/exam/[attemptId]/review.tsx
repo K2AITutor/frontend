@@ -28,7 +28,7 @@ export default function ExamReviewScreen() {
 
   useEffect(() => {
     apiClient
-      .get(`/attempts/${attemptId}/review`)
+      .get<any>(`/attempts/${attemptId}/review`)
       .then((response) => setItems(response.data.questions || response.data || []))
       .catch(() => setItems([]));
   }, [attemptId]);

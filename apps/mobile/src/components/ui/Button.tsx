@@ -5,7 +5,7 @@ import { Pressable, Text } from "../../tw";
 import { cn } from "../../lib/utils";
 
 const buttonVariants = cva(
-  "flex-row items-center justify-center gap-2 rounded-md active:opacity-80 disabled:opacity-50",
+  "flex-row items-center justify-center gap-2 rounded-xl active:opacity-80 disabled:opacity-50",
   {
     variants: {
       variant: {
@@ -17,10 +17,10 @@ const buttonVariants = cva(
         link: "bg-transparent",
       },
       size: {
-        default: "min-h-11 px-4 py-2",
-        sm: "min-h-9 px-3 py-1.5",
-        lg: "min-h-12 px-8 py-3",
-        icon: "h-11 w-11",
+        default: "py-3 px-5 min-h-12",
+        sm: "py-2 px-3.5 min-h-10",
+        lg: "py-4 px-8 min-h-14",
+        icon: "h-12 w-12",
       },
     },
     defaultVariants: {

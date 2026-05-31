@@ -15,6 +15,12 @@
     "mobile:web": "npm run web -w @aitutor/mobile",
     "clean": "find . -name '.next' -o -name '.expo' -o -name 'dist' | xargs rm -rf"
   },
+  "overrides": {
+    "react-native-screens": "4.16.0",
+    "expo-constants": "18.0.13",
+    "expo-linking": "8.0.12",
+    "expo-modules-core": "3.0.30"
+  },
   "devDependencies": {
     "expo": "^54.0.34",
     "react": "19.1.0",

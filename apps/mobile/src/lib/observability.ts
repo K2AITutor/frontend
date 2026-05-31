@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/react-native";
 import { PostHog } from "posthog-react-native";
 
-export const posthog = new PostHog(process.env.EXPO_PUBLIC_POSTHOG_KEY || "", {
+export const posthog = new PostHog(process.env.EXPO_PUBLIC_POSTHOG_KEY || "disabled-key", {
   host: process.env.EXPO_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
   disabled: !process.env.EXPO_PUBLIC_POSTHOG_KEY,
 });
