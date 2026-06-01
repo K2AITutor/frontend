@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { fetchTestimonials } from '@/lib/apiClient'
+import { useState } from 'react'
 import { Testimonial } from '@/types/testimonial'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -27,13 +26,12 @@ import {
   Calendar,
   CheckCircle2,
   MousePointer2,
-  AlertCircle,
   Sigma,
   type LucideIcon
 } from 'lucide-react'
 import Button from '../Button'
 import { NeuralCanvas } from './NeuralCanvas'
-import { fetchSubjects } from '@/lib/api/subjects'
+import type { Subject } from '@/lib/api/subjects'
 
 const floatCards = [
   { icon: Lightbulb, label: 'AI-Powered Hints', position: 'top-[15%] right-[8%]', delay: '0s', iconColor: 'text-accent-teal', bgColor: 'bg-accent-teal/12' },
@@ -234,65 +232,8 @@ function getSubjectIcon(icon?: string): LucideIcon {
   return (icon && ICON_COMPONENT_MAP[icon]) ? ICON_COMPONENT_MAP[icon] : Calculator
 }
 
-export function SubjectsSection() {
-  const [subjects, setSubjects] = useState<Array<{ id: number; name: string; description?: string; icon?: string }>>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const loadSubjects = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      const data = await fetchSubjects()
-      setSubjects(data)
-    } catch (err) {
-      setError('Failed to load subjects. Please try again later.')
-      console.error(err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadSubjects()
-  }, [])
-
-  if (isLoading) {
-    return (
-      <section id="subjects" className="py-24 relative scroll-mt-20">
-        <div className="max-w-[80rem] mx-auto px-8">
-          <div className="flex items-center justify-center h-[300px]">
-            <div className="flex items-center gap-4">
-              <div className="w-8 h-8 border-2 border-accent-teal rounded-full animate-spin" />
-              <span className="text-text-secondary">Loading subjects...</span>
-            </div>
-          </div>
-        </div>
-      </section>
-    )
-  }
-
-  if (error) {
-    return (
-      <section id="subjects" className="py-24 relative scroll-mt-20">
-        <div className="max-w-[80rem] mx-auto px-8">
-          <div className="flex items-center justify-center h-[300px] flex-col gap-4 text-center">
-            <div className="flex items-center gap-2 text-red-500">
-              <AlertCircle className="h-5 w-5" />
-              <span>Error loading subjects</span>
-            </div>
-            <Button variant="secondary" size="sm" onClick={() => {
-              setIsLoading(true)
-              setError(null)
-              loadSubjects()
-            }}>
-              Retry
-            </Button>
-          </div>
-        </div>
-      </section>
-    )
-  }
+export function SubjectsSection({ subjects }: { subjects: Subject[] }) {
+  if (!subjects || subjects.length === 0) return null
 
   return (
     <section id="subjects" className="py-24 relative scroll-mt-20">
@@ -605,10 +546,7 @@ function PracticeVisual() {
   )
 }
 
-export function TestimonialsSection() {
-  const [activeTestimonials, setActiveTestimonials] = useState<Testimonial[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
+export function TestimonialsSection({ testimonials }: { testimonials: Testimonial[] }) {
   const staticTestimonials: Testimonial[] = [
     {
       id: 1,
@@ -654,26 +592,7 @@ export function TestimonialsSection() {
     }
   ]
 
-  useEffect(() => {
-    async function loadTestimonials() {
-      try {
-        const data = await fetchTestimonials()
-        if (data && data.length > 0) {
-          setActiveTestimonials(data)
-        } else {
-          setActiveTestimonials(staticTestimonials)
-        }
-      } catch (error) {
-        console.error('Failed to fetch testimonials:', error)
-        setActiveTestimonials(staticTestimonials)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    loadTestimonials()
-  }, [])
-
-  const displayTestimonials = activeTestimonials.length > 0 ? activeTestimonials : staticTestimonials
+  const displayTestimonials = testimonials.length > 0 ? testimonials : staticTestimonials
 
   return (
     <section id="testimonials" className="py-24 relative scroll-mt-20">
@@ -712,23 +631,7 @@ export function TestimonialsSection() {
 
         {/* Testimonials Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {isLoading && activeTestimonials.length === 0 ? (
-            // Shimmer / Loading State
-            [...Array(6)].map((_, i) => (
-              <div key={i} className="bg-bg-secondary border border-border-subtle rounded-2xl p-6 h-[280px] animate-pulse">
-                <div className="h-4 w-24 bg-border-subtle rounded mb-4" />
-                <div className="h-20 bg-border-subtle rounded mb-6" />
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-border-subtle" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 w-24 bg-border-subtle rounded" />
-                    <div className="h-3 w-32 bg-border-subtle rounded" />
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-          displayTestimonials.map((testimonial, index) => (
+          {displayTestimonials.map((testimonial, index) => (
             <motion.div
               key={testimonial.name}
               initial={{ opacity: 0, y: 40 }}
@@ -785,8 +688,7 @@ export function TestimonialsSection() {
                 </div>
               </div>
             </motion.div>
-          ))
-          )}
+          ))}
         </div>
 
         {/* Bottom Stats */}

@@ -15,7 +15,8 @@ export interface SubscriptionPlan {
     id: number;
     name: string;
     price: number;
-    stripePriceId: string | null;
+    // Not returned by the public /billing/plans endpoint (admin-only field).
+    stripePriceId?: string | null;
     questionsPerDay: number;
     aiExplanationsPerDay: number;
     examAccess: string;
