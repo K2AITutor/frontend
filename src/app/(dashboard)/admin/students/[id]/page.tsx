@@ -143,7 +143,7 @@ export default function UserProfilePage() {
       onSuccess: () => {
         setDeleteDialogOpen(false);
         toast.success("User deleted successfully");
-        router.push("/admin/users");
+        router.push("/admin/students");
       },
       onError: () => {
         toast.error("Failed to delete user");
@@ -163,7 +163,7 @@ export default function UserProfilePage() {
     return (
       <div className="flex items-center justify-center h-screen flex-col gap-4">
         <p className="text-muted-foreground">{error || "User not found"}</p>
-        <Button variant="outline" onClick={() => router.push("/admin/users")}>
+        <Button variant="outline" onClick={() => router.push("/admin/students")}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
         </Button>
       </div>
@@ -172,7 +172,7 @@ export default function UserProfilePage() {
 
   return (
     <div className="space-y-6 p-6 pb-20 max-w-4xl mx-auto">
-      <Button variant="ghost" onClick={() => router.push("/admin/users")} className="mb-2">
+      <Button variant="ghost" onClick={() => router.push("/admin/students")} className="mb-2">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
       </Button>
 

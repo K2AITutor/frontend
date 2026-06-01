@@ -129,7 +129,7 @@ export default function AdminDashboardPage() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Recently Joined Students</CardTitle>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/admin/users">
+              <Link href="/admin/students">
                 View all <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>

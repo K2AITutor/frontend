@@ -116,7 +116,7 @@ const adminNavGroups: NavGroup[] = [
     items: [
       {
         title: "Students",
-        href: "/admin/users",
+        href: "/admin/students",
         icon: <UserCog className="h-5 w-5" />,
       },
       {
@@ -129,11 +129,6 @@ const adminNavGroups: NavGroup[] = [
   {
     title: "Content",
     items: [
-      {
-        title: "Subjects",
-        href: "/admin/subjects",
-        icon: <BookOpen className="h-5 w-5" />,
-      },
       {
         title: "Topics",
         href: "/admin/content/topics",
@@ -158,31 +153,6 @@ const adminNavGroups: NavGroup[] = [
         title: "Tasks",
         href: "/admin/content/tasks",
         icon: <ClipboardList className="h-5 w-5" />,
-      },
-      {
-        title: "FAQs",
-        href: "/admin/faqs",
-        icon: <HelpCircle className="h-5 w-5" />,
-      },
-      {
-        title: "Testimonials",
-        href: "/admin/testimonials",
-        icon: <Quote className="h-5 w-5" />,
-      },
-    ],
-  },
-  {
-    title: "Billing",
-    items: [
-      {
-        title: "Subscription Plans",
-        href: "/admin/subscription-plans",
-        icon: <CreditCard className="h-5 w-5" />,
-      },
-      {
-        title: "Billing Health",
-        href: "/admin/billing",
-        icon: <HeartPulse className="h-5 w-5" />,
       },
     ],
   },
@@ -213,6 +183,41 @@ const adminNavGroups: NavGroup[] = [
         title: "Datasets",
         href: "/admin/datasets",
         icon: <Database className="h-5 w-5" />,
+      },
+    ],
+  },
+  {
+    title: "Billing",
+    items: [
+      {
+        title: "Subscription Plans",
+        href: "/admin/subscription-plans",
+        icon: <CreditCard className="h-5 w-5" />,
+      },
+      {
+        title: "Billing Health",
+        href: "/admin/billing",
+        icon: <HeartPulse className="h-5 w-5" />,
+      },
+    ],
+  },
+  {
+    title: "Public Page",
+    items: [
+      {
+        title: "Subjects",
+        href: "/admin/subjects",
+        icon: <BookOpen className="h-5 w-5" />,
+      },
+      {
+        title: "FAQs",
+        href: "/admin/faqs",
+        icon: <HelpCircle className="h-5 w-5" />,
+      },
+      {
+        title: "Testimonials",
+        href: "/admin/testimonials",
+        icon: <Quote className="h-5 w-5" />,
       },
     ],
   },
