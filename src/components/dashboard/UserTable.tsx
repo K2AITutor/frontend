@@ -1,21 +1,13 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
 import { Button } from "@/components/dashboard/ui/button";
+import { DataTable, SortHeader } from "@/components/dashboard/DataTable";
 import {
-  ArrowUpDown, CreditCard, ShieldCheck, Clock, CircleCheck, CircleX,
-  MoreHorizontal, Eye, Power, Mail, Trash2, Loader2, Search,
+  CreditCard, ShieldCheck, Clock, CircleCheck, CircleX,
+  MoreHorizontal, Eye, Power, Mail, Trash2, Loader2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,16 +17,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/dashboard/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-  createColumnHelper,
-  SortingState,
-  getSortedRowModel,
-} from "@tanstack/react-table";
+import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
 
-interface User {
+export interface User {
   id: string;
   name: string;
   email: string;
@@ -54,6 +39,7 @@ interface UserTableProps {
   users: User[];
   className?: string;
   variant?: "students" | "staff";
+  onView?: (userId: string) => void;
   onToggleActive?: (userId: string) => void;
   onResendVerification?: (userId: string) => void;
   onDeleteUser?: (userId: string) => void;
@@ -138,37 +124,31 @@ function StatusPill({
   );
 }
 
-function SortHeader({ column, label }: { column: any; label: string }) {
-  const sorted = column.getIsSorted();
-  return (
-    <Button
-      variant="ghost"
-      onClick={() => column.toggleSorting(sorted === "asc")}
-      className={cn(
-        "-ml-2 h-8 gap-1.5 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground",
-        sorted && "text-foreground"
-      )}
-    >
-      {label}
-      <ArrowUpDown className={cn("h-3.5 w-3.5", sorted ? "opacity-100" : "opacity-40")} />
-    </Button>
-  );
+export interface UserColumnsOptions {
+  variant?: "students" | "staff";
+  /** When provided, "View Profile" opens via this callback (drawer) instead of navigating. */
+  onView?: (userId: string) => void;
+  onToggleActive?: (userId: string) => void;
+  onResendVerification?: (userId: string) => void;
+  onDeleteUser?: (userId: string) => void;
+  loadingUserId?: string | null;
 }
 
-export function UserTable({
-  users,
-  className,
+/**
+ * The user-directory column set, shared by the full directory (DataTable
+ * server mode in AdminUsersDirectory) and the dashboard preview (UserTable).
+ */
+export function getUserColumns({
   variant = "students",
+  onView,
   onToggleActive,
   onResendVerification,
   onDeleteUser,
   loadingUserId,
-}: UserTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([]);
-
-  const columns = [
+}: UserColumnsOptions): ColumnDef<User, any>[] {
+  return [
     columnHelper.accessor("name", {
-      header: ({ column }) => <SortHeader column={column} label="User" />,
+      header: SortHeader("User"),
       cell: (info) => {
         const user = info.row.original;
         return (
@@ -209,7 +189,7 @@ export function UserTable({
       }),
     ] : [
       columnHelper.accessor("subscriptionStatus", {
-      header: ({ column }) => <SortHeader column={column} label="Subscription" />,
+      header: SortHeader("Subscription"),
       cell: (info) => {
         const val = info.getValue();
         if (!val) return <span className="text-xs text-muted-foreground italic">None</span>;
@@ -269,7 +249,7 @@ export function UserTable({
       }),
     ] : []),
     columnHelper.accessor("lastLoginAt", {
-      header: ({ column }) => <SortHeader column={column} label="Last Login" />,
+      header: SortHeader("Last Login"),
       cell: (info) => {
         const val = info.getValue();
         if (!val) return <span className="text-xs text-muted-foreground italic">Never</span>;
@@ -277,7 +257,7 @@ export function UserTable({
       },
     }),
     columnHelper.accessor("joinedDate", {
-      header: ({ column }) => <SortHeader column={column} label="Joined" />,
+      header: SortHeader("Joined"),
       cell: (info) => (
         <span className="text-sm text-muted-foreground">
           {formatDate(info.getValue())}
@@ -287,6 +267,7 @@ export function UserTable({
     columnHelper.display({
       id: "actions",
       header: () => <span className="sr-only">Actions</span>,
+      enableSorting: false,
       cell: (info) => {
         const user = info.row.original;
         const isLoading = loadingUserId === user.id;
@@ -304,12 +285,19 @@ export function UserTable({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <Link href={`/admin/students/${user.id}`}>
-                <DropdownMenuItem>
+              {onView ? (
+                <DropdownMenuItem onClick={() => onView(user.id)}>
                   <Eye className="mr-2 h-4 w-4" />
                   View Profile
                 </DropdownMenuItem>
-              </Link>
+              ) : (
+                <Link href={`/admin/students/${user.id}`}>
+                  <DropdownMenuItem>
+                    <Eye className="mr-2 h-4 w-4" />
+                    View Profile
+                  </DropdownMenuItem>
+                </Link>
+              )}
               <DropdownMenuItem onClick={() => onToggleActive?.(user.id)}>
                 <Power className="mr-2 h-4 w-4" />
                 {user.isActive ? "Deactivate" : "Activate"}
@@ -335,72 +323,39 @@ export function UserTable({
       },
     }),
   ];
+}
 
-  const table = useReactTable({
-    data: users,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    state: {
-      sorting,
-    },
-    onSortingChange: setSorting,
+/**
+ * Lightweight, footer-less user table for embedded previews (e.g. the admin
+ * dashboard). The full searchable/paginated directory uses DataTable directly.
+ */
+export function UserTable({
+  users,
+  className,
+  variant = "students",
+  onView,
+  onToggleActive,
+  onResendVerification,
+  onDeleteUser,
+  loadingUserId,
+}: UserTableProps) {
+  const columns = getUserColumns({
+    variant,
+    onView,
+    onToggleActive,
+    onResendVerification,
+    onDeleteUser,
+    loadingUserId,
   });
 
   return (
-    <div className={cn("overflow-hidden rounded-xl border border-border", className)}>
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow
-              key={headerGroup.id}
-              className="border-b border-border bg-muted/60 hover:bg-muted/60"
-            >
-              {headerGroup.headers.map((header) => (
-                <TableHead
-                  key={header.id}
-                  className="h-11 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                className="border-b border-border/60 transition-colors hover:bg-muted/50"
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-4 py-3">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={columns.length} className="h-32 text-center">
-                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                    <Search className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-medium">No users found</p>
-                  <p className="text-xs">Try adjusting your search or filters.</p>
-                </div>
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={columns}
+      data={users}
+      enableSearch={false}
+      hideFooter
+      emptyMessage="No users found."
+      className={className}
+    />
   );
 }

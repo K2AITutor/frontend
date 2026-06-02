@@ -5,14 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard
 import { Button } from "@/components/dashboard/ui/button";
 import { Input } from "@/components/dashboard/ui/input";
 import { Textarea } from "@/components/dashboard/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
+import { DataTable, SortHeader } from "@/components/dashboard/DataTable";
+import { createColumnHelper } from "@tanstack/react-table";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +47,8 @@ import {
   HelpCircle,
   Folder,
 } from "lucide-react";
+
+const columnHelper = createColumnHelper<FAQ>();
 
 export default function AdminFaqPage() {
   usePageTitle("FAQ Management");
@@ -217,6 +213,52 @@ export default function AdminFaqPage() {
     }
   }
 
+  const faqColumns = [
+      columnHelper.accessor("question", {
+        header: SortHeader("Question"),
+        cell: (info) => (
+          <span className="block max-w-[250px] truncate font-medium">{info.getValue()}</span>
+        ),
+      }),
+      columnHelper.accessor("answer", {
+        header: SortHeader("Answer"),
+        cell: (info) => (
+          <span className="block max-w-[300px] truncate text-muted-foreground">
+            {info.getValue()}
+          </span>
+        ),
+      }),
+      columnHelper.accessor((row) => row.category?.label || "N/A", {
+        id: "category",
+        header: SortHeader("Category"),
+        enableGlobalFilter: false,
+        cell: (info) => <Badge variant="outline">{info.getValue()}</Badge>,
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        enableSorting: false,
+        cell: (info) => {
+          const faq = info.row.original;
+          return (
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={() => openFaqDialog(faq)}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-red-500 hover:text-red-600"
+                onClick={() => openDeleteDialog("faq", faq.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        },
+      }),
+  ];
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -297,73 +339,32 @@ export default function AdminFaqPage() {
             <HelpCircle className="h-5 w-5" />
             <CardTitle>FAQs</CardTitle>
           </div>
-          <div className="flex items-center gap-2">
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button size="sm" onClick={() => openFaqDialog()} disabled={categories.length === 0}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add FAQ
-            </Button>
-          </div>
+          {/* Category filter stays here — it drives the server-side fetch (loadFaqs). */}
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardHeader>
         <CardContent>
-          {faqs.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No FAQs yet. Add one to get started.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Question</TableHead>
-                  <TableHead>Answer</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {faqs.map((faq) => (
-                  <TableRow key={faq.id}>
-                    <TableCell className="font-medium max-w-[250px] truncate">
-                      {faq.question}
-                    </TableCell>
-                    <TableCell className="max-w-[300px] truncate">
-                      {faq.answer}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{faq.category?.label || "N/A"}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openFaqDialog(faq)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:text-red-600"
-                          onClick={() => openDeleteDialog("faq", faq.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <DataTable
+            columns={faqColumns}
+            data={faqs}
+            searchPlaceholder="Search questions..."
+            emptyMessage="No FAQs yet."
+            toolbarActions={
+              <Button size="sm" onClick={() => openFaqDialog()} disabled={categories.length === 0}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add FAQ
+              </Button>
+            }
+          />
         </CardContent>
       </Card>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Button } from "@/components/dashboard/ui/button";
@@ -12,24 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/dashboard/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
-import {
-  Loader2,
-  AlertCircle,
-  Cpu,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { DataTable, SortHeader } from "@/components/dashboard/DataTable";
+import { createColumnHelper } from "@tanstack/react-table";
+import { Loader2, AlertCircle, Cpu } from "lucide-react";
 import { useModels } from "@/lib/api/admin-models";
 import { ModelSheet } from "@/components/marking/ModelSheet";
-import type { ModelFamily, DeploymentStatus } from "@/lib/types/model";
+import type { ModelFamily, DeploymentStatus, ModelVersion } from "@/lib/types/model";
 
 const STATUS_VARIANT: Record<
   DeploymentStatus,
@@ -48,22 +36,14 @@ const FAMILY_LABEL: Record<ModelFamily, string> = {
 };
 
 const FAMILY_ORDER: ModelFamily[] = ["rule", "llm", "ml"];
-const PAGE_SIZE = 5;
+
+const columnHelper = createColumnHelper<ModelVersion>();
 
 export default function AdminModelsPage() {
   const { data, isLoading, error, refetch } = useModels();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | DeploymentStatus>("all");
-  const [pages, setPages] = useState<Record<ModelFamily, number>>({
-    rule: 1,
-    llm: 1,
-    ml: 1,
-  });
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setPages({ rule: 1, llm: 1, ml: 1 });
-  }, [search, statusFilter]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -76,6 +56,66 @@ export default function AdminModelsPage() {
       return matchSearch && matchStatus;
     });
   }, [data, search, statusFilter]);
+
+  // Group once per filter change so each family's array keeps a stable
+  // reference across unrelated re-renders (e.g. opening the detail sheet) —
+  // that lets each DataTable preserve its own page while filtering still resets it.
+  const byFamily = useMemo(() => {
+    const groups = { rule: [], llm: [], ml: [] } as Record<ModelFamily, ModelVersion[]>;
+    for (const m of filtered) groups[m.family].push(m);
+    return groups;
+  }, [filtered]);
+
+  const familyCounts = useMemo(() => {
+    const counts = { rule: 0, llm: 0, ml: 0 } as Record<ModelFamily, number>;
+    for (const m of data ?? []) counts[m.family]++;
+    return counts;
+  }, [data]);
+
+  const columns = [
+    columnHelper.accessor("name", {
+      header: SortHeader("Name"),
+      cell: (info) => <span className="font-medium">{info.getValue()}</span>,
+    }),
+    columnHelper.accessor("version", {
+      header: SortHeader("Version"),
+      cell: (info) => <span className="font-mono text-xs">{info.getValue()}</span>,
+    }),
+    columnHelper.accessor("status", {
+      header: SortHeader("Status"),
+      cell: (info) => (
+        <Badge variant={STATUS_VARIANT[info.getValue()]} className="capitalize">
+          {info.getValue()}
+        </Badge>
+      ),
+    }),
+    columnHelper.accessor("accuracyPct", {
+      header: SortHeader("Accuracy"),
+      cell: (info) => `${info.getValue()}%`,
+    }),
+    columnHelper.accessor("agreementWithTeacherPct", {
+      header: SortHeader("Teacher Agreement"),
+      cell: (info) => `${info.getValue()}%`,
+    }),
+    columnHelper.accessor("deployedAt", {
+      header: SortHeader("Deployed"),
+      cell: (info) => (
+        <span className="text-xs text-muted-foreground">
+          {info.getValue() ? new Date(info.getValue()!).toLocaleDateString() : "—"}
+        </span>
+      ),
+    }),
+    columnHelper.display({
+      id: "action",
+      header: () => <span className="sr-only">Action</span>,
+      enableSorting: false,
+      cell: (info) => (
+        <Button variant="outline" size="sm" onClick={() => setSelectedModelId(info.row.original.id)}>
+          Detail
+        </Button>
+      ),
+    }),
+  ];
 
   const hasFilters = !!search.trim() || statusFilter !== "all";
 
@@ -143,14 +183,8 @@ export default function AdminModelsPage() {
       </div>
 
       {FAMILY_ORDER.map((family) => {
-        const familyAll = (data ?? []).filter((m) => m.family === family);
-        const familyFiltered = filtered.filter((m) => m.family === family);
-        const page = pages[family];
-        const totalPages = Math.max(1, Math.ceil(familyFiltered.length / PAGE_SIZE));
-        const paginated = familyFiltered.slice(
-          (page - 1) * PAGE_SIZE,
-          page * PAGE_SIZE
-        );
+        const familyFiltered = byFamily[family];
+        const familyAll = familyCounts[family];
 
         return (
           <Card key={family}>
@@ -160,108 +194,22 @@ export default function AdminModelsPage() {
                 {FAMILY_LABEL[family]}
                 <span className="text-xs font-normal text-muted-foreground ml-1">
                   {familyFiltered.length}
-                  {familyAll.length !== familyFiltered.length
-                    ? ` of ${familyAll.length}`
-                    : ""}
+                  {familyAll !== familyFiltered.length ? ` of ${familyAll}` : ""}
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {familyFiltered.length === 0 ? (
-                <p className="text-sm text-center text-muted-foreground py-6">
-                  {hasFilters && familyAll.length > 0
+              <DataTable
+                columns={columns}
+                data={familyFiltered}
+                enableSearch={false}
+                initialPageSize={5}
+                emptyMessage={
+                  hasFilters && familyAll > 0
                     ? "No models match the current filters."
-                    : "No models in this family."}
-                </p>
-              ) : (
-                <>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Version</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Accuracy</TableHead>
-                        <TableHead>Teacher Agreement</TableHead>
-                        <TableHead>Deployed</TableHead>
-                        <TableHead>Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginated.map((model) => (
-                        <TableRow key={model.id}>
-                          <TableCell className="font-medium">
-                            {model.name}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">
-                            {model.version}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={STATUS_VARIANT[model.status]}
-                              className="capitalize"
-                            >
-                              {model.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{model.accuracyPct}%</TableCell>
-                          <TableCell>{model.agreementWithTeacherPct}%</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {model.deployedAt
-                              ? new Date(model.deployedAt).toLocaleDateString()
-                              : "—"}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedModelId(model.id)}
-                            >
-                              Detail
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-between pt-4 border-t mt-4">
-                      <p className="text-sm text-muted-foreground">
-                        Page {page} of {totalPages} · {familyFiltered.length} models
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setPages((p) => ({
-                              ...p,
-                              [family]: Math.max(1, p[family] - 1),
-                            }))
-                          }
-                          disabled={page === 1}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setPages((p) => ({
-                              ...p,
-                              [family]: Math.min(totalPages, p[family] + 1),
-                            }))
-                          }
-                          disabled={page === totalPages}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
+                    : "No models in this family."
+                }
+              />
             </CardContent>
           </Card>
         );

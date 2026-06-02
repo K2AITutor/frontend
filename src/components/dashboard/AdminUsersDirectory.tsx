@@ -17,6 +17,8 @@ import {
   UserX,
   ShieldCheck,
   ShieldOff,
+  Power,
+  Trash2,
 } from "lucide-react";
 import {
   Select,
@@ -25,14 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/dashboard/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/dashboard/ui/dialog";
+import { ConfirmDialog } from "@/components/dashboard/ui/confirm-dialog";
+import { StudentDetailDrawer } from "@/components/dashboard/StudentDetailDrawer";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { DateRangePicker } from "@/components/dashboard/ui/date-range-picker";
 import { useAdminToken } from "@/lib/api/useAdminToken";
@@ -78,6 +74,7 @@ export function AdminUsersDirectory({
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useUsers({
     page,
@@ -107,23 +104,19 @@ export function AdminUsersDirectory({
     setToggleDialogOpen(true);
   };
 
-  const confirmToggle = () => {
+  const confirmToggle = async () => {
     if (!pendingToggleId) return;
     const isActive = pendingToggleUser?.isActive;
     setLoadingUserId(pendingToggleId);
-    toggleActive.mutate(pendingToggleId, {
-      onSuccess: () => {
-        toast.success(isActive ? "User deactivated successfully" : "User activated successfully");
-      },
-      onError: () => {
-        toast.error("Failed to update user status");
-      },
-      onSettled: () => {
-        setLoadingUserId(null);
-        setToggleDialogOpen(false);
-        setPendingToggleId(null);
-      },
-    });
+    try {
+      await toggleActive.mutateAsync(pendingToggleId);
+      toast.success(isActive ? "User deactivated successfully" : "User activated successfully");
+    } catch {
+      toast.error("Failed to update user status");
+    } finally {
+      setLoadingUserId(null);
+      setPendingToggleId(null);
+    }
   };
 
   const handleResendVerification = (userId: string) => {
@@ -144,22 +137,18 @@ export function AdminUsersDirectory({
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!pendingDeleteId) return;
     setLoadingUserId(pendingDeleteId);
-    deleteUser.mutate(pendingDeleteId, {
-      onSuccess: () => {
-        toast.success("User deleted successfully");
-      },
-      onError: () => {
-        toast.error("Failed to delete user");
-      },
-      onSettled: () => {
-        setLoadingUserId(null);
-        setDeleteDialogOpen(false);
-        setPendingDeleteId(null);
-      },
-    });
+    try {
+      await deleteUser.mutateAsync(pendingDeleteId);
+      toast.success("User deleted successfully");
+    } catch {
+      toast.error("Failed to delete user");
+    } finally {
+      setLoadingUserId(null);
+      setPendingDeleteId(null);
+    }
   };
 
   const pendingDeleteUser = users.find(u => u.id === pendingDeleteId);
@@ -341,6 +330,7 @@ export function AdminUsersDirectory({
             users={users}
             variant={roleScope}
             className="shadow-none"
+            onView={setSelectedUserId}
             onToggleActive={handleToggleActive}
             onResendVerification={handleResendVerification}
             onDeleteUser={handleDeleteUser}
@@ -404,51 +394,42 @@ export function AdminUsersDirectory({
         </CardContent>
       </Card>
 
-      {/* Toggle Active Confirmation Dialog */}
-      <Dialog open={toggleDialogOpen} onOpenChange={setToggleDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{pendingToggleUser?.isActive ? "Deactivate" : "Activate"} User</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to {pendingToggleUser?.isActive ? "deactivate" : "activate"}{" "}
-              <span className="font-semibold text-foreground">{pendingToggleUser?.name}</span> ({pendingToggleUser?.email})?
-              {pendingToggleUser?.isActive
-                ? " They will no longer be able to access the platform."
-                : " They will regain access to the platform."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setToggleDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={confirmToggle} disabled={toggleActive.isPending}>
-              {toggleActive.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {pendingToggleUser?.isActive ? "Deactivate" : "Activate"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Toggle Active Confirmation */}
+      <ConfirmDialog
+        open={toggleDialogOpen}
+        onOpenChange={setToggleDialogOpen}
+        title={`${pendingToggleUser?.isActive ? "Deactivate" : "Activate"} User`}
+        description={
+          `Are you sure you want to ${pendingToggleUser?.isActive ? "deactivate" : "activate"} ${pendingToggleUser?.name ?? ""} (${pendingToggleUser?.email ?? ""})?` +
+          (pendingToggleUser?.isActive
+            ? " They will no longer be able to access the platform."
+            : " They will regain access to the platform.")
+        }
+        confirmLabel={pendingToggleUser?.isActive ? "Deactivate" : "Activate"}
+        variant={pendingToggleUser?.isActive ? "destructive" : "default"}
+        loading={toggleActive.isPending}
+        onConfirm={confirmToggle}
+        icon={<Power className="h-4 w-4" />}
+      />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete <span className="font-semibold text-foreground">{pendingDeleteUser?.name}</span> ({pendingDeleteUser?.email})? This action cannot be undone and will remove all associated data.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={deleteUser.isPending}>
-              {deleteUser.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete User"
+        description={`Are you sure you want to delete ${pendingDeleteUser?.name ?? ""} (${pendingDeleteUser?.email ?? ""})? This action cannot be undone and will remove all associated data.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        loading={deleteUser.isPending}
+        onConfirm={confirmDelete}
+        icon={<Trash2 className="h-4 w-4" />}
+      />
+
+      {/* Profile Detail Drawer (Rule 1) */}
+      <StudentDetailDrawer
+        userId={selectedUserId}
+        onClose={() => setSelectedUserId(null)}
+      />
     </div>
   );
 }

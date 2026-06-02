@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useMemo, useState } from "react";
-import { AlertCircle, Loader2, Search } from "lucide-react";
+import { AlertCircle, Search } from "lucide-react";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Button } from "@/components/dashboard/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
@@ -13,14 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/dashboard/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
+import { DataTable } from "@/components/dashboard/DataTable";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   AdminContentFilters,
   AdminContentItem,
@@ -114,7 +108,20 @@ export default function AdminContentListPage<T extends AdminContentItem>({
   const { data, isLoading, error, refetch } = useAdminContentList<T>(kind, queryFilters);
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Adapt the lightweight ColumnConfig contract to TanStack column defs. These
+  // are render-only (no accessors) so sorting stays off; pagination is server-side.
+  const tableColumns = useMemo<ColumnDef<T, any>[]>(
+    () =>
+      columns.map((column) => ({
+        id: column.key,
+        header: column.label,
+        enableSorting: false,
+        cell: ({ row }) => column.render(row.original),
+        meta: { className: column.className },
+      })),
+    [columns]
+  );
 
   function applyFilters() {
     setPage(1);
@@ -208,11 +215,7 @@ export default function AdminContentListPage<T extends AdminContentItem>({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex h-48 items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : error ? (
+          {error ? (
             <div className="flex h-48 flex-col items-center justify-center gap-4 text-center">
               <AlertCircle className="h-10 w-10 text-red-500" />
               <p className="text-muted-foreground">Failed to load {title.toLowerCase()}.</p>
@@ -221,64 +224,19 @@ export default function AdminContentListPage<T extends AdminContentItem>({
               </Button>
             </div>
           ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {columns.map((column) => (
-                      <TableHead key={column.key} className={column.className}>
-                        {column.label}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="py-8 text-center text-muted-foreground"
-                      >
-                        No records found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    items.map((item) => (
-                      <TableRow key={item.id}>
-                        {columns.map((column) => (
-                          <TableCell key={column.key} className={column.className}>
-                            {column.render(item)}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-              <div className="mt-4 flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Page {page} of {totalPages}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((current) => current + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            </>
+            <DataTable
+              columns={tableColumns}
+              data={items}
+              isLoading={isLoading}
+              hidePageSize
+              emptyMessage="No records found."
+              server={{
+                total,
+                pageIndex: page - 1,
+                pageSize: PAGE_SIZE,
+                onPaginationChange: ({ pageIndex }) => setPage(pageIndex + 1),
+              }}
+            />
           )}
         </CardContent>
       </Card>

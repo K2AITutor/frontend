@@ -22,14 +22,8 @@ import {
   SelectValue,
 } from "@/components/dashboard/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/dashboard/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
+import { DataTable, type DataTableServer } from "@/components/dashboard/DataTable";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   AdminBillingPaymentEvent,
   fetchAdminBillingOverview,
@@ -60,6 +54,107 @@ function statusVariant(status: string | null): "default" | "secondary" | "outlin
   if (status === "active" || status === "paid") return "default";
   if (status === "canceling" || status === "open") return "secondary";
   return "outline";
+}
+
+// These tables are read-only and server-paginated, so columns are render-only
+// (no client sorting); the shared DataTable provides consistent chrome.
+const subscriptionColumns: ColumnDef<AdminBillingSubscription, any>[] = [
+  {
+    id: "user",
+    header: "User",
+    cell: ({ row }) => (
+      <div>
+        <div className="font-medium">{row.original.userName}</div>
+        <div className="text-xs text-muted-foreground">{row.original.userEmail}</div>
+      </div>
+    ),
+  },
+  {
+    id: "plan",
+    header: "Plan",
+    cell: ({ row }) => (
+      <div>
+        <div>{row.original.planName}</div>
+        <div className="text-xs text-muted-foreground">{formatMoney(row.original.planPrice)}/mo</div>
+      </div>
+    ),
+  },
+  {
+    id: "status",
+    header: "Status",
+    cell: ({ row }) => <Badge variant={statusVariant(row.original.status)}>{row.original.status}</Badge>,
+  },
+  {
+    id: "stripeSubscription",
+    header: "Stripe Subscription",
+    meta: { className: "max-w-[220px] truncate font-mono text-xs" },
+    cell: ({ row }) => row.original.stripeSubscriptionId ?? "N/A",
+  },
+  {
+    id: "periodEnd",
+    header: "Period End",
+    cell: ({ row }) => formatDate(row.original.currentPeriodEnd),
+  },
+  {
+    id: "updated",
+    header: "Updated",
+    cell: ({ row }) => formatDate(row.original.updatedAt),
+  },
+];
+
+function getEventColumns(
+  onSelectEvent: (event: AdminBillingPaymentEvent) => void,
+): ColumnDef<AdminBillingPaymentEvent, any>[] {
+  return [
+    {
+      id: "event",
+      header: "Event",
+      meta: { className: "max-w-[180px] truncate font-mono text-xs" },
+      cell: ({ row }) => row.original.stripeEventId,
+    },
+    {
+      id: "type",
+      header: "Type",
+      cell: ({ row }) => <Badge variant="outline">{row.original.type}</Badge>,
+    },
+    {
+      id: "created",
+      header: "Created",
+      cell: ({ row }) => formatDate(row.original.createdAt),
+    },
+    {
+      id: "invoice",
+      header: "Invoice",
+      meta: { className: "max-w-[140px] truncate font-mono text-xs" },
+      cell: ({ row }) => row.original.invoiceId ?? "N/A",
+    },
+    {
+      id: "subscription",
+      header: "Subscription",
+      meta: { className: "max-w-[140px] truncate font-mono text-xs" },
+      cell: ({ row }) => row.original.subscriptionId ?? "N/A",
+    },
+    {
+      id: "amount",
+      header: "Amount",
+      cell: ({ row }) => formatMoney(row.original.amount),
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: ({ row }) => <Badge variant={statusVariant(row.original.status)}>{row.original.status ?? "N/A"}</Badge>,
+    },
+    {
+      id: "detail",
+      header: "Detail",
+      meta: { className: "w-[90px]" },
+      cell: ({ row }) => (
+        <Button variant="ghost" size="sm" onClick={() => onSelectEvent(row.original)}>
+          View
+        </Button>
+      ),
+    },
+  ];
 }
 
 export default function AdminBillingPage() {
@@ -219,12 +314,15 @@ export default function AdminBillingPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <SubscriptionsTable data={subscriptions} />
-              <Pagination
-                page={subscriptionFilters.page}
-                pageSize={subscriptionFilters.pageSize}
-                total={subscriptions?.total ?? 0}
-                onPageChange={(page) => setSubscriptionFilters((prev) => ({ ...prev, page }))}
+              <SubscriptionsTable
+                data={subscriptions}
+                server={{
+                  total: subscriptions?.total ?? 0,
+                  pageIndex: subscriptionFilters.page - 1,
+                  pageSize: subscriptionFilters.pageSize,
+                  onPaginationChange: ({ pageIndex }) =>
+                    setSubscriptionFilters((prev) => ({ ...prev, page: pageIndex + 1 })),
+                }}
               />
             </CardContent>
           </Card>
@@ -257,12 +355,16 @@ export default function AdminBillingPage() {
                   Clear
                 </Button>
               </div>
-              <PaymentEventsTable events={paymentEvents?.items ?? []} onSelectEvent={setSelectedEvent} />
-              <Pagination
-                page={eventFilters.page}
-                pageSize={eventFilters.pageSize}
-                total={paymentEvents?.total ?? 0}
-                onPageChange={(page) => setEventFilters((prev) => ({ ...prev, page }))}
+              <PaymentEventsTable
+                events={paymentEvents?.items ?? []}
+                onSelectEvent={setSelectedEvent}
+                server={{
+                  total: paymentEvents?.total ?? 0,
+                  pageIndex: eventFilters.page - 1,
+                  pageSize: eventFilters.pageSize,
+                  onPaginationChange: ({ pageIndex }) =>
+                    setEventFilters((prev) => ({ ...prev, page: pageIndex + 1 })),
+                }}
               />
             </CardContent>
           </Card>
@@ -318,42 +420,21 @@ function SmallMetric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function SubscriptionsTable({ data }: { data: AdminBillingListResponse<AdminBillingSubscription> | null }) {
-  if (!data?.items.length) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">No subscriptions match the current filters.</p>;
-  }
-
+function SubscriptionsTable({
+  data,
+  server,
+}: {
+  data: AdminBillingListResponse<AdminBillingSubscription> | null;
+  server: DataTableServer;
+}) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>User</TableHead>
-          <TableHead>Plan</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Stripe Subscription</TableHead>
-          <TableHead>Period End</TableHead>
-          <TableHead>Updated</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {data.items.map((item) => (
-          <TableRow key={item.id}>
-            <TableCell>
-              <div className="font-medium">{item.userName}</div>
-              <div className="text-xs text-muted-foreground">{item.userEmail}</div>
-            </TableCell>
-            <TableCell>
-              <div>{item.planName}</div>
-              <div className="text-xs text-muted-foreground">{formatMoney(item.planPrice)}/mo</div>
-            </TableCell>
-            <TableCell><Badge variant={statusVariant(item.status)}>{item.status}</Badge></TableCell>
-            <TableCell className="max-w-[220px] truncate font-mono text-xs">{item.stripeSubscriptionId ?? "N/A"}</TableCell>
-            <TableCell>{formatDate(item.currentPeriodEnd)}</TableCell>
-            <TableCell>{formatDate(item.updatedAt)}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <DataTable
+      columns={subscriptionColumns}
+      data={data?.items ?? []}
+      hidePageSize
+      emptyMessage="No subscriptions match the current filters."
+      server={server}
+    />
   );
 }
 
@@ -361,74 +442,21 @@ function PaymentEventsTable({
   events,
   onSelectEvent,
   emptyText = "No payment events match the current filters.",
+  server,
 }: {
   events: AdminBillingPaymentEvent[];
   onSelectEvent: (event: AdminBillingPaymentEvent) => void;
   emptyText?: string;
+  server?: DataTableServer;
 }) {
-  if (events.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">{emptyText}</p>;
-  }
-
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Event</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead>Invoice</TableHead>
-          <TableHead>Subscription</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="w-[90px]">Detail</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {events.map((event) => (
-          <TableRow key={event.id}>
-            <TableCell className="max-w-[180px] truncate font-mono text-xs">{event.stripeEventId}</TableCell>
-            <TableCell><Badge variant="outline">{event.type}</Badge></TableCell>
-            <TableCell>{formatDate(event.createdAt)}</TableCell>
-            <TableCell className="max-w-[140px] truncate font-mono text-xs">{event.invoiceId ?? "N/A"}</TableCell>
-            <TableCell className="max-w-[140px] truncate font-mono text-xs">{event.subscriptionId ?? "N/A"}</TableCell>
-            <TableCell>{formatMoney(event.amount)}</TableCell>
-            <TableCell><Badge variant={statusVariant(event.status)}>{event.status ?? "N/A"}</Badge></TableCell>
-            <TableCell>
-              <Button variant="ghost" size="sm" onClick={() => onSelectEvent(event)}>View</Button>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
-
-function Pagination({
-  page,
-  pageSize,
-  total,
-  onPageChange,
-}: {
-  page: number;
-  pageSize: number;
-  total: number;
-  onPageChange: (page: number) => void;
-}) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  return (
-    <div className="flex items-center justify-between text-sm text-muted-foreground">
-      <span>
-        Page {page} of {totalPages} ({total} total)
-      </span>
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-          Previous
-        </Button>
-        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
-          Next
-        </Button>
-      </div>
-    </div>
+    <DataTable
+      columns={getEventColumns(onSelectEvent)}
+      data={events}
+      hidePageSize
+      hideFooter={!server}
+      emptyMessage={emptyText}
+      server={server}
+    />
   );
 }
