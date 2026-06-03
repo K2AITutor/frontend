@@ -5,14 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard
 import { Button } from "@/components/dashboard/ui/button";
 import { Input } from "@/components/dashboard/ui/input";
 import { Textarea } from "@/components/dashboard/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
+import { DataTable, SortHeader } from "@/components/dashboard/DataTable";
+import { createColumnHelper } from "@tanstack/react-table";
 import {
   Dialog,
   DialogContent,
@@ -21,14 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/dashboard/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/dashboard/ui/select";
-import { Badge } from "@/components/dashboard/ui/badge";
 import {
   Subject,
   fetchSubjects,
@@ -48,6 +34,8 @@ import {
 import { usePageTitle } from "@/lib/usePageTitle";
 import { toast } from "@/components/dashboard/ui/sonner";
 import { useAdminToken } from "@/lib/api/useAdminToken";
+
+const columnHelper = createColumnHelper<Subject>();
 
 export default function AdminSubjectsPage() {
   usePageTitle("Subjects Management");
@@ -168,6 +156,46 @@ export default function AdminSubjectsPage() {
     }
   }
 
+  const columns = [
+      columnHelper.accessor("name", {
+        header: SortHeader("Name"),
+        cell: (info) => (
+          <span className="block max-w-[250px] truncate font-medium">{info.getValue()}</span>
+        ),
+      }),
+      columnHelper.accessor("description", {
+        header: SortHeader("Description"),
+        cell: (info) => (
+          <span className="block max-w-[300px] truncate text-muted-foreground">
+            {info.getValue() || "No description"}
+          </span>
+        ),
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        enableSorting: false,
+        cell: (info) => {
+          const subject = info.row.original;
+          return (
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={() => openDialog(subject)}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-red-500 hover:text-red-600"
+                onClick={() => openDeleteDialog(subject.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        },
+      }),
+  ];
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -189,63 +217,25 @@ export default function AdminSubjectsPage() {
 
   return (
     <div className="space-y-6 p-6 pb-20">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Subjects Management</h1>
-          <p className="text-muted-foreground">
-            Manage subjects offered in the curriculum.
-          </p>
-        </div>
-        <Button size="sm" onClick={() => openDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Subject
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Subjects Management</h1>
+        <p className="text-muted-foreground">
+          Manage subjects offered in the curriculum.
+        </p>
       </div>
 
-      {subjects.length === 0 ? (
-        <p className="text-muted-foreground text-center py-4">No subjects yet. Add one to get started.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {subjects.map((subject) => (
-              <TableRow key={subject.id}>
-                <TableCell className="font-medium max-w-[250px] truncate">
-                  {subject.name}
-                </TableCell>
-                <TableCell className="max-w-[300px] truncate line-clamp-2">
-                  {subject.description || "No description"}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openDialog(subject)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-600"
-                      onClick={() => openDeleteDialog(subject.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      <DataTable
+        columns={columns}
+        data={subjects}
+        searchPlaceholder="Search subjects..."
+        emptyMessage="No subjects yet."
+        toolbarActions={
+          <Button size="sm" onClick={() => openDialog()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Subject
+          </Button>
+        }
+      />
 
       {/* Subject Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

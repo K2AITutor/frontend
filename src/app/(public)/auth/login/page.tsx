@@ -27,6 +27,30 @@ function LoginPageContent() {
     contributor: '/contributor',
   }
 
+  // A callbackUrl pointing into another role's dashboard section (e.g. a
+  // leftover /contributor from a previous redirect) must not override the
+  // user's own home — admins can *access* /contributor but it isn't their home.
+  // Honor the callbackUrl only when it targets the user's own role section or a
+  // path that isn't scoped to any role.
+  const roleScopes = ['admin', 'contributor', 'student', 'teacher', 'parent']
+
+  const isCallbackForOwnRole = (url: string, role: string) => {
+    if (!url) return false
+    let pathname = url
+    try {
+      // callbackUrl may be absolute; only the path matters for the check.
+      pathname = new URL(url, window.location.origin).pathname
+    } catch {
+      // keep raw value when it isn't a parseable URL
+    }
+    const targetScope = roleScopes.find((scope) =>
+      pathname.startsWith(`/${scope}`)
+    )
+    // Non role-scoped path (e.g. /settings) is always fine.
+    if (!targetScope) return true
+    return targetScope === role
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -55,7 +79,11 @@ function LoginPageContent() {
       const session = await sessionRes.json()
       const role = session?.user?.role
 
-      const redirectTo = callbackUrl || roleHomeMap[role] || '/student'
+      const roleHome = roleHomeMap[role] || '/student'
+      const redirectTo =
+        callbackUrl && isCallbackForOwnRole(callbackUrl, role)
+          ? callbackUrl
+          : roleHome
       router.push(redirectTo)
       router.refresh()
     } catch (error) {

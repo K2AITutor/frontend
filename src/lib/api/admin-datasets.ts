@@ -24,7 +24,16 @@ export function useDatasets() {
 
   return useQuery({
     queryKey: ["admin", "datasets", token],
-    queryFn: () => apiGet<DatasetVersion[]>("/admin/datasets", token),
+    queryFn: async () => {
+      const list = await apiGet<DatasetVersion[]>("/admin/datasets", token);
+      // Backend serializes the Prisma enum in upper-case (e.g. "READY"),
+      // but the frontend compares against lower-case statuses. Normalize here
+      // so status-dependent UI (Browse button, badge variant) works.
+      return list.map((d) => ({
+        ...d,
+        status: String(d.status).toLowerCase() as DatasetVersion["status"],
+      }));
+    },
     enabled: !!token,
     // Poll every 5 s while any dataset is still building
     refetchInterval: (query) =>

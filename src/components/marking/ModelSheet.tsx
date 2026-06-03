@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/dashboard/ui/sheet";
+import { DetailDrawer } from "@/components/dashboard/ui/detail-drawer";
 import {
   Dialog,
   DialogContent,
@@ -39,11 +33,15 @@ interface Props {
 
 export function ModelSheet({ modelId, onClose }: Props) {
   return (
-    <Sheet open={modelId !== null} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="right" className="sm:max-w-2xl w-full flex flex-col p-0">
-        {modelId && <SheetBody id={modelId} />}
-      </SheetContent>
-    </Sheet>
+    <DetailDrawer
+      open={modelId !== null}
+      onClose={onClose}
+      title="Model Detail"
+      description="Deployment status, eval metrics, and history."
+      size="2xl"
+    >
+      {modelId && <SheetBody id={modelId} />}
+    </DetailDrawer>
   );
 }
 
@@ -80,14 +78,6 @@ function SheetBody({ id }: { id: string }) {
 
   return (
     <>
-      <SheetHeader className="px-6 pt-6 pb-4 pr-12 border-b shrink-0">
-        <SheetTitle>Model Detail</SheetTitle>
-        <SheetDescription>
-          Deployment status, eval metrics, and history.
-        </SheetDescription>
-      </SheetHeader>
-
-      <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
         {isLoading && (
           <div className="flex justify-center py-10">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -190,7 +180,6 @@ function SheetBody({ id }: { id: string }) {
             </div>
           </>
         )}
-      </div>
 
       {data && (
         <>

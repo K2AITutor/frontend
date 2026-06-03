@@ -1,21 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { Button } from "@/components/dashboard/ui/button";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
+import { ConfirmDialog } from "@/components/dashboard/ui/confirm-dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/dashboard/ui/dialog";
-import {
-  ArrowLeft,
   Loader2,
   Mail,
   Phone,
@@ -36,12 +27,10 @@ import {
   useDeleteUser,
 } from "@/lib/api/users";
 import { useAdminToken } from "@/lib/api/useAdminToken";
-import { usePageTitle } from "@/lib/usePageTitle";
 import { apiGet } from "@/lib/apiClient";
 import { toast } from "@/components/dashboard/ui/sonner";
 
-
-interface UserProfile {
+export interface UserProfile {
   id: string;
   name: string;
   firstName: string | null;
@@ -77,11 +66,19 @@ function formatDate(dateString: string): string {
   });
 }
 
-export default function UserProfilePage() {
-  const params = useParams();
-  const router = useRouter();
+interface StudentProfileContentProps {
+  userId: string;
+  /** Called after the user is successfully deleted (page navigates away, drawer closes). */
+  onDeleted?: () => void;
+}
+
+/**
+ * Shared profile body for a single user — used both full-page (`/admin/students/[id]`)
+ * and inside `StudentDetailDrawer`. Owns its own data fetch plus the toggle/resend/delete
+ * actions (Rule 3: confirmations go through ConfirmDialog). See docs/CODING_STANDARDS.md.
+ */
+export function StudentProfileContent({ userId, onDeleted }: StudentProfileContentProps) {
   const [user, setUser] = useState<UserProfile | null>(null);
-  usePageTitle(user ? `${user.name} - User Profile` : "User Profile");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,32 +93,29 @@ export default function UserProfilePage() {
   const fetchUser = useCallback(async () => {
     if (!token) return;
     try {
-      const data = await apiGet<UserProfile>(`/admin/users/${params.id}`, token);
+      const data = await apiGet<UserProfile>(`/admin/users/${userId}`, token);
       setUser(data);
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [params.id, token]);
+  }, [userId, token]);
 
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
 
-  const confirmToggle = () => {
+  const confirmToggle = async () => {
     if (!user) return;
     const wasActive = user.isActive;
-    toggleActive.mutate(user.id, {
-      onSuccess: () => {
-        setToggleDialogOpen(false);
-        fetchUser();
-        toast.success(wasActive ? "User deactivated successfully" : "User activated successfully");
-      },
-      onError: () => {
-        toast.error("Failed to update user status");
-      },
-    });
+    try {
+      await toggleActive.mutateAsync(user.id);
+      fetchUser();
+      toast.success(wasActive ? "User deactivated successfully" : "User activated successfully");
+    } catch {
+      toast.error("Failed to update user status");
+    }
   };
 
   const handleResendVerification = () => {
@@ -137,23 +131,20 @@ export default function UserProfilePage() {
     });
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!user) return;
-    deleteUser.mutate(user.id, {
-      onSuccess: () => {
-        setDeleteDialogOpen(false);
-        toast.success("User deleted successfully");
-        router.push("/admin/users");
-      },
-      onError: () => {
-        toast.error("Failed to delete user");
-      },
-    });
+    try {
+      await deleteUser.mutateAsync(user.id);
+      toast.success("User deleted successfully");
+      onDeleted?.();
+    } catch {
+      toast.error("Failed to delete user");
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -161,21 +152,14 @@ export default function UserProfilePage() {
 
   if (error || !user) {
     return (
-      <div className="flex items-center justify-center h-screen flex-col gap-4">
+      <div className="flex items-center justify-center py-20">
         <p className="text-muted-foreground">{error || "User not found"}</p>
-        <Button variant="outline" onClick={() => router.push("/admin/users")}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
-        </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-6 pb-20 max-w-4xl mx-auto">
-      <Button variant="ghost" onClick={() => router.push("/admin/users")} className="mb-2">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
-      </Button>
-
+    <div className="space-y-6">
       {/* Profile Header */}
       <Card>
         <CardContent className="p-6">
@@ -187,7 +171,7 @@ export default function UserProfilePage() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-2">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-2xl font-bold">{user.name}</h1>
                 {user.isActive ? (
                   <Badge className="bg-green-100 text-green-800">Active</Badge>
@@ -204,7 +188,7 @@ export default function UserProfilePage() {
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1"><Mail className="h-4 w-4" /> {user.email}</span>
                 {user.phone && <span className="flex items-center gap-1"><Phone className="h-4 w-4" /> {user.phone}</span>}
               </div>
@@ -322,56 +306,40 @@ export default function UserProfilePage() {
       </Card>
 
       {/* Toggle Active Confirmation */}
-      <Dialog open={toggleDialogOpen} onOpenChange={setToggleDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{user.isActive ? "Deactivate" : "Activate"} User</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to {user.isActive ? "deactivate" : "activate"}{" "}
-              <span className="font-semibold text-foreground">{user.name}</span> ({user.email})?
-              {user.isActive
-                ? " They will no longer be able to access the platform."
-                : " They will regain access to the platform."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setToggleDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={confirmToggle} disabled={toggleActive.isPending}>
-              {toggleActive.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {user.isActive ? "Deactivate" : "Activate"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={toggleDialogOpen}
+        onOpenChange={setToggleDialogOpen}
+        title={`${user.isActive ? "Deactivate" : "Activate"} User`}
+        description={
+          `Are you sure you want to ${user.isActive ? "deactivate" : "activate"} ${user.name} (${user.email})?` +
+          (user.isActive
+            ? " They will no longer be able to access the platform."
+            : " They will regain access to the platform.")
+        }
+        confirmLabel={user.isActive ? "Deactivate" : "Activate"}
+        variant={user.isActive ? "destructive" : "default"}
+        loading={toggleActive.isPending}
+        onConfirm={confirmToggle}
+        icon={<Power className="h-4 w-4" />}
+      />
 
       {/* Delete Confirmation */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete <span className="font-semibold text-foreground">{user.name}</span> ({user.email})?
-              This action cannot be undone and will remove all associated data.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={deleteUser.isPending}>
-              {deleteUser.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete User"
+        description={`Are you sure you want to delete ${user.name} (${user.email})? This action cannot be undone and will remove all associated data.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        loading={deleteUser.isPending}
+        onConfirm={confirmDelete}
+        icon={<Trash2 className="h-4 w-4" />}
+      />
     </div>
   );
 }
 
-function DetailRow({
+export function DetailRow({
   icon: Icon,
   label,
   value,
