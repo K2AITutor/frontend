@@ -8,6 +8,6 @@ export function useStudentDashboardData() {
 
   return useQuery({
     queryKey: ["studentDashboardData"],
-    queryFn: ({ signal }) => fetcher.get<StudentDashboardData>(PATH.dashboard.student, { signal }),
+    queryFn: ({ signal }) => fetcher.get<StudentDashboardData>(PATH.dashboard.data, { signal }),
   });
 }

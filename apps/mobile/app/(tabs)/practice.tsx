@@ -127,6 +127,16 @@ export default function PracticeScreen() {
         <View className="flex-row flex-wrap gap-3 mb-8">
           {subjects.map((subject, index) => {
             const Icon = fallbackIcons[index % fallbackIcons.length];
+            const SUBJECT_CODE_MAP: Record<number, string> = {
+              1: "MATH_METHODS",
+              2: "SPECIALIST_MATHS",
+              3: "PHYSICS",
+              4: "CHEMISTRY",
+              5: "BIOLOGY",
+              6: "ENGLISH",
+              7: "PSYCHOLOGY",
+            };
+            const isAvailable = subject.id === 1; // Only Maths Methods is currently available for practice
 
             return (
               <View
@@ -147,7 +157,7 @@ export default function PracticeScreen() {
                       </Text>
                     </View>
                   </View>
-                  <Text className="text-primary font-bold text-lg">New</Text>
+                  {isAvailable && <Text className="text-primary font-bold text-lg">New</Text>}
                 </View>
 
                 <View className="h-2.5 w-full bg-muted rounded-full overflow-hidden mb-4">
@@ -158,11 +168,15 @@ export default function PracticeScreen() {
                 </View>
 
                 <Pressable
-                  className="w-full bg-primary py-3.5 rounded-2xl active:opacity-80"
-                  onPress={() => router.push(`/practice/${subject.id}`)}
+                  className={`w-full py-3.5 rounded-2xl ${isAvailable ? "bg-primary active:opacity-80" : "bg-muted/80"}`}
+                  disabled={!isAvailable}
+                  onPress={() => {
+                    const subjectCode = SUBJECT_CODE_MAP[subject.id] || "MATH_METHODS";
+                    router.push(`/practice/${subjectCode}`);
+                  }}
                 >
-                  <Text className="text-primary-foreground font-semibold text-center">
-                    Start Practice
+                  <Text className={`${isAvailable ? "text-primary-foreground font-semibold" : "text-muted-foreground font-medium"} text-center`}>
+                    {isAvailable ? "Start Practice" : "Coming Soon"}
                   </Text>
                 </Pressable>
               </View>

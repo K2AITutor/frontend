@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Appearance, type ColorSchemeName } from "react-native";
 import * as SecureStore from "expo-secure-store";
+import { colorScheme as cssColorScheme } from "react-native-css";
 
 type ThemePreference = "system" | "light" | "dark";
 
@@ -45,14 +46,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setPreference = useCallback(async (nextPreference: ThemePreference) => {
     setPreferenceState(nextPreference);
     await SecureStore.setItemAsync(THEME_KEY, nextPreference);
-    Appearance.setColorScheme(nextPreference === "system" ? null : nextPreference);
   }, []);
 
   const colorScheme = resolveScheme(preference, systemScheme);
 
   useEffect(() => {
+    const activeScheme = preference === "system" ? (systemScheme || "dark") : preference;
+    cssColorScheme.set(activeScheme);
     Appearance.setColorScheme(preference === "system" ? null : preference);
-  }, [preference]);
+  }, [preference, systemScheme]);
 
   const value = useMemo(
     () => ({ colorScheme, preference, setPreference }),
