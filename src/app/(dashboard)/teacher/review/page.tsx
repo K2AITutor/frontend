@@ -23,9 +23,8 @@ import type { ReviewQueueItem } from "@/lib/types/review";
 
 const REASON_OPTIONS = [
   { value: "all", label: "All reasons" },
-  { value: "ensemble_divergence", label: "Ensemble divergence" },
   { value: "low_overall_confidence", label: "Low confidence" },
-  { value: "escalated", label: "Escalated" },
+  { value: "audit_sample", label: "Audit sample" },
 ];
 
 const confidenceBadge = (level: ReviewQueueItem["confidenceLevel"]) => {
