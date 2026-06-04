@@ -51,6 +51,7 @@ export const PATH = {
     explain: "/ai-tutor/explain",
     hint: "/ai-tutor/hint",
     similar: "/ai-tutor/similar",
+    explainPhoto: "/ai-tutor/explain-photo",
   },
   analytics: {
     topicProgress: "/analytics/topic-progress",

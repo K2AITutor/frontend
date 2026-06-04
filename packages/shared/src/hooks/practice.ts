@@ -85,3 +85,25 @@ export function useSimilarQuestion() {
       fetcher.post<AiSimilarQuestionResponse>(PATH.ai.similar, { questionId }),
   });
 }
+
+export interface GradePhotoAnswerPayload {
+  questionId?: number | string;
+  image: string;
+  subject?: string;
+}
+
+export function useGradePhotoAnswer() {
+  const fetcher = useFetcher();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: GradePhotoAnswerPayload) =>
+      fetcher.post<any>(PATH.ai.explainPhoto, payload),
+    onSuccess: (_data, payload) => {
+      queryClient.invalidateQueries({ queryKey: ["practice"] });
+      if (payload.subject) {
+        queryClient.invalidateQueries({ queryKey: ["analytics", "topicProgress", payload.subject] });
+      }
+    },
+  });
+}

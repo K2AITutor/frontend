@@ -3,10 +3,9 @@ import { View, Text, ScrollView, Pressable, useCSSVariable } from "../../src/tw"
 import { useRouter } from "expo-router";
 import { BookOpen, Clock, Trophy, Brain, Camera } from "lucide-react-native";
 import { Screen, ScreenHeader } from "../../src/components/Screen";
-import { useSubjects } from "@aitutor/shared";
+import { useSubjects, useGradePhotoAnswer } from "@aitutor/shared";
 import { Alert, Modal } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import apiClient from "../../src/lib/apiClient";
 import { MathView } from "../../src/components/math/MathView";
 
 export default function PracticeScreen() {
@@ -16,7 +15,7 @@ export default function PracticeScreen() {
   const { data: subjects = [], isLoading, isError } = useSubjects();
   const fallbackIcons = [BookOpen, Brain, Clock, Trophy];
 
-  const [isUploading, setIsUploading] = useState(false);
+  const gradePhotoAnswer = useGradePhotoAnswer();
   const [modalVisible, setModalVisible] = useState(false);
   const [modalData, setModalData] = useState<any>(null);
 
@@ -72,21 +71,18 @@ export default function PracticeScreen() {
         return;
       }
 
-      setIsUploading(true);
-
-      // Send to the backend
-      const response = await apiClient.post("/ai-tutor/explain-photo", {
+      await gradePhotoAnswer.mutateAsync({
         image: result.assets[0].base64,
         subject: "MATH_METHODS",
+      }, {
+        onSuccess: (data) => {
+          setModalData(data);
+          setModalVisible(true);
+        },
       });
-
-      setModalData(response.data);
-      setModalVisible(true);
     } catch (error) {
       console.error("[Photo Tutor] Error uploading photo:", error);
       Alert.alert("Upload Failed", "AI could not process the photo. Please try again.");
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -215,7 +211,7 @@ export default function PracticeScreen() {
       </Modal>
 
       {/* Premium Processing overlay */}
-      {isUploading && (
+      {gradePhotoAnswer.isPending && (
         <View className="absolute inset-0 bg-background/80 items-center justify-center z-50">
           <View className="bg-card p-8 rounded-3xl border border-border items-center max-w-xs shadow-lg">
             <Camera size={32} color={primary} className="animate-pulse mb-4" />
