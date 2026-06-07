@@ -45,7 +45,7 @@ export default function AdminContentQuestionsPage() {
           render: (item) => (
             <div className="space-y-1">
               <p className="truncate font-medium">{item.title || item.questionText || item.prompt}</p>
-              <p className="truncate text-xs text-muted-foreground">{item.sourceRef ?? item.topic?.name ?? "-"}</p>
+              <p className="truncate text-xs text-muted-foreground">{item.sourceQuestionRef ?? item.topic?.name ?? "-"}</p>
             </div>
           ),
         },

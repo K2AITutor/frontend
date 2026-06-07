@@ -53,7 +53,7 @@ export interface AdminQuestion {
   difficultyLevel: string | null;
   marks: number;
   isMarkable: boolean;
-  sourceRef: string | null;
+  sourceQuestionRef: string | null;
   createdAt: string;
   updatedAt: string;
   topic?: { name: string } | null;
