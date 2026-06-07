@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { useTheme } from "next-themes";
-import { Sun, Moon, Menu, X } from 'lucide-react'
+import { Sun, Moon, Menu, X, ChevronDown, LayoutDashboard, LogOut } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSession, signOut } from "next-auth/react"
 import { usePathname, useRouter } from 'next/navigation'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { cn } from '@/lib/utils'
 import Button from './Button'
 
@@ -16,6 +17,15 @@ function getDashboardHref(role?: string) {
   return '/student'
 }
 
+function getInitials(value: string): string {
+  if (value.includes('@')) {
+    return value.split('@')[0].slice(0, 2).toUpperCase()
+  }
+  const parts = value.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '??'
+  return parts.map((p) => p[0]).join('').slice(0, 2).toUpperCase()
+}
+
 export default function Navbar() {
   const { theme, setTheme } = useTheme();
   const { data: session, status } = useSession();
@@ -23,7 +33,11 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
-  const dashboardHref = getDashboardHref((session?.user as any)?.role)
+  const role = (session?.user as any)?.role as string | undefined
+  const dashboardHref = getDashboardHref(role)
+  const displayName = session?.user?.name || session?.user?.email || 'User'
+  const displayEmail = session?.user?.email || ''
+  const initials = getInitials(displayName)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -108,14 +122,65 @@ export default function Navbar() {
             </div>
 
             <div className="flex items-center gap-4">
-              {status === "authenticated" ? (
+              {status === "loading" ? (
                 <>
-                  <Link href={dashboardHref} className="text-text-primary py-2 px-4 hover:text-accent-teal transition-colors duration-200">
-                    Dashboard
-                  </Link>
-                  <Button variant="primary" size="md" onClick={() => signOut()}>
-                    Sign Out
+                  <div className="h-11 w-28 bg-bg-tertiary rounded-lg animate-pulse" />
+                  <div className="h-10 w-10 bg-bg-tertiary rounded-full animate-pulse" />
+                </>
+              ) : status === "authenticated" ? (
+                <>
+                  <Button variant="primary" size="md" asChild>
+                    <Link href={dashboardHref}>Dashboard</Link>
                   </Button>
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger asChild>
+                      <button
+                        className="flex items-center gap-1.5 bg-transparent border-none p-1 rounded-full text-text-secondary hover:text-text-primary transition-colors duration-200 group"
+                        aria-label="Account menu"
+                      >
+                        <span className="w-9 h-9 bg-gradient-to-br from-accent-teal to-accent-coral rounded-full flex items-center justify-center text-[0.8125rem] font-semibold text-bg-primary">
+                          {initials}
+                        </span>
+                        <ChevronDown className="w-4 h-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                      </button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Portal>
+                      <DropdownMenu.Content
+                        align="end"
+                        sideOffset={10}
+                        className="z-[1001] min-w-[220px] bg-bg-secondary border border-border-subtle rounded-xl p-2 shadow-2xl"
+                      >
+                        <div className="px-3 py-2">
+                          <p className="text-[0.9375rem] font-semibold text-text-primary truncate">{displayName}</p>
+                          {displayEmail && (
+                            <p className="text-[0.8125rem] text-text-muted truncate">{displayEmail}</p>
+                          )}
+                          {role && (
+                            <span className="inline-block mt-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-accent-teal bg-accent-teal/10 rounded-full px-2 py-0.5">
+                              {role}
+                            </span>
+                          )}
+                        </div>
+                        <DropdownMenu.Separator className="h-[1px] bg-border-subtle my-1.5" />
+                        <DropdownMenu.Item asChild>
+                          <Link
+                            href={dashboardHref}
+                            className="flex items-center gap-2.5 px-3 py-2.5 text-[0.9375rem] text-text-secondary rounded-lg outline-none cursor-pointer hover:bg-bg-tertiary hover:text-text-primary data-[highlighted]:bg-bg-tertiary data-[highlighted]:text-text-primary transition-colors duration-150"
+                          >
+                            <LayoutDashboard className="w-4 h-4" />
+                            Dashboard
+                          </Link>
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item
+                          onSelect={() => signOut()}
+                          className="flex items-center gap-2.5 px-3 py-2.5 text-[0.9375rem] text-accent-coral rounded-lg outline-none cursor-pointer hover:bg-accent-coral/10 data-[highlighted]:bg-accent-coral/10 transition-colors duration-150"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Sign Out
+                        </DropdownMenu.Item>
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Portal>
+                  </DropdownMenu.Root>
                 </>
               ) : (
                 <>
@@ -225,14 +290,30 @@ export default function Navbar() {
                   </button>
                 </div>
 
-                {status === "authenticated" ? (
+                {status === "loading" ? (
                   <>
-                    <Link href={dashboardHref} onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="secondary" className="w-full">
+                    <div className="h-12 w-full bg-bg-tertiary rounded-lg animate-pulse" />
+                    <div className="h-12 w-full bg-bg-tertiary rounded-lg animate-pulse" />
+                  </>
+                ) : status === "authenticated" ? (
+                  <>
+                    <div className="flex items-center gap-3 p-3 bg-bg-tertiary rounded-xl">
+                      <span className="w-10 h-10 shrink-0 bg-gradient-to-br from-accent-teal to-accent-coral rounded-full flex items-center justify-center text-[0.875rem] font-semibold text-bg-primary">
+                        {initials}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[0.9375rem] font-semibold text-text-primary truncate">{displayName}</p>
+                        {displayEmail && (
+                          <p className="text-[0.8125rem] text-text-muted truncate">{displayEmail}</p>
+                        )}
+                      </div>
+                    </div>
+                    <Button variant="primary" className="w-full" asChild>
+                      <Link href={dashboardHref} onClick={() => setMobileMenuOpen(false)}>
                         Dashboard
-                      </Button>
-                    </Link>
-                    <Button variant="primary" className="w-full" onClick={() => signOut()}>
+                      </Link>
+                    </Button>
+                    <Button variant="secondary" className="w-full" onClick={() => signOut()}>
                       Sign Out
                     </Button>
                   </>

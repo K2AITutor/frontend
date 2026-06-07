@@ -109,7 +109,10 @@ export function DashboardHeader({ role }: DashboardHeaderProps) {
                   src={(session?.user as any)?.image || undefined}
                   alt={displayName}
                 />
-                <AvatarFallback>{initials}</AvatarFallback>
+                {/* Matches the public navbar avatar (components/public/Navbar.tsx) */}
+                <AvatarFallback className="bg-gradient-to-br from-accent-teal to-accent-coral text-[0.8125rem] font-semibold text-avatar-foreground">
+                  {initials}
+                </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
