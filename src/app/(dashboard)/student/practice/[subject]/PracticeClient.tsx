@@ -961,7 +961,7 @@ export default function PracticeClient({
                         <div className="space-y-6">
                             <div>
                                 <div className="mb-3 text-sm text-slate-400">Current question</div>
-                                <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-5 text-2xl font-medium text-white">
+                                <div data-testid="practice-question" className="rounded-2xl border border-white/10 bg-slate-950/50 p-5 text-2xl font-medium text-white">
                                     {currentQuestion?.questionText || 'No question available for this topic yet.'}
                                 </div>
                             </div>
@@ -971,6 +971,7 @@ export default function PracticeClient({
                                     Your answer
                                 </label>
                                 <input
+                                    data-testid="practice-answer"
                                     value={userAnswer}
                                     onChange={(e) => setUserAnswer(e.target.value)}
                                     placeholder="Enter your answer"
@@ -983,6 +984,7 @@ export default function PracticeClient({
                                 <div className="space-y-4">
                                     <div className="flex flex-wrap items-center gap-4">
                                         <button
+                                            data-testid="practice-submit"
                                             type="button"
                                             onClick={handleSubmit}
                                             disabled={!currentQuestion || !userAnswer.trim() || loadingSubmit || hasResolvedCurrent}
@@ -1013,21 +1015,21 @@ export default function PracticeClient({
                                     </div>
 
                                     {hint1Text && (
-                                        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-slate-100">
+                                        <div data-testid="ai-hint-1" className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-slate-100">
                                             <div className="mb-2 font-semibold text-amber-300">Hint 1</div>
                                             <div className="whitespace-pre-line">{hint1Text}</div>
                                         </div>
                                     )}
 
                                     {hint2Text && (
-                                        <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-4 text-slate-100">
+                                        <div data-testid="ai-hint-2" className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-4 text-slate-100">
                                             <div className="mb-2 font-semibold text-orange-300">Hint 2</div>
                                             <div className="whitespace-pre-line">{hint2Text}</div>
                                         </div>
                                     )}
 
                                     {submissionResult && (
-                                        <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-5">
+                                        <div data-testid="practice-feedback" className="rounded-2xl border border-white/10 bg-slate-950/45 p-5">
                                             <div
                                                 className={`text-2xl font-bold ${submissionResult.wasSkipped
                                                         ? 'text-sky-300'
@@ -1243,7 +1245,7 @@ export default function PracticeClient({
                                     )}
 
                                     {explainText && (
-                                        <div className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4 text-slate-100">
+                                        <div data-testid="ai-explanation" className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4 text-slate-100">
                                             <div className="mb-2 font-semibold text-violet-300">
                                                 Worked explanation
                                             </div>

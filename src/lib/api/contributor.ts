@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getSession, useSession } from "next-auth/react";
-import { apiGet, apiPost, apiPut } from "@/lib/apiClient";
+import { apiGet, apiPatch, apiPost, apiPut } from "@/lib/apiClient";
 
 export type ContributorTaskStatus =
     | "TODO"
@@ -143,6 +143,14 @@ export function useContributorTasks() {
         enabled: !!token,
         staleTime: 30_000,
     });
+}
+
+export async function updateContributorTaskStatus(
+    taskId: number | string,
+    status: ContributorTaskStatus
+) {
+    const token = await getAccessToken();
+    return apiPatch<ContributorTask>(`/contributor/tasks/${taskId}/status`, { status }, token);
 }
 
 export function useContributorRubricDrafts() {

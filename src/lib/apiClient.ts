@@ -127,6 +127,21 @@ export async function apiPut<T>(path: string, body: any, token?: string): Promis
   return safeJsonFromResponse<T>(res, url);
 }
 
+export async function apiPatch<T>(path: string, body: any, token?: string): Promise<T> {
+  const base = getApiBase();
+  const url = `${base}${path}`;
+  const resolvedToken = await resolveBrowserSessionToken(token);
+
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: buildHeaders(resolvedToken),
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+
+  return safeJsonFromResponse<T>(res, url);
+}
+
 export async function apiDelete<T>(path: string, token?: string): Promise<T> {
   const base = getApiBase();
   const url = `${base}${path}`;
