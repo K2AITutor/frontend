@@ -1,13 +1,13 @@
 export type PracticeQuestion = {
     id: number | string;
-    prompt: string;
-    answer?: string;
+    // Canonical keys (legacy prompt/answer/difficulty/subject đã bỏ khỏi API responses)
+    questionText: string;
+    correctAnswer?: string | null;
     marks?: number;
-    difficulty?: string;
+    difficultyLevel?: string | null;
     topicCode?: string;
     subtopicCode?: string;
     skillCode?: string;
-    subject?: string;
     subjectCode?: string;
     questionSource?: string;
     contentOrigin?: string;

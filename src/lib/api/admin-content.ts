@@ -39,17 +39,13 @@ export interface AdminSkill {
 
 export interface AdminQuestion {
   id: number;
-  subject: string;
-  subjectCode: string | null;
+  subjectCode: string;
   topicCode: string;
   skillCode: string;
-  examStyle: string | null;
   examStyleType: string | null;
   status: string;
   title: string | null;
-  prompt: string;
-  questionText: string | null;
-  difficulty: string | null;
+  questionText: string;
   difficultyLevel: string | null;
   marks: number;
   isMarkable: boolean;
@@ -69,12 +65,10 @@ export interface AdminRubric {
   approvedAt: string | null;
   updatedAt: string;
   question?: {
-    subject: string;
-    subjectCode: string | null;
+    subjectCode: string;
     topicCode: string;
     skillCode: string;
-    prompt: string;
-    questionText: string | null;
+    questionText: string;
     title: string | null;
   } | null;
   _count?: { criteria: number };

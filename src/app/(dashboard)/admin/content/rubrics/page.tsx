@@ -35,7 +35,7 @@ export default function AdminContentRubricsPage() {
           render: (item) => (
             <div className="space-y-1">
               <p className="truncate font-medium">
-                {item.question?.title || item.question?.questionText || item.question?.prompt || "-"}
+                {item.question?.title || item.question?.questionText || "-"}
               </p>
               <p className="truncate text-xs text-muted-foreground">
                 {item.question?.topicCode ?? "-"} / {item.question?.skillCode ?? "-"}

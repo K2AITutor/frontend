@@ -237,7 +237,7 @@ export default function AnnotationWorkspacePage({
               <CardTitle className="text-sm">Question</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <p className="text-sm whitespace-pre-wrap">{question.prompt}</p>
+              <p className="text-sm whitespace-pre-wrap">{question.questionText}</p>
               {question.expectedAnswer && (
                 <>
                   <Separator />

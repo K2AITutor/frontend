@@ -31,15 +31,13 @@ type MarkingResult = {
 type ExamQuestionLike = {
   id: number | string;
   questionNumber?: string | null;
-  prompt: string;
-  questionText?: string | null;
-  answer?: string;
+  questionText: string;
   answerType?: string;
   marks?: number;
   skillCode?: string | null;
   topicCode?: string | null;
   subtopicCode?: string | null;
-  difficulty?: string | null;
+  difficultyLevel?: string | null;
   isMarkable?: boolean | null;
   rubricKey?: string | null;
   pdfPage?: number | null;

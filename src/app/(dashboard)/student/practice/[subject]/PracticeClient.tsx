@@ -280,7 +280,7 @@ export default function PracticeClient({
     }, [groupedTopics, selectedTopicCode]);
 
     const currentDifficultyLabel = useMemo(
-        () => formatDifficultyLabel((currentQuestion as any)?.difficulty),
+        () => formatDifficultyLabel(currentQuestion?.difficultyLevel),
         [currentQuestion]
     );
 
@@ -392,7 +392,9 @@ export default function PracticeClient({
             const filtered =
                 difficultyFilter === 'all'
                     ? nextQuestions
-                    : nextQuestions.filter((q: any) => q.difficulty === difficultyFilter);
+                    : nextQuestions.filter(
+                        (q: any) => String(q.difficultyLevel ?? '').toLowerCase() === difficultyFilter
+                    );
 
             const questionList = Array.isArray(filtered) ? filtered : [];
             const firstQuestion = questionList[0] ?? null;
@@ -472,7 +474,7 @@ export default function PracticeClient({
                 workedSolution: result?.workedSolution ?? result?.explanation ?? null,
                 modelAnswer:
                     result?.correctAnswer ||
-                    (currentQuestion as any).answer ||
+                    currentQuestion?.correctAnswer ||
                     'No model answer available.',
                 commonMistake:
                     result?.commonMistake ||
@@ -521,7 +523,7 @@ export default function PracticeClient({
                 feedback: 'Unable to submit answer at the moment.',
                 explanation: 'Unable to submit answer at the moment.',
                 workedSolution: null,
-                modelAnswer: (currentQuestion as any)?.answer || 'No model answer available.',
+                modelAnswer: currentQuestion?.correctAnswer || 'No model answer available.',
                 commonMistake: 'Submission service unavailable.',
             });
         } finally {
@@ -539,7 +541,7 @@ export default function PracticeClient({
             feedback: 'Question skipped. No attempt was recorded. Move on now, or retry this question before continuing.',
             explanation: null,
             workedSolution: null,
-            modelAnswer: (currentQuestion as any)?.answer || 'No model answer available.',
+            modelAnswer: currentQuestion?.correctAnswer || 'No model answer available.',
             commonMistake: null,
             wasSkipped: true,
         });
@@ -562,7 +564,7 @@ export default function PracticeClient({
             const res = await aiHint({
                 subject,
                 skillCode: (currentQuestion as any).skillCode || selectedTopicCode,
-                question: (currentQuestion as any).prompt,
+                question: currentQuestion?.questionText ?? '',
                 studentAnswer: userAnswer,
                 level,
             });
@@ -593,9 +595,9 @@ export default function PracticeClient({
             const res = await aiExplain({
                 subject,
                 skillCode: (currentQuestion as any).skillCode || selectedTopicCode,
-                question: (currentQuestion as any).prompt,
+                question: currentQuestion?.questionText ?? '',
                 studentAnswer: userAnswer,
-                correctAnswer: (currentQuestion as any).answer || '',
+                correctAnswer: currentQuestion?.correctAnswer || '',
             });
 
             const parts: string[] = [];
@@ -646,7 +648,7 @@ export default function PracticeClient({
                     topicCode: selectedTopicCode,
                     questionId: String((currentQuestion as any).id),
                     skillCode: (currentQuestion as any).skillCode || undefined,
-                    difficulty: (currentQuestion as any).difficulty || undefined,
+                    difficulty: currentQuestion?.difficultyLevel || undefined,
                     skillGaps: submissionResult?.skillGaps,
                     limit: 5,
                 });
@@ -676,7 +678,7 @@ export default function PracticeClient({
                 const aiRes = await aiSimilarQuestion({
                     subject,
                     skillCode: (currentQuestion as any).skillCode || selectedTopicCode,
-                    question: (currentQuestion as any).prompt,
+                    question: currentQuestion?.questionText ?? '',
                 });
 
                 setSimilarQuestionText(
@@ -724,7 +726,9 @@ export default function PracticeClient({
             const filtered =
                 difficultyFilter === 'all'
                     ? nextQuestions
-                    : nextQuestions.filter((q: any) => q.difficulty === difficultyFilter);
+                    : nextQuestions.filter(
+                        (q: any) => String(q.difficultyLevel ?? '').toLowerCase() === difficultyFilter
+                    );
 
             const pool = Array.isArray(filtered) ? filtered : [];
             const nextQuestion = chooseNextSessionQuestion(
@@ -958,7 +962,7 @@ export default function PracticeClient({
                             <div>
                                 <div className="mb-3 text-sm text-slate-400">Current question</div>
                                 <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-5 text-2xl font-medium text-white">
-                                    {(currentQuestion as any)?.prompt || 'No question available for this topic yet.'}
+                                    {currentQuestion?.questionText || 'No question available for this topic yet.'}
                                 </div>
                             </div>
 
@@ -1067,7 +1071,7 @@ export default function PracticeClient({
                                                 </div>
                                                 <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-slate-100">
                                                     {submissionResult.modelAnswer ||
-                                                        (currentQuestion as any)?.answer ||
+                                                        currentQuestion?.correctAnswer ||
                                                         'No model answer available.'}
                                                 </div>
                                             </div>

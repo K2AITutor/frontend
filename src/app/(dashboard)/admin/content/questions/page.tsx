@@ -44,14 +44,14 @@ export default function AdminContentQuestionsPage() {
           className: "max-w-[320px]",
           render: (item) => (
             <div className="space-y-1">
-              <p className="truncate font-medium">{item.title || item.questionText || item.prompt}</p>
+              <p className="truncate font-medium">{item.title || item.questionText}</p>
               <p className="truncate text-xs text-muted-foreground">{item.sourceQuestionRef ?? item.topic?.name ?? "-"}</p>
             </div>
           ),
         },
         { key: "topic", label: "Topic", render: (item) => <span className="font-mono text-xs">{item.topicCode}</span> },
         { key: "skill", label: "Skill", render: (item) => <span className="font-mono text-xs">{item.skillCode}</span> },
-        { key: "style", label: "Style", render: (item) => item.examStyleType ?? item.examStyle ?? "-" },
+        { key: "style", label: "Style", render: (item) => item.examStyleType ?? "-" },
         { key: "marks", label: "Marks", render: (item) => item.marks },
         { key: "status", label: "Status", render: (item) => <StatusBadge value={item.status} /> },
         { key: "rubric", label: "Rubric", render: (item) => item.rubric ? <StatusBadge value={item.rubric.status} /> : "-" },

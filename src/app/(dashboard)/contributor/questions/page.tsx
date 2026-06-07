@@ -101,7 +101,7 @@ export default function ContributorQuestionsPage() {
                                             Question #{question.id}
                                         </CardTitle>
                                         <p className="text-sm text-muted-foreground">
-                                            {question.questionText || question.prompt}
+                                            {question.questionText}
                                         </p>
                                     </div>
 

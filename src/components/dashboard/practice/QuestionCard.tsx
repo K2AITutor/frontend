@@ -11,7 +11,7 @@ export default function QuestionCard({
 }) {
     return (
         <div className="glass p-4">
-            <p className="text-lg font-medium">{question.prompt}</p>
+            <p className="text-lg font-medium">{question.questionText}</p>
         </div>
     );
 }

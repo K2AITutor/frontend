@@ -218,12 +218,11 @@ export type ExamQuestionDTO = {
   questionNumber: string;
   marks: number;
   answerType: string;
-  prompt: string;
-  questionText?: string | null;
+  questionText: string;
   skillCode?: string | null;
   topicCode?: string | null;
   subtopicCode?: string | null;
-  difficulty?: string | null;
+  difficultyLevel?: string | null;
   isMarkable?: boolean | null;
   rubricKey?: string | null;
   markingMeta?: any;

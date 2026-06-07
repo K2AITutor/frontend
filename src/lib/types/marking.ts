@@ -84,7 +84,7 @@ export interface StudentAnswer {
 
 export interface QuestionSummary {
   id: string;
-  prompt: string;
+  questionText: string;
   type: string;
   maxScore: number;
   expectedAnswer?: string;
