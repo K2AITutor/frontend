@@ -37,10 +37,11 @@ import {
   ListChecks,
   ClipboardCheck,
   ChevronDown,
+  Bell,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
-export type UserRole = "student" | "teacher" | "admin" | "contributor";
+export type UserRole = "student" | "teacher" | "admin" | "contributor" | "parent";
 
 interface NavItem {
   title: string;
@@ -241,11 +242,40 @@ const contributorNavItems: NavItem[] = [
   },
 ];
 
+const parentNavItems: NavItem[] = [
+  {
+    title: "Dashboard",
+    href: "/parent",
+    icon: <LayoutDashboard className="h-5 w-5" />,
+  },
+  {
+    title: "Children",
+    href: "/parent/children",
+    icon: <Users className="h-5 w-5" />,
+  },
+  {
+    title: "Alerts",
+    href: "/parent/alerts",
+    icon: <Bell className="h-5 w-5" />,
+  },
+  {
+    title: "Reports",
+    href: "/parent/reports",
+    icon: <BarChart3 className="h-5 w-5" />,
+  },
+  {
+    title: "Settings",
+    href: "/parent/settings",
+    icon: <Settings className="h-5 w-5" />,
+  },
+];
+
 const navItemsByRole: Record<UserRole, NavItem[]> = {
   student: studentNavItems,
   teacher: teacherNavItems,
   admin: adminNavGroups.flatMap((group) => group.items),
   contributor: contributorNavItems,
+  parent: parentNavItems,
 };
 
 const roleLabels: Record<UserRole, string> = {
@@ -253,6 +283,7 @@ const roleLabels: Record<UserRole, string> = {
   teacher: "Teacher Portal",
   admin: "Admin Portal",
   contributor: "Contributor Portal",
+  parent: "Parent Portal",
 };
 
 export function DashboardSidebar({

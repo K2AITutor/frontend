@@ -1,5 +1,9 @@
-import { redirect } from "next/navigation";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 
-export default function ParentLayout() {
-  redirect("/student");
+export default function ParentLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return <DashboardLayout role="parent">{children}</DashboardLayout>;
 }

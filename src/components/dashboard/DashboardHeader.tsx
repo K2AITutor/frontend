@@ -126,7 +126,7 @@ export function DashboardHeader({ role }: DashboardHeaderProps) {
             </DropdownMenuLabel>
 
             <DropdownMenuSeparator />
-            {role === "student" ? (
+            {role === "student" || role === "parent" ? (
               <DropdownMenuItem asChild>
                 <Link href={`/${role}/settings`} className="flex items-center">
                   <Settings className="mr-2 h-4 w-4" />

@@ -6,6 +6,7 @@ const roleHomeMap: Record<string, string> = {
   contributor: "/contributor",
   student: "/student",
   teacher: "/teacher/review",
+  parent: "/parent",
 };
 
 const routeAccessMap: Record<string, string[]> = {
@@ -13,6 +14,7 @@ const routeAccessMap: Record<string, string[]> = {
   contributor: ["admin", "contributor", "teacher"],
   student: ["student"],
   teacher: ["teacher"],
+  parent: ["parent"],
 };
 
 export default withAuth(
@@ -44,12 +46,6 @@ export default withAuth(
 
     if (token && isAuthPage) {
       return NextResponse.redirect(new URL(roleHomeMap[role ?? ""] ?? "/student", req.url));
-    }
-
-    if (pathname.startsWith("/parent")) {
-      return NextResponse.redirect(
-        new URL(roleHomeMap[role ?? ""] ?? "/auth/login", req.url)
-      );
     }
 
     for (const [routeRole, allowedRoles] of Object.entries(routeAccessMap)) {

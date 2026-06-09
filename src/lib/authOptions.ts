@@ -50,7 +50,9 @@ export const authOptions: NextAuthOptions = {
                     name: data.email?.split("@")[0] || data.email,
                     role: data.role,
                     accessToken: data.access_token,
-                    profileCompleted: true,
+                    // Read the real value from backend so the complete-profile flow
+                    // works; default to true for older responses that omit it.
+                    profileCompleted: data.profileCompleted ?? true,
                     rememberMe,
                 };
             },

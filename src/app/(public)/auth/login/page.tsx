@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import { Lock, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import AuthBanner from '@/components/auth/AuthBanner'
-import { Suspense, useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { Suspense, useEffect, useState } from 'react'
+import { signIn, useSession } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from '@/components/dashboard/ui/sonner'
 
@@ -20,6 +20,7 @@ function LoginPageContent() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || ''
   const router = useRouter()
+  const { status, data: session } = useSession()
 
   const roleHomeMap: Record<string, string> = {
     student: '/student',
@@ -27,6 +28,18 @@ function LoginPageContent() {
     admin: '/admin',
     contributor: '/contributor',
   }
+
+  // Đã đăng nhập thì không nên thấy lại form login. Middleware không xử lý được
+  // trang này: next-auth withAuth early-return cho pages.signIn (/auth/login) để
+  // tránh redirect loop, nên phải redirect ở client. Bỏ qua khi đang trong luồng
+  // đăng nhập tại trang này (isRedirecting) để không đua với router.push của handleSubmit.
+  useEffect(() => {
+    if (status !== 'authenticated' || isRedirecting) return
+    const role = (session?.user as any)?.role as string | undefined
+    router.replace(roleHomeMap[role ?? ''] ?? '/student')
+    // roleHomeMap is a stable literal; deps tracked are the dynamic values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session, isRedirecting, router])
 
   // A callbackUrl pointing into another role's dashboard section (e.g. a
   // leftover /contributor from a previous redirect) must not override the
@@ -124,7 +137,7 @@ function LoginPageContent() {
         </div>
       )}
       <div className="flex min-h-screen">
-        <div className="w-[40%] p-12 overflow-y-auto flex flex-col bg-bg-secondary">
+        <div className="w-full lg:w-[40%] p-6 sm:p-12 overflow-y-auto flex flex-col bg-bg-secondary">
           <Link href="/" className="flex items-center gap-3 mb-8">
             <div className="w-[42px] h-[42px] bg-gradient-to-br from-accent-teal to-accent-coral rounded-[10px] flex items-center justify-center font-serif text-[1.25rem] font-normal text-bg-primary">
               V
