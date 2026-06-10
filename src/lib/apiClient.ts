@@ -13,6 +13,33 @@ function getApiBase() {
   return clean.endsWith("/api") ? clean : `${clean}/api`;
 }
 
+// Prevent multiple parallel 401s (e.g. a dashboard firing several API calls at
+// once) from each triggering a sign-out/redirect.
+let handlingUnauthorized = false;
+
+/**
+ * The NextAuth session cookie outlives the backend access_token (7 days vs 60m).
+ * After the token expires the middleware still lets the user into the dashboard,
+ * but every backend call comes back 401. When that happens, clear the stale
+ * session and send the user to login so they get a fresh token.
+ */
+async function handleUnauthorized(url: string) {
+  if (typeof window === "undefined") return;
+  // Don't loop on the auth endpoints / login page themselves.
+  if (url.includes("/auth/") || window.location.pathname.startsWith("/auth")) {
+    return;
+  }
+  if (handlingUnauthorized) return;
+  handlingUnauthorized = true;
+
+  try {
+    const { signOut } = await import("next-auth/react");
+    await signOut({ callbackUrl: "/auth/login", redirect: true });
+  } catch {
+    window.location.href = "/auth/login";
+  }
+}
+
 async function safeText(res: Response): Promise<string> {
   try {
     return await res.text();
@@ -25,6 +52,10 @@ async function safeJsonFromResponse<T>(
   res: Response,
   urlForError: string
 ): Promise<T> {
+  if (res.status === 401) {
+    await handleUnauthorized(urlForError);
+  }
+
   const text = await safeText(res);
   const trimmed = text.trim();
 
