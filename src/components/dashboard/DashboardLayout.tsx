@@ -13,7 +13,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+    <div className="fixed inset-0 flex overflow-hidden bg-background text-foreground">
       <aside className="hidden md:flex">
         <DashboardSidebar
           role={role}
