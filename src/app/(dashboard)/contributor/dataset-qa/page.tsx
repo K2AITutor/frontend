@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { BarChart3, CheckCircle2, FileText, FlaskConical, Save, Search, ShieldCheck, XCircle } from "lucide-react";
+import { BarChart3, CheckCircle2, FileText, FlaskConical, Rocket, Save, Search, ShieldCheck, XCircle } from "lucide-react";
 import { usePageTitle } from "@/lib/usePageTitle";
 import {
     DatasetQaQuestion,
     DatasetQaStatus,
+    publishDatasetQaQuestions,
     testDatasetQaAnswer,
     updateDatasetQaQuestion,
     useDatasetQaQuestions,
@@ -178,6 +179,8 @@ export default function ContributorDatasetQaPage() {
     );
     const { data = [], isLoading: loading, isError: hasError, refetch } = useDatasetQaQuestions(datasetSourceKey);
     const [selectedId, setSelectedId] = useState<number | null>(null);
+    const [publishing, setPublishing] = useState(false);
+    const [publishMessage, setPublishMessage] = useState<string | null>(null);
 
     const filtered = useMemo(() => {
         const term = search.trim().toLowerCase();
@@ -199,6 +202,23 @@ export default function ContributorDatasetQaPage() {
     }, [data, filtered, selectedId]);
 
     const counts = statusCounts(data);
+    const approvedUnpublishedCount = data.filter(
+        (row) => row.reviewStatus === "APPROVED" && row.contentStatus !== "ACTIVE"
+    ).length;
+
+    async function handlePublishApproved() {
+        setPublishing(true);
+        setPublishMessage(null);
+        try {
+            const result = await publishDatasetQaQuestions(datasetSourceKey);
+            setPublishMessage(result.message);
+            await refetch();
+        } catch (error: any) {
+            setPublishMessage(error?.message || "Failed to publish approved records.");
+        } finally {
+            setPublishing(false);
+        }
+    }
 
     return (
         <div className="space-y-6 p-6">
@@ -213,18 +233,27 @@ export default function ContributorDatasetQaPage() {
                     </p>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-[180px_260px_280px]">
+                <div className="grid gap-3 md:grid-cols-[180px_190px_260px_280px]">
                     <Button variant="outline" asChild>
                         <Link href="/contributor/dataset-qa/analytics">
                             <BarChart3 className="mr-2 h-4 w-4" />
                             Analytics
                         </Link>
                     </Button>
+                    <Button
+                        type="button"
+                        onClick={handlePublishApproved}
+                        disabled={publishing || approvedUnpublishedCount === 0}
+                    >
+                        <Rocket className="mr-2 h-4 w-4" />
+                        {publishing ? "Publishing..." : `Publish ${approvedUnpublishedCount}`}
+                    </Button>
                     <div className="space-y-2">
                         <Label>Dataset source</Label>
                         <Select value={datasetSourceKey} onValueChange={(value) => {
                             setDatasetSourceKey(value);
                             setSelectedId(null);
+                            setPublishMessage(null);
                         }}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select dataset" />
@@ -248,6 +277,11 @@ export default function ContributorDatasetQaPage() {
                     </div>
                 </div>
             </div>
+            {publishMessage ? (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    {publishMessage}
+                </div>
+            ) : null}
 
             <div className="grid gap-3 md:grid-cols-5">
                 {(Object.keys(STATUS_LABELS) as DatasetQaStatus[]).map((status) => (
@@ -371,6 +405,7 @@ export default function ContributorDatasetQaPage() {
                                         <span>{row.marks} mark{row.marks === 1 ? "" : "s"}</span>
                                         <span>{row.answerType}</span>
                                         <span>{row.isMarkable ? "Auto-check" : "Manual"}</span>
+                                        {row.contentStatus === "ACTIVE" ? <span>Live</span> : null}
                                     </div>
                                 </button>
                             ))}

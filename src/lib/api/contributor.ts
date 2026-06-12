@@ -93,6 +93,8 @@ export interface DatasetQaQuestion {
     reviewerName?: string;
     reviewNotes?: string;
     reviewedAt?: string | null;
+    publishedAt?: string | null;
+    contentStatus?: "DRAFT" | "REVIEW" | "ACTIVE" | "ARCHIVED" | null;
     pdfPage?: number | null;
 }
 
@@ -114,6 +116,13 @@ export interface DatasetQaMarkingResult {
     maxScore: number;
     errorTags: string[];
     diagnostics?: Record<string, unknown>;
+}
+
+export interface PublishDatasetQaResult {
+    examKey: string;
+    published: number;
+    skipped: number;
+    message: string;
 }
 
 async function getAccessToken() {
@@ -204,6 +213,15 @@ export async function testDatasetQaAnswer(questionId: number | string, answer: s
     return apiPost<DatasetQaMarkingResult>(
         `/contributor/dataset-qa/${questionId}/test-answer`,
         { answer },
+        token
+    );
+}
+
+export async function publishDatasetQaQuestions(examKey: string) {
+    const token = await getAccessToken();
+    return apiPost<PublishDatasetQaResult>(
+        "/contributor/dataset-qa/publish",
+        { examKey },
         token
     );
 }
