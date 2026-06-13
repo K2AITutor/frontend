@@ -14,6 +14,7 @@ import {
   createQuestion,
   updateQuestion,
   deleteQuestion,
+  type DatasetQaReview,
 } from "@/lib/api/questions-admin";
 import { useAdminToken } from "@/lib/api/useAdminToken";
 import {
@@ -138,6 +139,7 @@ export default function AdminContentQuestionsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<AdminQuestion | null>(null);
   const [form, setForm] = useState<QuestionForm>(EMPTY_FORM);
+  const [reviewInfo, setReviewInfo] = useState<DatasetQaReview | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingForm, setIsLoadingForm] = useState(false);
 
@@ -155,6 +157,7 @@ export default function AdminContentQuestionsPage() {
   function openCreate() {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setReviewInfo(null);
     setIsDialogOpen(true);
   }
 
@@ -165,10 +168,12 @@ export default function AdminContentQuestionsPage() {
     }
     setEditingId(question.id);
     setForm(EMPTY_FORM);
+    setReviewInfo(null);
     setIsDialogOpen(true);
     setIsLoadingForm(true);
     try {
       const detail = await getQuestionForEdit(question.id, token);
+      setReviewInfo(detail.datasetQa ?? null);
       setForm({
         subjectCode: detail.subjectCode,
         topicCode: detail.topicCode,
@@ -337,6 +342,7 @@ export default function AdminContentQuestionsPage() {
           { key: "marks", label: "Marks", render: (item) => item.marks },
           { key: "status", label: "Status", render: (item) => <StatusBadge value={item.status} /> },
           { key: "rubric", label: "Rubric", render: (item) => item.rubric ? <StatusBadge value={item.rubric.status} /> : "-" },
+          { key: "review", label: "Review", render: (item) => item.reviewStatus ? <StatusBadge value={item.reviewStatus} /> : "-" },
           { key: "updated", label: "Updated", render: (item) => formatDate(item.updatedAt) },
         ]}
       />
@@ -357,6 +363,31 @@ export default function AdminContentQuestionsPage() {
             </div>
           ) : (
             <div className="grid gap-4 py-4 sm:grid-cols-2">
+              {reviewInfo && (
+                <div className="rounded-md border border-border bg-muted/40 p-3 sm:col-span-2">
+                  <p className="mb-2 text-sm font-semibold">Contributor review</p>
+                  <div className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+                    <p>
+                      <span className="text-muted-foreground">Status: </span>
+                      {reviewInfo.status || "-"}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Reviewer: </span>
+                      {reviewInfo.reviewerName || "-"}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Reviewed at: </span>
+                      {reviewInfo.reviewedAt ? formatDate(reviewInfo.reviewedAt) : "-"}
+                    </p>
+                  </div>
+                  {reviewInfo.notes ? (
+                    <p className="mt-2 whitespace-pre-wrap text-sm">
+                      <span className="text-muted-foreground">Notes: </span>
+                      {reviewInfo.notes}
+                    </p>
+                  ) : null}
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Subject</label>
                 <Combobox

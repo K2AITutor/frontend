@@ -1,10 +1,18 @@
 import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/apiClient";
 
+// Thông tin review do contributor ghi khi QA dataset (markingMeta.datasetQa).
+export interface DatasetQaReview {
+  status: string;
+  reviewerName: string;
+  reviewerUserId: number | null;
+  notes: string;
+  reviewedAt: string | null;
+}
+
 // Full field set returned by GET /admin/questions/:id for the edit form.
 export interface AdminQuestionDetail {
   id: number;
   subjectCode: string;
-  topicId: number;
   topicCode: string;
   skillCode: string;
   subtopicCode: string | null;
@@ -28,6 +36,8 @@ export interface AdminQuestionDetail {
   sourceQuestionRef: string | null;
   createdAt: string;
   updatedAt: string;
+  approvedAt: string | null;
+  datasetQa: DatasetQaReview | null;
 }
 
 export interface CreateQuestionDto {

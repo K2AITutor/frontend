@@ -63,6 +63,8 @@ export interface AdminQuestion {
   updatedAt: string;
   topic?: { name: string } | null;
   rubric?: { id: number; status: string; maxMarks: number } | null;
+  /** Trạng thái QA của contributor (markingMeta.datasetQa.status); null nếu chưa review. */
+  reviewStatus?: string | null;
 }
 
 export interface AdminRubric {
