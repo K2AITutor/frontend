@@ -118,7 +118,7 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="flex gap-12 mt-16 pt-8 border-t border-border-subtle"
+            className="flex flex-wrap gap-8 sm:gap-12 mt-16 pt-8 border-t border-border-subtle"
           >
             {[
               { value: '15K+', label: 'Active Students' },
@@ -238,7 +238,7 @@ export function SubjectsSection({ subjects }: { subjects: Subject[] }) {
   return (
     <section id="subjects" className="py-24 relative scroll-mt-20">
       <div className="max-w-[80rem] mx-auto px-8">
-        <div className="grid grid-cols-[1fr_1.5fr] gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-10 lg:gap-16 items-center">
           <div className="relative z-10">
             <div className="text-[clamp(2rem,5vw,3.5rem)] font-serif leading-tight mb-6">
               Master <span className="text-accent-teal">Every Subject</span>
@@ -248,7 +248,7 @@ export function SubjectsSection({ subjects }: { subjects: Subject[] }) {
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 relative z-10">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 relative z-10">
             {subjects.map((subject, index) => (
               <motion.div
                 key={subject.name}
