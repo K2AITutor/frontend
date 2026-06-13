@@ -404,57 +404,6 @@ export default function ContributorDatasetQaPage() {
                 onPublish={handlePublishApproved}
             />
 
-            <Card>
-                <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                        <FileText className="h-5 w-5" />
-                        QA review guideline
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-                    <div>
-                        <p className="text-sm text-muted-foreground">
-                            Review each record as if you are preparing it for a student and for future model training.
-                            Use AI to improve the dataset, but approve only after the original source and math logic are checked.
-                        </p>
-                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                            {[
-                                "Enter your reviewer name before saving any decision.",
-                                "Select the dataset source and open the first Ready for QA record.",
-                                "Compare the rendered question with the original exam PDF or trusted source.",
-                                "Use AI to challenge or improve accepted answers, worked solution, rubric, and common mistakes.",
-                                "Check topic, subtopic, marks, answer type, and manual-review flag yourself.",
-                                "For auto-check questions, run the marker using the expected answer.",
-                                "Set training readiness: Practice only, Training ready, or Expert review.",
-                                "Choose Approve, Needs Fix, Manual, or Reject, then write what you verified.",
-                            ].map((step, index) => (
-                                <div key={step} className="rounded-md border p-3 text-sm">
-                                    <span className="mr-2 font-semibold text-primary">{index + 1}.</span>
-                                    {step}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="rounded-lg border bg-muted/30 p-4">
-                        <p className="font-semibold">Golden example: 2025 Question 1a</p>
-                        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                            <p>Question: differentiate y = x^2 cos(x).</p>
-                            <p>Expected answer: 2x cos(x) - x^2 sin(x).</p>
-                            <p>Marker test: paste the expected answer and confirm it scores 1 / 1.</p>
-                            <p>Topic check: Differentiation rules / Product rule.</p>
-                            <p>AI check: use AI to review the derivative and likely mistakes, then verify the output yourself.</p>
-                            <p>Decision: Approve only if the rendered question, answer, solution, rubric, and marker result all match.</p>
-                            <p>Reviewer note example: Checked against source and AI-assisted solution review. Expected answer marks correct. Product rule topic is correct.</p>
-                        </div>
-                        <Button className="mt-4 w-full" variant="outline" asChild>
-                            <Link href="/docs/contributor-dataset-qa-guide.pdf" target="_blank">
-                                Open full guide
-                            </Link>
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-
             {loading ? (
                 <DatasetQaSkeleton />
             ) : hasError ? (
