@@ -53,6 +53,7 @@ export default function AdminSubjectsPage() {
   // Form states
   const [subjectForm, setSubjectForm] = useState({
     id: "",
+    code: "",
     name: "",
     description: "",
     icon: "",
@@ -82,6 +83,7 @@ export default function AdminSubjectsPage() {
       setEditingSubject(subject);
       setSubjectForm({
         id: subject.id.toString(),
+        code: subject.code || "",
         name: subject.name,
         description: subject.description || "",
         icon: subject.icon || "",
@@ -90,6 +92,7 @@ export default function AdminSubjectsPage() {
       setEditingSubject(null);
       setSubjectForm({
         id: "",
+        code: "",
         name: "",
         description: "",
         icon: "",
@@ -120,6 +123,7 @@ export default function AdminSubjectsPage() {
       } else {
         await createSubject({
           name: subjectForm.name,
+          code: subjectForm.code || undefined,
           description: subjectForm.description,
           icon: subjectForm.icon,
         }, token);
@@ -157,6 +161,12 @@ export default function AdminSubjectsPage() {
   }
 
   const columns = [
+      columnHelper.accessor("code", {
+        header: SortHeader("Code"),
+        cell: (info) => (
+          <span className="font-mono text-xs">{info.getValue() || "-"}</span>
+        ),
+      }),
       columnHelper.accessor("name", {
         header: SortHeader("Name"),
         cell: (info) => (
@@ -256,6 +266,25 @@ export default function AdminSubjectsPage() {
                 required
               />
             </div>
+            {editingSubject ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Code</label>
+                <Input value={subjectForm.code} disabled className="font-mono" />
+                <p className="text-xs text-muted-foreground">
+                  Code is the unique key referenced by topics and skills — it cannot be changed.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Code (optional)</label>
+                <Input
+                  value={subjectForm.code}
+                  onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value })}
+                  placeholder="Auto-derived from name if left blank (e.g. MATH_METHODS)"
+                  className="font-mono"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <label className="text-sm font-medium">Description</label>
               <Textarea

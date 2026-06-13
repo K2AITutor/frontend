@@ -82,7 +82,7 @@ function DrawerBody({ annotation }: { annotation: Annotation }) {
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                 Question
               </p>
-              <p className="text-sm whitespace-pre-wrap">{data.question.prompt}</p>
+              <p className="text-sm whitespace-pre-wrap">{data.question.questionText}</p>
               {data.question.expectedAnswer && (
                 <div className="mt-2 rounded bg-muted px-3 py-2 text-sm text-muted-foreground whitespace-pre-wrap">
                   <span className="font-medium">Expected: </span>

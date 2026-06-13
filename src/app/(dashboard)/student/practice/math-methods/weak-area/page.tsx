@@ -24,7 +24,6 @@ type RecentMistakeRow = {
     attemptedAt?: string;
     question?: {
         questionText?: string | null;
-        prompt?: string | null;
         topicCode?: string | null;
     } | null;
 };
@@ -319,9 +318,7 @@ export default async function WeakAreaPage() {
                                             className="rounded-2xl border border-white/10 bg-slate-950/50 p-4"
                                         >
                                             <div className="text-sm font-semibold text-white">
-                                                {row.question?.questionText ||
-                                                    row.question?.prompt ||
-                                                    'Question'}
+                                                {row.question?.questionText || 'Question'}
                                             </div>
                                             <div className="mt-2 text-sm text-slate-300">
                                                 Submitted answer:{' '}

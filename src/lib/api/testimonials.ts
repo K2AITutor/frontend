@@ -12,6 +12,7 @@ export interface Testimonial {
   name: string;
   role: string;
   subject: string;
+  image?: string | null;
   quote: string;
   rating: number;
   atarImprovement: string | null;

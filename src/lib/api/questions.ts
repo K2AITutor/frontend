@@ -18,8 +18,7 @@ export type QuestionDraftDTO = {
   subjectCode?: string | null;
   topicCode?: string | null;
   skillCode?: string | null;
-  prompt: string;
-  questionText?: string | null;
+  questionText: string;
   answerType?: string | null;
   marks?: number | null;
   status: "DRAFT" | "REVIEW" | "ACTIVE" | "ARCHIVED";
@@ -36,8 +35,9 @@ export type CreateQuestionDraftPayload = {
   topicCode: string;
   skillCode: string;
   subtopicCode?: string;
-  prompt: string;
-  questionText?: string;
+  questionText: string;
+  /** @deprecated legacy alias của questionText — backend vẫn nhận nhưng ưu tiên questionText */
+  prompt?: string;
   answerType?: string;
   marks?: number;
   correctAnswer?: string;

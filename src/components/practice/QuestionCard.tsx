@@ -9,7 +9,7 @@ export default function QuestionCard({
 }: {
     question: PracticeQuestion;
 }) {
-    const prompt = String((question as any).questionText ?? question.prompt ?? "");
+    const prompt = String(question.questionText ?? "");
     const questionNumber = String((question as any).questionNumber ?? "").trim();
     const partLabel = questionNumber.match(/[a-z](?:_[ivx]+)?$/i)?.[0]?.replace(/_/g, ".") ?? "";
     const marks = (question as any).marks;

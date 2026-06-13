@@ -109,7 +109,10 @@ export function DashboardHeader({ role }: DashboardHeaderProps) {
                   src={(session?.user as any)?.image || undefined}
                   alt={displayName}
                 />
-                <AvatarFallback>{initials}</AvatarFallback>
+                {/* Matches the public navbar avatar (components/public/Navbar.tsx) */}
+                <AvatarFallback className="bg-gradient-to-br from-accent-teal to-accent-coral text-[0.8125rem] font-semibold text-avatar-foreground">
+                  {initials}
+                </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
@@ -123,7 +126,7 @@ export function DashboardHeader({ role }: DashboardHeaderProps) {
             </DropdownMenuLabel>
 
             <DropdownMenuSeparator />
-            {role === "student" ? (
+            {role === "student" || role === "parent" ? (
               <DropdownMenuItem asChild>
                 <Link href={`/${role}/settings`} className="flex items-center">
                   <Settings className="mr-2 h-4 w-4" />

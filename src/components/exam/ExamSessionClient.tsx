@@ -31,15 +31,13 @@ type MarkingResult = {
 type ExamQuestionLike = {
   id: number | string;
   questionNumber?: string | null;
-  prompt: string;
-  questionText?: string | null;
-  answer?: string;
+  questionText: string;
   answerType?: string;
   marks?: number;
   skillCode?: string | null;
   topicCode?: string | null;
   subtopicCode?: string | null;
-  difficulty?: string | null;
+  difficultyLevel?: string | null;
   isMarkable?: boolean | null;
   rubricKey?: string | null;
   pdfPage?: number | null;
@@ -320,7 +318,7 @@ export default function ExamSessionClient(props: {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="exam-session">
       <div className="px-4 py-2 rounded-lg bg-red-900/40 text-red-200 text-sm">
         <strong>Exam Mode</strong> — AI assistance is disabled during the examination.
       </div>
@@ -340,6 +338,7 @@ export default function ExamSessionClient(props: {
 
                 <div className="flex flex-wrap gap-2">
                   <button
+                    data-testid="exam-previous"
                     onClick={goPrev}
                     disabled={currentIndex === 0}
                     className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-sm"
@@ -348,6 +347,7 @@ export default function ExamSessionClient(props: {
                   </button>
 
                   <button
+                    data-testid="exam-flag"
                     onClick={toggleFlag}
                     className={`px-3 py-2 rounded-lg text-sm ${isFlagged ? "bg-yellow-700 hover:bg-yellow-600" : "bg-slate-800 hover:bg-slate-700"
                       }`}
@@ -356,6 +356,7 @@ export default function ExamSessionClient(props: {
                   </button>
 
                   <button
+                    data-testid="exam-next"
                     onClick={goNext}
                     disabled={currentIndex >= questions.length - 1}
                     className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-sm"
@@ -436,6 +437,7 @@ export default function ExamSessionClient(props: {
               <div className="space-y-3">
                 {compactAnswerInput ? (
                   <input
+                    data-testid="exam-answer"
                     ref={answerInputRef as any}
                     value={answer}
                     onChange={(e) => setAnswer(e.target.value)}
@@ -447,6 +449,7 @@ export default function ExamSessionClient(props: {
                   />
                 ) : (
                   <textarea
+                    data-testid="exam-answer"
                     ref={answerInputRef as any}
                     value={answer}
                     onChange={(e) => setAnswer(e.target.value)}
@@ -481,6 +484,7 @@ export default function ExamSessionClient(props: {
 
               <div className="flex flex-wrap gap-2">
                 <button
+                  data-testid="exam-submit-answer"
                   disabled={isSubmitting}
                   onClick={handleSubmit}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold disabled:opacity-50"
@@ -489,6 +493,7 @@ export default function ExamSessionClient(props: {
                 </button>
 
                 <button
+                  data-testid="exam-finish-review"
                   onClick={finishAndReview}
                   className="px-4 py-3 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-sm font-semibold"
                 >
@@ -506,6 +511,7 @@ export default function ExamSessionClient(props: {
 
             {result && (
               <div
+                data-testid="exam-feedback"
                 className={`glass p-4 ${normalizedCorrect === null
                     ? "text-slate-200"
                     : normalizedCorrect

@@ -9,6 +9,7 @@ const API_BASE = (() => {
 
 export interface Subject {
   id: number;
+  code?: string;
   name: string;
   description?: string;
   icon?: string;
@@ -19,6 +20,7 @@ export interface Subject {
 
 export interface CreateSubjectDto {
   name: string;
+  code?: string;
   description?: string;
   icon?: string;
 }

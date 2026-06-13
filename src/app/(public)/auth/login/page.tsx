@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import { Lock, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import AuthBanner from '@/components/auth/AuthBanner'
-import { Suspense, useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { Suspense, useEffect, useState } from 'react'
+import { signIn, useSession } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from '@/components/dashboard/ui/sonner'
 
@@ -13,12 +13,14 @@ function LoginPageContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState('')
 
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || ''
   const router = useRouter()
+  const { status, data: session } = useSession()
 
   const roleHomeMap: Record<string, string> = {
     student: '/student',
@@ -26,6 +28,18 @@ function LoginPageContent() {
     admin: '/admin',
     contributor: '/contributor',
   }
+
+  // Đã đăng nhập thì không nên thấy lại form login. Middleware không xử lý được
+  // trang này: next-auth withAuth early-return cho pages.signIn (/auth/login) để
+  // tránh redirect loop, nên phải redirect ở client. Bỏ qua khi đang trong luồng
+  // đăng nhập tại trang này (isRedirecting) để không đua với router.push của handleSubmit.
+  useEffect(() => {
+    if (status !== 'authenticated' || isRedirecting) return
+    const role = (session?.user as any)?.role as string | undefined
+    router.replace(roleHomeMap[role ?? ''] ?? '/student')
+    // roleHomeMap is a stable literal; deps tracked are the dynamic values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session, isRedirecting, router])
 
   // A callbackUrl pointing into another role's dashboard section (e.g. a
   // leftover /contributor from a previous redirect) must not override the
@@ -71,6 +85,7 @@ function LoginPageContent() {
 
       if (res?.error) {
         setError('Invalid email or password. Please try again.')
+        setIsLoading(false)
         return
       }
 
@@ -84,12 +99,15 @@ function LoginPageContent() {
         callbackUrl && isCallbackForOwnRole(callbackUrl, role)
           ? callbackUrl
           : roleHome
+      // Keep the loading state on until the dashboard route mounts and this
+      // page unmounts — resetting it here would leave a frozen-looking page
+      // while Next.js loads the destination.
+      setIsRedirecting(true)
       router.push(redirectTo)
       router.refresh()
     } catch (error) {
       console.error('Login error:', error)
       toast.error('An error occurred. Please try again.')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -103,15 +121,23 @@ function LoginPageContent() {
     } catch (error) {
       console.error('Google sign in error:', error)
       toast.error('Failed to sign in with Google. Please try again.')
-    } finally {
+      // Only reset on failure — on success the browser is navigating away to
+      // the Google consent screen and the spinner should stay visible.
       setIsLoading(false)
     }
   }
 
   return (
     <main className="min-h-screen bg-bg-primary">
+      {isRedirecting && (
+        <div className="fixed inset-0 z-[2000] bg-bg-primary/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+          <div className="w-12 h-12 border-[3px] border-accent-teal border-t-transparent rounded-full animate-spin" />
+          <p className="text-text-primary text-[1rem] font-medium">Signed in successfully</p>
+          <p className="text-text-secondary text-[0.875rem]">Taking you to your dashboard...</p>
+        </div>
+      )}
       <div className="flex min-h-screen">
-        <div className="w-[40%] p-12 overflow-y-auto flex flex-col bg-bg-secondary">
+        <div className="w-full lg:w-[40%] p-6 sm:p-8 lg:p-12 overflow-y-auto flex flex-col bg-bg-secondary">
           <Link href="/" className="flex items-center gap-3 mb-8">
             <div className="w-[42px] h-[42px] bg-gradient-to-br from-accent-teal to-accent-coral rounded-[10px] flex items-center justify-center font-serif text-[1.25rem] font-normal text-bg-primary">
               V
@@ -225,7 +251,7 @@ function LoginPageContent() {
               {isLoading ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="w-[18px] h-[18px] border-2 border-bg-primary border-t-transparent rounded-full animate-spin" />
-                  Signing in...
+                  {isRedirecting ? 'Taking you to your dashboard...' : 'Signing in...'}
                 </span>
               ) : (
                 <>

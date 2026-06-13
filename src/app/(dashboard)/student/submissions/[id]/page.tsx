@@ -147,7 +147,7 @@ export default function StudentSubmissionPage({
             <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-xl backdrop-blur">
               <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Question</div>
               <p className="text-lg font-medium leading-relaxed text-white">
-                {question.prompt}
+                {question.questionText}
               </p>
               {question.maxScore != null && (
                 <div className="mt-4 flex items-center gap-2">

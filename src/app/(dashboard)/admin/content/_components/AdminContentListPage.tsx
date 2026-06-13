@@ -14,12 +14,16 @@ import {
   SelectValue,
 } from "@/components/dashboard/ui/select";
 import { DataTable } from "@/components/dashboard/DataTable";
+import { Combobox } from "@/components/dashboard/ui/combobox";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   AdminContentFilters,
   AdminContentItem,
   AdminContentKind,
   useAdminContentList,
+  useSubjectOptions,
+  useTopicOptions,
+  useSkillOptions,
 } from "@/lib/api/admin-content";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -29,6 +33,10 @@ type FilterConfig = {
   placeholder?: string;
   type?: "text" | "select";
   options?: Array<{ label: string; value: string }>;
+  /** Render a searchable Combobox whose options come from a live list. */
+  source?: "subjects" | "topics" | "skills";
+  /** Filter `source` options by another filter's current value; resets on change. */
+  dependsOn?: keyof AdminContentFilters;
 };
 
 type ColumnConfig<T extends AdminContentItem> = {
@@ -45,6 +53,10 @@ interface AdminContentListPageProps<T extends AdminContentItem> {
   icon: ReactNode;
   filters: FilterConfig[];
   columns: ColumnConfig<T>[];
+  /** Buttons rendered above the table (e.g. "Add ..."). */
+  toolbarActions?: ReactNode;
+  /** Trailing actions column (e.g. Edit/Delete) rendered per row. */
+  rowActions?: (item: T) => ReactNode;
 }
 
 const PAGE_SIZE = 20;
@@ -94,6 +106,8 @@ export default function AdminContentListPage<T extends AdminContentItem>({
   icon,
   filters,
   columns,
+  toolbarActions,
+  rowActions,
 }: AdminContentListPageProps<T>) {
   usePageTitle(title);
   const [page, setPage] = useState(1);
@@ -109,19 +123,70 @@ export default function AdminContentListPage<T extends AdminContentItem>({
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
 
+  // Live option lists for dropdown-from-list filters. Dependent filters narrow
+  // their options by the parent filter's current draft value.
+  const topicFilter = filters.find((f) => f.source === "topics");
+  const skillFilter = filters.find((f) => f.source === "skills");
+  const topicSubjectValue = topicFilter?.dependsOn
+    ? (draftFilters[topicFilter.dependsOn] as string | undefined)
+    : undefined;
+  const skillTopicValue = skillFilter?.dependsOn
+    ? (draftFilters[skillFilter.dependsOn] as string | undefined)
+    : undefined;
+
+  const subjectOptions = useSubjectOptions();
+  const topicOptions = useTopicOptions(topicSubjectValue || undefined);
+  const skillOptions = useSkillOptions(undefined, skillTopicValue || undefined);
+
+  function optionsForSource(source: FilterConfig["source"]) {
+    if (source === "subjects") return subjectOptions.options;
+    if (source === "topics") return topicOptions.options;
+    if (source === "skills") return skillOptions.options;
+    return [];
+  }
+
+  // Set a filter and cascade-reset any filters that depend (directly or
+  // transitively) on the one being changed, so stale child values don't linger.
+  function setFilterValue(key: keyof AdminContentFilters, value: string) {
+    setDraftFilters((current) => {
+      const next = { ...current, [key]: value } as Record<string, string>;
+      let justCleared: Array<keyof AdminContentFilters> = [key];
+      let guard = 0;
+      while (justCleared.length && guard++ < 10) {
+        const cleared = justCleared;
+        justCleared = [];
+        filters.forEach((f) => {
+          if (f.dependsOn && cleared.includes(f.dependsOn) && next[f.key as string]) {
+            next[f.key as string] = "";
+            justCleared.push(f.key);
+          }
+        });
+      }
+      return next as AdminContentFilters;
+    });
+  }
+
   // Adapt the lightweight ColumnConfig contract to TanStack column defs. These
   // are render-only (no accessors) so sorting stays off; pagination is server-side.
-  const tableColumns = useMemo<ColumnDef<T, any>[]>(
-    () =>
-      columns.map((column) => ({
-        id: column.key,
-        header: column.label,
+  const tableColumns = useMemo<ColumnDef<T, any>[]>(() => {
+    const base = columns.map((column) => ({
+      id: column.key,
+      header: column.label,
+      enableSorting: false,
+      cell: ({ row }: { row: { original: T } }) => column.render(row.original),
+      meta: { className: column.className },
+    }));
+    if (rowActions) {
+      base.push({
+        id: "__actions",
+        header: "Actions" as any,
         enableSorting: false,
-        cell: ({ row }) => column.render(row.original),
-        meta: { className: column.className },
-      })),
-    [columns]
-  );
+        cell: ({ row }: { row: { original: T } }) => rowActions(row.original),
+        meta: { className: "text-right" },
+      });
+    }
+    return base;
+  }, [columns, rowActions]);
 
   function applyFilters() {
     setPage(1);
@@ -153,14 +218,22 @@ export default function AdminContentListPage<T extends AdminContentItem>({
             {filters.map((filter) => (
               <div key={String(filter.key)} className="space-y-2">
                 <label className="text-sm font-medium">{filter.label}</label>
-                {filter.type === "select" ? (
+                {filter.source ? (
+                  <Combobox
+                    options={optionsForSource(filter.source)}
+                    value={String(draftFilters[filter.key] ?? "")}
+                    onChange={(value) => setFilterValue(filter.key, value)}
+                    placeholder={filter.placeholder ?? "All"}
+                    searchPlaceholder={`Search ${filter.label.toLowerCase()}...`}
+                    disabled={
+                      !!filter.dependsOn && !draftFilters[filter.dependsOn]
+                    }
+                  />
+                ) : filter.type === "select" ? (
                   <Select
                     value={String(draftFilters[filter.key] ?? "all")}
                     onValueChange={(value) =>
-                      setDraftFilters((current) => ({
-                        ...current,
-                        [filter.key]: value === "all" ? "" : value,
-                      }))
+                      setFilterValue(filter.key, value === "all" ? "" : value)
                     }
                   >
                     <SelectTrigger>
@@ -180,10 +253,7 @@ export default function AdminContentListPage<T extends AdminContentItem>({
                     placeholder={filter.placeholder}
                     value={String(draftFilters[filter.key] ?? "")}
                     onChange={(event) =>
-                      setDraftFilters((current) => ({
-                        ...current,
-                        [filter.key]: event.target.value,
-                      }))
+                      setFilterValue(filter.key, event.target.value)
                     }
                   />
                 )}
@@ -230,6 +300,7 @@ export default function AdminContentListPage<T extends AdminContentItem>({
               isLoading={isLoading}
               hidePageSize
               emptyMessage="No records found."
+              toolbarActions={toolbarActions}
               server={{
                 total,
                 pageIndex: page - 1,

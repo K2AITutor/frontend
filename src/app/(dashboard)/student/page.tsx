@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard
 import { Button } from "@/components/dashboard/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
 import { Progress } from "@/components/dashboard/ui/progress";
-import { ScrollArea } from "@/components/dashboard/ui/scroll-area";
 import { Separator } from "@/components/dashboard/ui/separator";
 import { Skeleton } from "@/components/dashboard/ui/skeleton";
 import { StatsCard } from "@/components/dashboard/StatsCard";
@@ -206,23 +205,21 @@ export default function StudentDashboardPage() {
             <CardTitle className="text-lg">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[320px] pr-4">
-              <div className="space-y-1">
-                {recentActivities.map((activity, index) => (
-                  <div key={activity.id}>
-                    <ActivityItem
-                      type={activity.type}
-                      title={activity.title}
-                      description={activity.description}
-                      timestamp={activity.timestamp}
-                    />
-                    {index < recentActivities.length - 1 && (
-                      <Separator className="my-1" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
+            <div className="space-y-1">
+              {recentActivities.map((activity, index) => (
+                <div key={activity.id}>
+                  <ActivityItem
+                    type={activity.type}
+                    title={activity.title}
+                    description={activity.description}
+                    timestamp={activity.timestamp}
+                  />
+                  {index < recentActivities.length - 1 && (
+                    <Separator className="my-1" />
+                  )}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
