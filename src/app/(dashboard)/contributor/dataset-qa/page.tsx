@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { BarChart3, CheckCircle2, FileText, FlaskConical, Rocket, Save, Search, ShieldCheck, XCircle } from "lucide-react";
+import { CheckCircle2, FileText, FlaskConical, Rocket, Save, Search, ShieldCheck, XCircle } from "lucide-react";
 import { usePageTitle } from "@/lib/usePageTitle";
 import {
     DatasetQaQuestion,
@@ -253,9 +253,9 @@ export default function ContributorDatasetQaPage() {
 
                 <div className="grid gap-3 md:grid-cols-[180px_190px_260px_280px]">
                     <Button variant="outline" asChild>
-                        <Link href="/contributor/dataset-qa/analytics">
-                            <BarChart3 className="mr-2 h-4 w-4" />
-                            Analytics
+                        <Link href="/docs/contributor-dataset-qa-guide.pdf" target="_blank">
+                            <FileText className="mr-2 h-4 w-4" />
+                            Guide PDF
                         </Link>
                     </Button>
                     <Button
@@ -323,18 +323,18 @@ export default function ContributorDatasetQaPage() {
                     <div>
                         <p className="text-sm text-muted-foreground">
                             Review each record as if you are preparing it for a student and for future model training.
-                            Do not approve a record only because it loads on screen.
+                            Use AI to improve the dataset, but approve only after the original source and math logic are checked.
                         </p>
                         <div className="mt-4 grid gap-3 md:grid-cols-2">
                             {[
                                 "Enter your reviewer name before saving any decision.",
-                                "Select the exam year and open the first Ready for QA record.",
-                                "Compare the rendered question with the original exam or trusted source.",
-                                "Check topic, subtopic, marks, answer type, and manual-review flag.",
+                                "Select the dataset source and open the first Ready for QA record.",
+                                "Compare the rendered question with the original exam PDF or trusted source.",
+                                "Use AI to challenge or improve accepted answers, worked solution, rubric, and common mistakes.",
+                                "Check topic, subtopic, marks, answer type, and manual-review flag yourself.",
                                 "For auto-check questions, run the marker using the expected answer.",
-                                "Read the worked solution and marking rubric for accuracy and clarity.",
-                                "Choose Approve, Needs Fix, Manual, or Reject, then write a short note.",
-                                "Move to the next question and repeat until the queue is complete.",
+                                "Set training readiness: Practice only, Training ready, or Expert review.",
+                                "Choose Approve, Needs Fix, Manual, or Reject, then write what you verified.",
                             ].map((step, index) => (
                                 <div key={step} className="rounded-md border p-3 text-sm">
                                     <span className="mr-2 font-semibold text-primary">{index + 1}.</span>
@@ -350,8 +350,9 @@ export default function ContributorDatasetQaPage() {
                             <p>Expected answer: 2x cos(x) - x^2 sin(x).</p>
                             <p>Marker test: paste the expected answer and confirm it scores 1 / 1.</p>
                             <p>Topic check: Differentiation rules / Product rule.</p>
+                            <p>AI check: use AI to review the derivative and likely mistakes, then verify the output yourself.</p>
                             <p>Decision: Approve only if the rendered question, answer, solution, rubric, and marker result all match.</p>
-                            <p>Reviewer note example: Checked against source. Expected answer marks correct. Product rule topic is correct.</p>
+                            <p>Reviewer note example: Checked against source and AI-assisted solution review. Expected answer marks correct. Product rule topic is correct.</p>
                         </div>
                         <Button className="mt-4 w-full" variant="outline" asChild>
                             <Link href="/docs/contributor-dataset-qa-guide.pdf" target="_blank">

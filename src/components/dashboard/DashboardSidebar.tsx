@@ -32,7 +32,7 @@ import {
   Cpu,
   Database,
   ShieldCheck,
-  BarChart3,
+  FileText,
   FileQuestion,
   ListChecks,
   ClipboardCheck,
@@ -225,19 +225,14 @@ const adminNavGroups: NavGroup[] = [
 
 const contributorNavItems: NavItem[] = [
   {
-    title: "Dashboard",
-    href: "/contributor",
-    icon: <LayoutDashboard className="h-5 w-5" />,
-  },
-  {
     title: "Dataset QA",
     href: "/contributor/dataset-qa",
     icon: <ShieldCheck className="h-5 w-5" />,
   },
   {
-    title: "Dataset Analytics",
-    href: "/contributor/dataset-qa/analytics",
-    icon: <BarChart3 className="h-5 w-5" />,
+    title: "Guide PDF",
+    href: "/docs/contributor-dataset-qa-guide.pdf",
+    icon: <FileText className="h-5 w-5" />,
   },
 ];
 
