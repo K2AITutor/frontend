@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Table,
   TableBody,
@@ -194,12 +194,27 @@ export function DataTable<T>({
 
   // Surface the post-search/post-filter rows (in sort order) to the parent —
   // e.g. so an "Export CSV" button can act on exactly the visible set.
+  // NOTE: we deliberately do NOT key this effect on `data`. Callers commonly
+  // pass `data ?? []`, which yields a brand-new array reference on every render
+  // while a query is loading/disabled. Keying on that ref would re-run the
+  // effect each render, and the resulting setState would feed back into another
+  // render → "Maximum update depth exceeded". Instead we run every commit but
+  // shallow-compare the emitted rows against the last batch and only call the
+  // parent when the visible set actually changed in content or order.
   const filteredRows = isServer ? [] : table.getSortedRowModel().rows;
+  const lastEmittedRef = useRef<T[] | null>(null);
   useEffect(() => {
     if (!onFilteredDataChange || isServer) return;
-    onFilteredDataChange(filteredRows.map((r) => r.original));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onFilteredDataChange, isServer, globalFilter, filterValues, sorting, data]);
+    const next = filteredRows.map((r) => r.original);
+    const prev = lastEmittedRef.current;
+    const unchanged =
+      prev !== null &&
+      prev.length === next.length &&
+      prev.every((row, i) => row === next[i]);
+    if (unchanged) return;
+    lastEmittedRef.current = next;
+    onFilteredDataChange(next);
+  });
 
   const pageSize = isServer ? server!.pageSize : table.getState().pagination.pageSize;
   const pageIndex = isServer ? server!.pageIndex : table.getState().pagination.pageIndex;
