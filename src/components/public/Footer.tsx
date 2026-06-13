@@ -19,8 +19,8 @@ export default function Footer() {
   return (
     <footer className="py-16 border-t border-border-subtle">
       <div className="max-w-[80rem] mx-auto px-8">
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-12 mb-12">
-          <div>
+        <div className="grid grid-cols-2 md:grid-cols-[2fr_1fr_1fr_1fr] gap-10 md:gap-12 mb-12">
+          <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-3">
               <div className="w-[42px] h-[42px] bg-gradient-to-br from-accent-teal to-accent-coral rounded-[10px] flex items-center justify-center font-serif text-[1.25rem] font-normal text-bg-primary">
                 V
@@ -33,7 +33,7 @@ export default function Footer() {
               Your personal AI tutor for VCE excellence. Master any subject with intelligent, adaptive learning.
             </p>
           </div>
-          <div></div>
+          <div className="hidden md:block"></div>
           <div>
             <h4 className="text-[0.875rem] font-semibold uppercase tracking-[0.05em] text-text-muted mb-4">
               Product
@@ -72,7 +72,7 @@ export default function Footer() {
 
         </div>
 
-        <div className="flex items-center justify-between pt-8 border-t border-border-subtle text-[0.875rem] text-text-muted">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-border-subtle text-[0.875rem] text-text-muted text-center">
           <div>© 2025 VCE AI Tutor. All rights reserved.</div>
           <div className="flex gap-6">
             <Link

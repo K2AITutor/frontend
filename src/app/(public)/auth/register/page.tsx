@@ -129,7 +129,7 @@ function RegisterPageContent() {
         </div>
       )}
       <div className="flex min-h-screen">
-        <div className="w-full lg:w-[40%] p-6 sm:p-12 overflow-y-auto flex flex-col bg-bg-secondary max-h-screen custom-scrollbar">
+        <div className="w-full lg:w-[40%] p-6 sm:p-8 lg:p-12 overflow-y-auto flex flex-col bg-bg-secondary max-h-screen custom-scrollbar">
           <Link href="/" className="flex items-center gap-3 mb-8">
             <div className="w-[42px] h-[42px] bg-gradient-to-br from-accent-teal to-accent-coral rounded-[10px] flex items-center justify-center font-serif text-[1.25rem] font-normal text-bg-primary">
               V

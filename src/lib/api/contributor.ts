@@ -73,6 +73,21 @@ export type DatasetQaStatus =
     | "REJECTED"
     | "MANUAL_REVIEW";
 
+export type DatasetTrainingReadiness =
+    | "PRACTICE_ONLY"
+    | "TRAINING_READY"
+    | "EXPERT_REVIEW";
+
+export interface DatasetQaChecklist {
+    sourceMatched: boolean;
+    topicChecked: boolean;
+    answerChecked: boolean;
+    acceptedAnswersChecked: boolean;
+    markerTestPassed: boolean;
+    rubricChecked: boolean;
+    solutionChecked: boolean;
+}
+
 export interface DatasetQaQuestion {
     id: number;
     examKey: string;
@@ -89,10 +104,17 @@ export interface DatasetQaQuestion {
     acceptedAnswers: string[];
     workedSolution: string;
     markingRubric: Array<{ marks?: number; criterion?: string }>;
+    commonMistakes: string[];
+    trainingReadiness: DatasetTrainingReadiness;
+    qaChecklist: DatasetQaChecklist;
+    lastMarkerTest?: DatasetQaMarkingResult | null;
     reviewStatus: DatasetQaStatus;
     reviewerName?: string;
+    reviewerUserId?: number | null;
     reviewNotes?: string;
     reviewedAt?: string | null;
+    publishedAt?: string | null;
+    contentStatus?: "DRAFT" | "REVIEW" | "ACTIVE" | "ARCHIVED" | null;
     pdfPage?: number | null;
 }
 
@@ -104,6 +126,11 @@ export interface UpdateDatasetQaPayload {
     correctAnswer?: string;
     acceptedAnswers?: string[];
     workedSolution?: string;
+    markingRubric?: Array<{ marks?: number; criterion?: string }>;
+    commonMistakes?: string[];
+    trainingReadiness?: DatasetTrainingReadiness;
+    qaChecklist?: Partial<DatasetQaChecklist>;
+    lastMarkerTest?: DatasetQaMarkingResult | null;
     topicCode?: string;
     subtopicCode?: string;
 }
@@ -114,6 +141,13 @@ export interface DatasetQaMarkingResult {
     maxScore: number;
     errorTags: string[];
     diagnostics?: Record<string, unknown>;
+}
+
+export interface PublishDatasetQaResult {
+    examKey: string;
+    published: number;
+    skipped: number;
+    message: string;
 }
 
 async function getAccessToken() {
@@ -212,6 +246,15 @@ export async function testDatasetQaAnswer(questionId: number | string, answer: s
     return apiPost<DatasetQaMarkingResult>(
         `/contributor/dataset-qa/${questionId}/test-answer`,
         { answer },
+        token
+    );
+}
+
+export async function publishDatasetQaQuestions(examKey: string, questionIds?: number[]) {
+    const token = await getAccessToken();
+    return apiPost<PublishDatasetQaResult>(
+        "/contributor/dataset-qa/publish",
+        { examKey, questionIds },
         token
     );
 }
