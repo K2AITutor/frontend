@@ -7,6 +7,8 @@ import { usePageTitle } from "@/lib/usePageTitle";
 import {
     DatasetQaQuestion,
     DatasetQaStatus,
+    DatasetTrainingReadiness,
+    DatasetQaChecklist,
     publishDatasetQaQuestions,
     testDatasetQaAnswer,
     updateDatasetQaQuestion,
@@ -76,6 +78,22 @@ const STATUS_STYLES: Record<DatasetQaStatus, string> = {
     REJECTED: "bg-red-600 text-white hover:bg-red-600",
     MANUAL_REVIEW: "bg-purple-600 text-white hover:bg-purple-600",
 };
+
+const TRAINING_READINESS_LABELS: Record<DatasetTrainingReadiness, string> = {
+    PRACTICE_ONLY: "Practice only",
+    TRAINING_READY: "Training ready",
+    EXPERT_REVIEW: "Expert review",
+};
+
+const CHECKLIST_ITEMS: Array<{ key: keyof DatasetQaChecklist; label: string }> = [
+    { key: "sourceMatched", label: "Source matched" },
+    { key: "topicChecked", label: "Topic checked" },
+    { key: "answerChecked", label: "Answer checked" },
+    { key: "acceptedAnswersChecked", label: "Accepted answers checked" },
+    { key: "markerTestPassed", label: "Marker test passed" },
+    { key: "rubricChecked", label: "Rubric checked" },
+    { key: "solutionChecked", label: "Solution checked" },
+];
 
 const TOPIC_LABELS: Record<string, string> = {
     MM_CALC_DIFF_RULES: "Differentiation rules",
@@ -447,13 +465,17 @@ function DatasetQaEditor({
     const [correctAnswer, setCorrectAnswer] = useState(question.correctAnswer);
     const [acceptedAnswers, setAcceptedAnswers] = useState(question.acceptedAnswers.join("\n"));
     const [workedSolution, setWorkedSolution] = useState(question.workedSolution);
+    const [rubricText, setRubricText] = useState(formatRubricForEdit(question.markingRubric));
+    const [commonMistakes, setCommonMistakes] = useState(question.commonMistakes.join("\n"));
+    const [trainingReadiness, setTrainingReadiness] = useState<DatasetTrainingReadiness>(question.trainingReadiness);
+    const [qaChecklist, setQaChecklist] = useState<DatasetQaChecklist>(question.qaChecklist);
     const [topicCode, setTopicCode] = useState(question.topicCode ?? "");
     const [subtopicCode, setSubtopicCode] = useState(question.subtopicCode ?? "");
     const [reviewStatus, setReviewStatus] = useState<DatasetQaStatus>(question.reviewStatus);
     const [reviewNotes, setReviewNotes] = useState(question.reviewNotes ?? "");
     const [testAnswer, setTestAnswer] = useState(question.correctAnswer);
     const [message, setMessage] = useState<string | null>(null);
-    const [testResult, setTestResult] = useState<any>(null);
+    const [testResult, setTestResult] = useState<any>(question.lastMarkerTest ?? null);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
 
@@ -463,6 +485,10 @@ function DatasetQaEditor({
         try {
             const result = await testDatasetQaAnswer(question.id, testAnswer);
             setTestResult(result);
+            setQaChecklist((current) => ({
+                ...current,
+                markerTestPassed: result.isCorrect === true && Number(result.score ?? 0) >= Number(result.maxScore ?? question.marks),
+            }));
         } catch (error: any) {
             setMessage(error?.message || "Failed to test answer");
         } finally {
@@ -470,7 +496,45 @@ function DatasetQaEditor({
         }
     }
 
+    function toggleChecklist(key: keyof DatasetQaChecklist) {
+        setQaChecklist((current) => ({ ...current, [key]: !current[key] }));
+    }
+
+    function approvalBlockers(nextStatus: DatasetQaStatus) {
+        if (nextStatus !== "APPROVED") return [];
+
+        const blockers: string[] = [];
+        if (!questionText.trim()) blockers.push("question text");
+        if (!topicCode.trim()) blockers.push("topic code");
+        if (!subtopicCode.trim()) blockers.push("subtopic code");
+        if (!correctAnswer.trim() && question.isMarkable) blockers.push("correct answer");
+        if (!workedSolution.trim()) blockers.push("worked solution");
+        if (!rubricText.trim()) blockers.push("marking rubric");
+        if (trainingReadiness === "TRAINING_READY" && !commonMistakes.trim()) {
+            blockers.push("common mistakes for training-ready records");
+        }
+
+        const missingChecks = CHECKLIST_ITEMS
+            .filter((item) => {
+                if (!question.isMarkable && item.key === "markerTestPassed") return false;
+                return !qaChecklist[item.key];
+            })
+            .map((item) => item.label.toLowerCase());
+
+        if (missingChecks.length) {
+            blockers.push(`checklist incomplete: ${missingChecks.join(", ")}`);
+        }
+
+        return blockers;
+    }
+
     async function handleSave(nextStatus = reviewStatus) {
+        const blockers = approvalBlockers(nextStatus);
+        if (blockers.length) {
+            setMessage(`Cannot approve yet. Missing: ${blockers.join("; ")}.`);
+            return;
+        }
+
         setSaving(true);
         setMessage(null);
         try {
@@ -482,6 +546,11 @@ function DatasetQaEditor({
                 correctAnswer,
                 acceptedAnswers: acceptedAnswers.split(/\n+/g).map((item) => item.trim()).filter(Boolean),
                 workedSolution,
+                markingRubric: parseRubricFromEdit(rubricText),
+                commonMistakes: commonMistakes.split(/\n+/g).map((item) => item.trim()).filter(Boolean),
+                trainingReadiness,
+                qaChecklist,
+                lastMarkerTest: testResult,
                 topicCode,
                 subtopicCode,
             });
@@ -552,10 +621,77 @@ function DatasetQaEditor({
                         <Field label="Worked solution">
                             <Textarea rows={8} value={workedSolution} onChange={(event) => setWorkedSolution(event.target.value)} />
                         </Field>
+                        <Field label="Marking rubric">
+                            <Textarea
+                                rows={7}
+                                value={rubricText}
+                                onChange={(event) => setRubricText(event.target.value)}
+                                placeholder="One criterion per line, for example: 1 | Correct derivative using the product rule."
+                            />
+                        </Field>
+                        <Field label="Common mistakes">
+                            <Textarea
+                                rows={5}
+                                value={commonMistakes}
+                                onChange={(event) => setCommonMistakes(event.target.value)}
+                                placeholder="One common mistake per line"
+                            />
+                        </Field>
                     </CardContent>
                 </Card>
 
                 <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Training quality gate</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <Field label="Training readiness">
+                                <Select
+                                    value={trainingReadiness}
+                                    onValueChange={(value) => setTrainingReadiness(value as DatasetTrainingReadiness)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(Object.keys(TRAINING_READINESS_LABELS) as DatasetTrainingReadiness[]).map((value) => (
+                                            <SelectItem key={value} value={value}>
+                                                {TRAINING_READINESS_LABELS[value]}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </Field>
+                            <div className="grid gap-2 md:grid-cols-2">
+                                {CHECKLIST_ITEMS.map((item) => {
+                                    const checked = qaChecklist[item.key];
+                                    const disabled = !question.isMarkable && item.key === "markerTestPassed";
+
+                                    return (
+                                        <button
+                                            key={item.key}
+                                            type="button"
+                                            disabled={disabled}
+                                            onClick={() => toggleChecklist(item.key)}
+                                            className={`rounded-md border p-3 text-left text-sm transition ${
+                                                checked
+                                                    ? "border-emerald-600 bg-emerald-600/15 text-emerald-100"
+                                                    : "bg-muted/20 text-muted-foreground"
+                                            } ${disabled ? "cursor-not-allowed opacity-50" : "hover:bg-muted"}`}
+                                        >
+                                            <span className="font-medium">{checked ? "Checked" : "Open"}</span>
+                                            <span className="ml-2">{item.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                Approve requires all applicable checks. Use Expert review when the record is useful but not ready for model training.
+                            </p>
+                        </CardContent>
+                    </Card>
+
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-lg">Answer test</CardTitle>
@@ -657,8 +793,8 @@ function DatasetQaEditor({
                             <CardTitle className="text-lg">Marking rubric</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            {question.markingRubric?.length ? (
-                                question.markingRubric.map((item, index) => (
+                            {parseRubricFromEdit(rubricText).length ? (
+                                parseRubricFromEdit(rubricText).map((item, index) => (
                                     <div key={index} className="grid grid-cols-[80px_1fr] overflow-hidden rounded-md border text-sm">
                                         <div className="bg-muted p-3 font-medium">{item.marks ?? "-"} mark</div>
                                         <div className="p-3">{item.criterion ?? "-"}</div>
@@ -682,6 +818,34 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
             {children}
         </div>
     );
+}
+
+function formatRubricForEdit(rubric: Array<{ marks?: number; criterion?: string }>) {
+    return rubric
+        .map((item) => {
+            const marks = item.marks == null ? "" : String(item.marks);
+            return `${marks} | ${item.criterion ?? ""}`.trim();
+        })
+        .filter(Boolean)
+        .join("\n");
+}
+
+function parseRubricFromEdit(value: string) {
+    return value
+        .split(/\n+/g)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+            const [marksPart, ...criterionParts] = line.split("|");
+            const parsedMarks = Number(marksPart.trim());
+            const criterion = criterionParts.length ? criterionParts.join("|").trim() : line;
+
+            return {
+                marks: Number.isFinite(parsedMarks) ? parsedMarks : undefined,
+                criterion,
+            };
+        })
+        .filter((item) => item.criterion);
 }
 
 function DatasetQaSkeleton() {
