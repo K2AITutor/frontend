@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useSession } from "next-auth/react";
 import { CheckCircle2, FileText, FlaskConical, Rocket, Save, Search, ShieldCheck, XCircle } from "lucide-react";
 import { usePageTitle } from "@/lib/usePageTitle";
 import {
@@ -181,9 +182,94 @@ function statusCounts(rows: DatasetQaQuestion[]) {
     );
 }
 
+function canPublishForRole(role: unknown) {
+    return ["admin", "teacher"].includes(String(role ?? "").toLowerCase());
+}
+
+function approvedUnpublishedRows(rows: DatasetQaQuestion[]) {
+    return rows.filter((row) => row.reviewStatus === "APPROVED" && row.contentStatus !== "ACTIVE");
+}
+
+function finalReviewSummary(rows: DatasetQaQuestion[]) {
+    const byReviewer = Object.values(
+        rows.reduce(
+            (acc, row) => {
+                const key = row.reviewerName?.trim() || `User ${row.reviewerUserId ?? "unknown"}`;
+                if (!acc[key]) {
+                    acc[key] = {
+                        reviewer: key,
+                        count: 0,
+                        trainingReady: 0,
+                        practiceOnly: 0,
+                        expertReview: 0,
+                        latestReviewedAt: "",
+                    };
+                }
+                acc[key].count += 1;
+                if (row.trainingReadiness === "TRAINING_READY") acc[key].trainingReady += 1;
+                if (row.trainingReadiness === "PRACTICE_ONLY") acc[key].practiceOnly += 1;
+                if (row.trainingReadiness === "EXPERT_REVIEW") acc[key].expertReview += 1;
+                if (row.reviewedAt && row.reviewedAt > acc[key].latestReviewedAt) {
+                    acc[key].latestReviewedAt = row.reviewedAt;
+                }
+                return acc;
+            },
+            {} as Record<
+                string,
+                {
+                    reviewer: string;
+                    count: number;
+                    trainingReady: number;
+                    practiceOnly: number;
+                    expertReview: number;
+                    latestReviewedAt: string;
+                }
+            >
+        )
+    ).sort((a, b) => b.count - a.count || a.reviewer.localeCompare(b.reviewer));
+
+    const byTopic = Object.values(
+        rows.reduce(
+            (acc, row) => {
+                const key = row.topicCode || "UNMAPPED";
+                if (!acc[key]) {
+                    acc[key] = {
+                        topicCode: key,
+                        count: 0,
+                        marks: 0,
+                        reviewers: new Set<string>(),
+                    };
+                }
+                acc[key].count += 1;
+                acc[key].marks += Number(row.marks || 0);
+                acc[key].reviewers.add(row.reviewerName?.trim() || `User ${row.reviewerUserId ?? "unknown"}`);
+                return acc;
+            },
+            {} as Record<string, { topicCode: string; count: number; marks: number; reviewers: Set<string> }>
+        )
+    ).sort((a, b) => b.count - a.count || a.topicCode.localeCompare(b.topicCode));
+
+    return {
+        byReviewer,
+        byTopic,
+        trainingReady: rows.filter((row) => row.trainingReadiness === "TRAINING_READY").length,
+        practiceOnly: rows.filter((row) => row.trainingReadiness === "PRACTICE_ONLY").length,
+        expertReview: rows.filter((row) => row.trainingReadiness === "EXPERT_REVIEW").length,
+    };
+}
+
+function formatReviewDate(value: string | null | undefined) {
+    if (!value) return "-";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "-";
+    return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export default function ContributorDatasetQaPage() {
     usePageTitle("Dataset QA");
 
+    const { data: session } = useSession();
+    const canPublish = canPublishForRole((session?.user as any)?.role);
     const [datasetSourceKey, setDatasetSourceKey] = useState(EXAMS[0].key);
     const [reviewerName, setReviewerName] = useState("");
     const [statusFilter, setStatusFilter] = useState<"ALL" | DatasetQaStatus>("ALL");
@@ -197,6 +283,7 @@ export default function ContributorDatasetQaPage() {
     );
     const { data = [], isLoading: loading, isError: hasError, refetch } = useDatasetQaQuestions(datasetSourceKey);
     const [selectedId, setSelectedId] = useState<number | null>(null);
+    const [selectedPublishIds, setSelectedPublishIds] = useState<Set<number>>(new Set());
     const [publishing, setPublishing] = useState(false);
     const [publishMessage, setPublishMessage] = useState<string | null>(null);
 
@@ -220,16 +307,18 @@ export default function ContributorDatasetQaPage() {
     }, [data, filtered, selectedId]);
 
     const counts = statusCounts(data);
-    const approvedUnpublishedCount = data.filter(
-        (row) => row.reviewStatus === "APPROVED" && row.contentStatus !== "ACTIVE"
-    ).length;
+    const approvedForFinalReview = useMemo(() => approvedUnpublishedRows(data), [data]);
+    const publishSummary = useMemo(() => finalReviewSummary(approvedForFinalReview), [approvedForFinalReview]);
 
     async function handlePublishApproved() {
+        if (!canPublish || selectedPublishIds.size === 0) return;
+
         setPublishing(true);
         setPublishMessage(null);
         try {
-            const result = await publishDatasetQaQuestions(datasetSourceKey);
+            const result = await publishDatasetQaQuestions(datasetSourceKey, Array.from(selectedPublishIds));
             setPublishMessage(result.message);
+            setSelectedPublishIds(new Set());
             await refetch();
         } catch (error: any) {
             setPublishMessage(error?.message || "Failed to publish approved records.");
@@ -251,26 +340,19 @@ export default function ContributorDatasetQaPage() {
                     </p>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-[180px_190px_260px_280px]">
+                <div className="grid gap-3 md:grid-cols-[180px_260px_280px]">
                     <Button variant="outline" asChild>
                         <Link href="/docs/contributor-dataset-qa-guide.pdf" target="_blank">
                             <FileText className="mr-2 h-4 w-4" />
                             Guide PDF
                         </Link>
                     </Button>
-                    <Button
-                        type="button"
-                        onClick={handlePublishApproved}
-                        disabled={publishing || approvedUnpublishedCount === 0}
-                    >
-                        <Rocket className="mr-2 h-4 w-4" />
-                        {publishing ? "Publishing..." : `Publish ${approvedUnpublishedCount}`}
-                    </Button>
                     <div className="space-y-2">
                         <Label>Dataset source</Label>
                         <Select value={datasetSourceKey} onValueChange={(value) => {
                             setDatasetSourceKey(value);
                             setSelectedId(null);
+                            setSelectedPublishIds(new Set());
                             setPublishMessage(null);
                         }}>
                             <SelectTrigger>
@@ -311,6 +393,16 @@ export default function ContributorDatasetQaPage() {
                     </Card>
                 ))}
             </div>
+
+            <FinalReviewPanel
+                rows={approvedForFinalReview}
+                summary={publishSummary}
+                canPublish={canPublish}
+                selectedIds={selectedPublishIds}
+                setSelectedIds={setSelectedPublishIds}
+                publishing={publishing}
+                onPublish={handlePublishApproved}
+            />
 
             <Card>
                 <CardHeader className="pb-2">
@@ -809,6 +901,191 @@ function DatasetQaEditor({
                 </div>
             </div>
         </div>
+    );
+}
+
+function FinalReviewPanel({
+    rows,
+    summary,
+    canPublish,
+    selectedIds,
+    setSelectedIds,
+    publishing,
+    onPublish,
+}: {
+    rows: DatasetQaQuestion[];
+    summary: ReturnType<typeof finalReviewSummary>;
+    canPublish: boolean;
+    selectedIds: Set<number>;
+    setSelectedIds: Dispatch<SetStateAction<Set<number>>>;
+    publishing: boolean;
+    onPublish: () => Promise<void>;
+}) {
+    const allSelected = rows.length > 0 && rows.every((row) => selectedIds.has(row.id));
+
+    function toggleOne(id: number) {
+        setSelectedIds((current) => {
+            const next = new Set(current);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }
+
+    function toggleAll() {
+        setSelectedIds((current) => {
+            if (rows.length > 0 && rows.every((row) => current.has(row.id))) {
+                return new Set();
+            }
+            return new Set(rows.map((row) => row.id));
+        });
+    }
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-col gap-3 pb-3 xl:flex-row xl:items-start xl:justify-between">
+                <div>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <Rocket className="h-5 w-5 text-primary" />
+                        Owner final review
+                    </CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Contributor approval is evidence for final review. Student practice only changes after an admin or teacher publishes selected records.
+                    </p>
+                </div>
+                <Button
+                    type="button"
+                    onClick={onPublish}
+                    disabled={!canPublish || publishing || selectedIds.size === 0}
+                >
+                    <Rocket className="mr-2 h-4 w-4" />
+                    {publishing ? "Publishing..." : `Publish selected ${selectedIds.size}`}
+                </Button>
+            </CardHeader>
+            <CardContent className="space-y-5">
+                {!canPublish ? (
+                    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+                        Contributors can approve records, but only an admin or teacher can publish them to student practice.
+                    </div>
+                ) : null}
+
+                <div className="grid gap-3 md:grid-cols-4">
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Approved waiting publish</p>
+                        <p className="mt-1 text-2xl font-semibold">{rows.length}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Training ready</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.trainingReady}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Practice only</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.practiceOnly}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Expert review</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.expertReview}</p>
+                    </div>
+                </div>
+
+                <div className="grid gap-5 xl:grid-cols-2">
+                    <div className="rounded-md border">
+                        <div className="border-b p-3 font-medium">Approved by reviewer</div>
+                        <div className="divide-y">
+                            {summary.byReviewer.length ? (
+                                summary.byReviewer.map((row) => (
+                                    <div key={row.reviewer} className="grid grid-cols-[1fr_70px_96px] gap-3 p-3 text-sm">
+                                        <div>
+                                            <div className="font-medium">{row.reviewer}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                Latest review {formatReviewDate(row.latestReviewedAt)}
+                                            </div>
+                                        </div>
+                                        <div className="text-right font-semibold">{row.count}</div>
+                                        <div className="text-right text-xs text-muted-foreground">
+                                            {row.trainingReady} train
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-3 text-sm text-muted-foreground">No approved unpublished records.</div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="rounded-md border">
+                        <div className="border-b p-3 font-medium">Approved by category</div>
+                        <div className="max-h-64 divide-y overflow-auto">
+                            {summary.byTopic.length ? (
+                                summary.byTopic.map((row) => (
+                                    <div key={row.topicCode} className="grid grid-cols-[1fr_72px_72px] gap-3 p-3 text-sm">
+                                        <div>
+                                            <div className="font-medium">{readableCode(row.topicCode, TOPIC_LABELS)}</div>
+                                            <div className="text-xs text-muted-foreground">{row.topicCode}</div>
+                                        </div>
+                                        <div className="text-right">{row.count} q</div>
+                                        <div className="text-right">{row.marks} marks</div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-3 text-sm text-muted-foreground">No category summary yet.</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rounded-md border">
+                    <div className="flex flex-col gap-3 border-b p-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p className="font-medium">Publish queue</p>
+                            <p className="text-sm text-muted-foreground">
+                                Select only the records you have final-reviewed and want students to see.
+                            </p>
+                        </div>
+                        {canPublish ? (
+                            <Button type="button" variant="outline" size="sm" onClick={toggleAll} disabled={!rows.length}>
+                                {allSelected ? "Clear selection" : "Select all approved"}
+                            </Button>
+                        ) : null}
+                    </div>
+                    <div className="max-h-80 divide-y overflow-auto">
+                        {rows.length ? (
+                            rows.map((row) => (
+                                <label
+                                    key={row.id}
+                                    className="grid cursor-pointer grid-cols-[24px_88px_minmax(0,1fr)_140px] gap-3 p-3 text-sm hover:bg-muted/40"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        className="mt-1"
+                                        disabled={!canPublish}
+                                        checked={selectedIds.has(row.id)}
+                                        onChange={() => toggleOne(row.id)}
+                                    />
+                                    <div className="font-medium">Q{row.questionNumber}</div>
+                                    <div className="min-w-0">
+                                        <div className="truncate">{readableCode(row.topicCode, TOPIC_LABELS)}</div>
+                                        <div className="truncate text-xs text-muted-foreground">
+                                            {readableCode(row.subtopicCode, SUBTOPIC_LABELS)}
+                                        </div>
+                                    </div>
+                                    <div className="text-right text-xs text-muted-foreground">
+                                        <div>{row.reviewerName || "Reviewer unknown"}</div>
+                                        <Badge variant="outline" className="mt-1">
+                                            {TRAINING_READINESS_LABELS[row.trainingReadiness]}
+                                        </Badge>
+                                    </div>
+                                </label>
+                            ))
+                        ) : (
+                            <div className="p-4 text-sm text-muted-foreground">
+                                No approved records are waiting for owner publish.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 

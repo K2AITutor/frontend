@@ -110,6 +110,7 @@ export interface DatasetQaQuestion {
     lastMarkerTest?: DatasetQaMarkingResult | null;
     reviewStatus: DatasetQaStatus;
     reviewerName?: string;
+    reviewerUserId?: number | null;
     reviewNotes?: string;
     reviewedAt?: string | null;
     publishedAt?: string | null;
@@ -241,11 +242,11 @@ export async function testDatasetQaAnswer(questionId: number | string, answer: s
     );
 }
 
-export async function publishDatasetQaQuestions(examKey: string) {
+export async function publishDatasetQaQuestions(examKey: string, questionIds?: number[]) {
     const token = await getAccessToken();
     return apiPost<PublishDatasetQaResult>(
         "/contributor/dataset-qa/publish",
-        { examKey },
+        { examKey, questionIds },
         token
     );
 }
