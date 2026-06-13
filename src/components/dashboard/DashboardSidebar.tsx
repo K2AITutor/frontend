@@ -38,6 +38,7 @@ import {
   ClipboardCheck,
   ChevronDown,
   Bell,
+  BarChart3,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
