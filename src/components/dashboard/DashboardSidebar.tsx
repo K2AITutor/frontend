@@ -41,7 +41,12 @@ import {
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
-export type UserRole = "student" | "teacher" | "admin" | "contributor" | "parent";
+export type UserRole =
+  | "student"
+  | "teacher"
+  | "admin"
+  | "contributor"
+  | "parent";
 
 interface NavItem {
   title: string;
@@ -131,6 +136,11 @@ const adminNavGroups: NavGroup[] = [
     title: "Content",
     items: [
       {
+        title: "Subjects",
+        href: "/admin/subjects",
+        icon: <BookOpen className="h-5 w-5" />,
+      },
+      {
         title: "Topics",
         href: "/admin/content/topics",
         icon: <BookOpen className="h-5 w-5" />,
@@ -205,11 +215,6 @@ const adminNavGroups: NavGroup[] = [
   {
     title: "Public Page",
     items: [
-      {
-        title: "Subjects",
-        href: "/admin/subjects",
-        icon: <BookOpen className="h-5 w-5" />,
-      },
       {
         title: "FAQs",
         href: "/admin/faqs",
@@ -301,7 +306,7 @@ export function DashboardSidebar({
       group.items.some((item) => {
         if (item.href === "/admin") return pathname === item.href;
         return pathname.startsWith(item.href);
-      })
+      }),
     );
 
     return activeGroup?.title ?? null;
@@ -311,7 +316,7 @@ export function DashboardSidebar({
       adminNavGroups.reduce<Record<string, boolean>>((groups, group) => {
         groups[group.title] = true;
         return groups;
-      }, {})
+      }, {}),
   );
 
   React.useEffect(() => {
@@ -344,7 +349,7 @@ export function DashboardSidebar({
       };
       window.localStorage.setItem(
         "adminSidebarOpenGroups",
-        JSON.stringify(nextGroups)
+        JSON.stringify(nextGroups),
       );
       return nextGroups;
     });
@@ -368,7 +373,7 @@ export function DashboardSidebar({
       };
       window.localStorage.setItem(
         "adminSidebarOpenGroups",
-        JSON.stringify(nextGroups)
+        JSON.stringify(nextGroups),
       );
       return nextGroups;
     });
@@ -379,7 +384,7 @@ export function DashboardSidebar({
       <div
         className={cn(
           "flex h-full flex-col border-r bg-card transition-all duration-300",
-          collapsed ? "w-[70px]" : "w-[240px]"
+          collapsed ? "w-[70px]" : "w-[240px]",
         )}
       >
         <div className="flex h-16 items-center border-b px-4">
@@ -425,7 +430,7 @@ export function DashboardSidebar({
                       <ChevronDown
                         className={cn(
                           "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                          !openGroups[group.title] && "-rotate-90"
+                          !openGroups[group.title] && "-rotate-90",
                         )}
                       />
                     </button>
@@ -447,7 +452,7 @@ export function DashboardSidebar({
                             className={cn(
                               "h-10 w-10",
                               active &&
-                                "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                                "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
                             )}
                           >
                             {item.icon}
@@ -463,7 +468,7 @@ export function DashboardSidebar({
                         className={cn(
                           "w-full justify-start gap-3",
                           active &&
-                            "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                            "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
                         )}
                       >
                         {item.icon}
@@ -497,7 +502,7 @@ export function DashboardSidebar({
                         className={cn(
                           "h-10 w-10",
                           active &&
-                          "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                            "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
                         )}
                       >
                         {item.icon}
@@ -516,7 +521,7 @@ export function DashboardSidebar({
                   className={cn(
                     "w-full justify-start gap-3",
                     active &&
-                    "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                      "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
                   )}
                 >
                   {item.icon}
