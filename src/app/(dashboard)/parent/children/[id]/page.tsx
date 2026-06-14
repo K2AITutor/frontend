@@ -23,11 +23,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/dashboard/ui/select";
-import { useParentChild, useParentWeeklyReport } from "@/lib/api/parent";
+import { useParentChild, useParentWeeklyReport, useParentReports } from "@/lib/api/parent";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { ParentTrendChart } from "@/components/dashboard/parent/ParentTrendChart";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/dashboard/ui/chart";
 import type { MasteryEntry, TimelineEntry, WeakArea, WeeklyReport } from "@/lib/types/parent";
 
 const TIMELINE_PAGE_SIZE = 10;
+
+const TREND_RANGE_OPTIONS = [
+  { value: "4w", label: "Last 4 weeks" },
+  { value: "8w", label: "Last 8 weeks" },
+  { value: "12w", label: "Last 12 weeks" },
+];
+const TREND_DAYS: Record<string, number> = { "4w": 28, "8w": 56, "12w": 84 };
+const TREND_COLOR = "var(--chart-1)";
+const HOURS_COLOR = "var(--chart-2)";
 
 function TrendIcon({ trend }: { trend: MasteryEntry["trend"] }) {
   if (trend === "up") return <TrendingUp className="h-4 w-4 text-green-500" />;
@@ -414,8 +430,10 @@ function WeeklyTab({
     );
   }
 
-  const days = Object.entries(report.minutesByDay);
-  const maxMinutes = Math.max(...days.map(([, v]) => v), 1);
+  const dailyData = Object.entries(report.minutesByDay).map(([day, minutes]) => ({
+    day: day.slice(0, 3),
+    minutes,
+  }));
 
   return (
     <div className="space-y-4">
@@ -446,17 +464,18 @@ function WeeklyTab({
           {/* Daily minutes bar chart */}
           <div>
             <p className="text-sm font-medium mb-3">Daily Study Minutes</p>
-            <div className="flex items-end gap-2 h-24">
-              {days.map(([day, mins]) => (
-                <div key={day} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className="w-full bg-primary/80 rounded-t"
-                    style={{ height: `${(mins / maxMinutes) * 80}px`, minHeight: mins > 0 ? 4 : 0 }}
-                  />
-                  <span className="text-xs text-muted-foreground">{day.slice(0, 2)}</span>
-                </div>
-              ))}
-            </div>
+            <ChartContainer
+              config={{ minutes: { label: "Minutes", color: "var(--chart-1)" } }}
+              className="aspect-auto h-[160px] w-full"
+            >
+              <BarChart data={dailyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} />
+                <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} />
+                <ChartTooltip content={<ChartTooltipContent unit=" min" hideIndicator />} />
+                <Bar dataKey="minutes" fill="var(--color-minutes)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
           </div>
         </CardContent>
       </Card>
@@ -501,6 +520,88 @@ function WeeklyTab({
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function TrendsTab({ childId }: { childId: string }) {
+  const [range, setRange] = useState("4w");
+  const { data, isLoading, error, refetch } = useParentReports(range);
+
+  const days = TREND_DAYS[range] ?? 28;
+  const trend = data?.children.find((c) => c.childId === childId);
+  const accuracy = trend?.accuracyTrend.slice(-days) ?? [];
+  const hours = trend?.hoursTrend.slice(-days) ?? [];
+  const hoursMax = Math.max(1, ...hours);
+  const hasData = accuracy.length > 0 || hours.length > 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Select value={range} onValueChange={setRange}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TREND_RANGE_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      ) : error ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center gap-3 py-12">
+            <AlertCircle className="h-10 w-10 text-red-500" />
+            <p className="text-muted-foreground">Failed to load trends</p>
+            <Button variant="outline" onClick={() => refetch()}>Retry</Button>
+          </CardContent>
+        </Card>
+      ) : !hasData ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            No trend data for this period yet.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Accuracy over time</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ParentTrendChart
+                data={accuracy}
+                dataKey="accuracy"
+                label="Accuracy"
+                color={TREND_COLOR}
+                unit="%"
+                domain={[0, 100]}
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Study hours per day</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ParentTrendChart
+                data={hours}
+                dataKey="hours"
+                label="Study hours"
+                color={HOURS_COLOR}
+                unit="h"
+                domain={[0, Math.ceil(hoursMax)]}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
@@ -555,6 +656,7 @@ export default function ChildDetailPage({ params }: { params: { id: string } }) 
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="mastery">Mastery</TabsTrigger>
+          <TabsTrigger value="trends">Trends</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="weekly">Weekly Digest</TabsTrigger>
         </TabsList>
@@ -565,6 +667,10 @@ export default function ChildDetailPage({ params }: { params: { id: string } }) 
 
         <TabsContent value="mastery" className="mt-4">
           <MasteryTab mastery={child.mastery} weakAreas={child.weakAreas} />
+        </TabsContent>
+
+        <TabsContent value="trends" className="mt-4">
+          <TrendsTab childId={id} />
         </TabsContent>
 
         <TabsContent value="timeline" className="mt-4">

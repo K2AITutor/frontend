@@ -15,115 +15,9 @@ import {
 import { toast } from "@/components/dashboard/ui/sonner";
 import { useParentReports, useParentChildren } from "@/lib/api/parent";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { ParentTrendChart } from "@/components/dashboard/parent/ParentTrendChart";
 
 const COLORS = ["#6366f1", "#f59e0b", "#10b981", "#ef4444"];
-
-type Scale = { min: number; max: number };
-
-function MiniLineChart({
-  data,
-  color,
-  label,
-  unit,
-  scale,
-  valueFormatter,
-  ariaPrefix,
-}: {
-  data: number[];
-  color: string;
-  label: string;
-  unit: string;
-  scale: Scale;
-  valueFormatter: (v: number) => string;
-  ariaPrefix: string;
-}) {
-  if (data.length === 0) {
-    return (
-      <div>
-        <p className="text-xs text-muted-foreground mb-1">{label}</p>
-        <div className="h-[80px] flex items-center justify-center text-xs text-muted-foreground border border-dashed rounded">
-          No data
-        </div>
-      </div>
-    );
-  }
-
-  const width = 300;
-  const height = 80;
-  const padding = 8;
-
-  const { min, max } = scale;
-  const range = max - min || 1;
-
-  const xFor = (i: number) =>
-    data.length === 1
-      ? width / 2
-      : padding + (i / (data.length - 1)) * (width - padding * 2);
-  const yFor = (v: number) =>
-    padding + ((max - v) / range) * (height - padding * 2);
-
-  const polyline = data.map((v, i) => `${xFor(i)},${yFor(v)}`).join(" ");
-  const lastIdx = data.length - 1;
-  const first = data[0];
-  const last = data[lastIdx];
-  const delta = last - first;
-  const direction = delta > 0.01 ? "trending up" : delta < -0.01 ? "trending down" : "flat";
-  const summary = `${ariaPrefix} ${direction}: ${valueFormatter(first)}${unit} ${data.length} days ago, ${valueFormatter(last)}${unit} most recently.`;
-
-  return (
-    <div>
-      <div className="flex items-baseline justify-between mb-1">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-xs font-medium" style={{ color }}>
-          {valueFormatter(last)}{unit}
-        </p>
-      </div>
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="w-full"
-        style={{ height: `${height}px` }}
-        role="img"
-        aria-label={summary}
-      >
-        <title>{label}</title>
-        <desc>{summary}</desc>
-        <line
-          x1={padding}
-          y1={yFor(min)}
-          x2={width - padding}
-          y2={yFor(min)}
-          stroke="#e5e7eb"
-          strokeWidth="1"
-        />
-        <polyline
-          points={polyline}
-          fill="none"
-          stroke={color}
-          strokeWidth="2"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        {data.map((v, i) => (
-          <circle
-            key={i}
-            cx={xFor(i)}
-            cy={yFor(v)}
-            r={i === lastIdx ? 3 : 2}
-            fill={color}
-            opacity={i === lastIdx ? 1 : 0.6}
-          >
-            <title>{`Day ${i + 1} of ${data.length}: ${valueFormatter(v)}${unit}`}</title>
-          </circle>
-        ))}
-      </svg>
-      <div className="flex justify-between text-xs text-muted-foreground mt-1">
-        <span>{valueFormatter(first)}{unit}</span>
-        <span aria-hidden="true">Day 1 → Day {data.length}</span>
-        <span style={{ color }}>{valueFormatter(last)}{unit}</span>
-      </div>
-    </div>
-  );
-}
 
 const RANGE_OPTIONS = [
   { value: "4w", label: "Last 4 weeks" },
@@ -266,24 +160,28 @@ export default function ParentReportsPage() {
                       </p>
                     ) : (
                       <>
-                        <MiniLineChart
-                          data={accuracySlice}
-                          color={color}
-                          label="Accuracy (%)"
-                          unit="%"
-                          scale={{ min: 0, max: 100 }}
-                          valueFormatter={(v) => v.toFixed(1)}
-                          ariaPrefix={`${childName} accuracy`}
-                        />
-                        <MiniLineChart
-                          data={hoursSlice}
-                          color={color}
-                          label="Study hours per day"
-                          unit="h"
-                          scale={{ min: 0, max: hoursMax }}
-                          valueFormatter={(v) => v.toFixed(1)}
-                          ariaPrefix={`${childName} study hours`}
-                        />
+                        <div>
+                          <p className="mb-1 text-xs text-muted-foreground">Accuracy (%)</p>
+                          <ParentTrendChart
+                            data={accuracySlice}
+                            dataKey="accuracy"
+                            label="Accuracy"
+                            color={color}
+                            unit="%"
+                            domain={[0, 100]}
+                          />
+                        </div>
+                        <div>
+                          <p className="mb-1 text-xs text-muted-foreground">Study hours per day</p>
+                          <ParentTrendChart
+                            data={hoursSlice}
+                            dataKey="hours"
+                            label="Study hours"
+                            color={color}
+                            unit="h"
+                            domain={[0, Math.ceil(hoursMax)]}
+                          />
+                        </div>
                       </>
                     )}
                   </CardContent>
