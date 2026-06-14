@@ -17,6 +17,7 @@ import { createColumnHelper } from "@tanstack/react-table";
 import { useTeacherHistory } from "@/lib/api/teacher";
 import { usePageTitle } from "@/lib/usePageTitle";
 import type { TeacherHistoryItem } from "@/lib/types/teacher";
+import { HistoryDetailDrawer } from "@/components/teacher/HistoryDetailDrawer";
 
 const RANGE_OPTIONS = [
   { value: "7d", label: "Last 7 days" },
@@ -72,6 +73,7 @@ export default function TeacherHistoryPage() {
 
   const [range, setRange] = useState("7d");
   const [decisionFilter, setDecisionFilter] = useState("all");
+  const [openId, setOpenId] = useState<string | null>(null);
   const { data: history, isLoading, error, refetch } = useTeacherHistory(range);
 
   const columns = [
@@ -210,6 +212,7 @@ export default function TeacherHistoryPage() {
             data={filtered}
             enableSearch={false}
             isLoading={isLoading}
+            onRowClick={(row) => setOpenId(row.id)}
             emptyMessage={
               history && history.length > 0
                 ? "No reviews match the selected filters."
@@ -218,6 +221,8 @@ export default function TeacherHistoryPage() {
           />
         </CardContent>
       </Card>
+
+      <HistoryDetailDrawer submissionId={openId} onClose={() => setOpenId(null)} />
     </div>
   );
 }

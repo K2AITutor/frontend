@@ -89,6 +89,14 @@ export interface DataTableProps<T> {
   hideFooter?: boolean;
   /** Hide the rows-per-page selector (e.g. server APIs with a fixed page size). */
   hidePageSize?: boolean;
+  /**
+   * Optional row click handler. When provided, body rows become clickable
+   * (cursor-pointer + onClick with the row's original data). Existing
+   * callsites that omit it are unaffected. If a row renders its own
+   * interactive controls (buttons/links), stop propagation on those so a row
+   * click isn't triggered alongside the control's own handler.
+   */
+  onRowClick?: (row: T) => void;
 }
 
 /**
@@ -132,6 +140,7 @@ export function DataTable<T>({
   server,
   hideFooter = false,
   hidePageSize = false,
+  onRowClick,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -329,7 +338,11 @@ export function DataTable<T>({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className="border-b border-border/60 transition-colors hover:bg-muted/50"
+                  className={cn(
+                    "border-b border-border/60 transition-colors hover:bg-muted/50",
+                    onRowClick && "cursor-pointer"
+                  )}
+                  onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell

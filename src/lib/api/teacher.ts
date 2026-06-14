@@ -8,6 +8,7 @@ import type { SubmissionFull } from "@/lib/types/marking";
 import type {
   TeacherStats,
   TeacherHistoryItem,
+  TeacherHistoryDetail,
   ReviewQueueResponse,
 } from "@/lib/types/teacher";
 
@@ -109,5 +110,17 @@ export function useTeacherHistory(range: string = "7d", options?: { refetchInter
       apiGet<TeacherHistoryItem[]>(`/teacher/history?range=${range}`, accessToken),
     enabled: !!accessToken,
     ...options,
+  });
+}
+
+export function useTeacherHistoryDetail(submissionId: string | null) {
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken as string | undefined;
+
+  return useQuery({
+    queryKey: ["teacher", "history-detail", submissionId, accessToken],
+    queryFn: () =>
+      apiGet<TeacherHistoryDetail>(`/teacher/history/${submissionId}`, accessToken),
+    enabled: !!submissionId && !!accessToken,
   });
 }
