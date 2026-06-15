@@ -36,7 +36,7 @@ export type CreateQuestionDraftPayload = {
   skillCode: string;
   subtopicCode?: string;
   questionText: string;
-  /** @deprecated legacy alias của questionText — backend vẫn nhận nhưng ưu tiên questionText */
+  /** @deprecated legacy alias of questionText — the backend still accepts it but prefers questionText */
   prompt?: string;
   answerType?: string;
   marks?: number;

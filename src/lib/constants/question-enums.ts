@@ -18,7 +18,7 @@ export const DIFFICULTY_OPTIONS: EnumOption[] = [
   { label: "Exam", value: "EXAM" },
 ];
 
-// ExamStyleType enum chỉ có TOPIC/EXAM1/EXAM2/MOCK — không còn "MIXED".
+// The ExamStyleType enum only has TOPIC/EXAM1/EXAM2/MOCK — "MIXED" no longer exists.
 export const EXAM_STYLE_OPTIONS: EnumOption[] = [
   { label: "Topic", value: "TOPIC" },
   { label: "Exam 1", value: "EXAM1" },
@@ -26,7 +26,7 @@ export const EXAM_STYLE_OPTIONS: EnumOption[] = [
   { label: "Mock", value: "MOCK" },
 ];
 
-// AnswerType enum: 4 giá trị hợp lệ (NUMERIC/EXPRESSION/INTERVAL/EXPLANATION).
+// AnswerType enum: 4 valid values (NUMERIC/EXPRESSION/INTERVAL/EXPLANATION).
 export const ANSWER_TYPE_OPTIONS: EnumOption[] = [
   { label: "Numeric", value: "NUMERIC" },
   { label: "Expression", value: "EXPRESSION" },

@@ -29,10 +29,10 @@ function LoginPageContent() {
     contributor: '/contributor',
   }
 
-  // Đã đăng nhập thì không nên thấy lại form login. Middleware không xử lý được
-  // trang này: next-auth withAuth early-return cho pages.signIn (/auth/login) để
-  // tránh redirect loop, nên phải redirect ở client. Bỏ qua khi đang trong luồng
-  // đăng nhập tại trang này (isRedirecting) để không đua với router.push của handleSubmit.
+  // Once signed in, the user shouldn't see the login form again. Middleware can't handle
+  // this page: next-auth withAuth early-returns for pages.signIn (/auth/login) to
+  // avoid a redirect loop, so we must redirect on the client. Skip while we're in the
+  // sign-in flow on this page (isRedirecting) so we don't race handleSubmit's router.push.
   useEffect(() => {
     if (status !== 'authenticated' || isRedirecting) return
     const role = (session?.user as any)?.role as string | undefined

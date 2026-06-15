@@ -78,6 +78,11 @@ const studentNavItems: NavItem[] = [
     href: "/student/practice",
     icon: <Sparkles className="h-5 w-5" />,
   },
+  {
+    title: "History",
+    href: "/student/submissions",
+    icon: <History className="h-5 w-5" />,
+  },
 ];
 
 const studentBottomNavItems: NavItem[] = [

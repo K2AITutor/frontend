@@ -87,7 +87,7 @@ function DrawerBody({ submissionId }: { submissionId: string }) {
 
   return (
     <>
-      {/* Nhóm 4 — HS & ngữ cảnh */}
+      {/* Group 4 — Student & context */}
       <Section title="Student & Context">
         <div className="grid grid-cols-2 gap-4">
           <Field label="Student" value={student.name} />
@@ -120,20 +120,20 @@ function DrawerBody({ submissionId }: { submissionId: string }) {
 
       <Separator />
 
-      {/* Nhóm 1 — Đề bài + đáp án HS + đáp án đúng */}
+      {/* Group 1 — Question + student answer + correct answer */}
       <Section title="Question & Answers">
         <TextBlock label="Question" value={question.questionText} />
         <TextBlock label="Student answer" value={question.studentAnswer} />
         <TextBlock
           label="Correct answer"
-          value={question.correctAnswer ?? "Chưa có đáp án mẫu"}
+          value={question.correctAnswer ?? "No sample answer yet"}
           muted={question.correctAnswer == null}
         />
       </Section>
 
       <Separator />
 
-      {/* Nhóm 3 — AI chấm */}
+      {/* Group 3 — AI marking */}
       <Section title="AI Marking">
         <div className="grid grid-cols-2 gap-4">
           <Field label="AI score" value={`${aiMarking.aiScore} / ${context.maxScore}`} />
@@ -174,7 +174,7 @@ function DrawerBody({ submissionId }: { submissionId: string }) {
 
       <Separator />
 
-      {/* Nhóm 2 — Nhận xét & chỉnh sửa GV */}
+      {/* Group 2 — Teacher comments & corrections */}
       <Section title="Teacher Review">
         {correction == null ? (
           <p className="text-sm text-muted-foreground">

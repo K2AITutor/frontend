@@ -73,7 +73,7 @@ function SubjectCard({ subject }: { subject: PracticeSubjectPersonalized }) {
       {subject.recommended && (
         <Badge className="absolute right-3 top-3 gap-1">
           <Sparkles className="h-3 w-3" />
-          Nên luyện tiếp
+          Recommended
         </Badge>
       )}
 
@@ -103,7 +103,7 @@ function SubjectCard({ subject }: { subject: PracticeSubjectPersonalized }) {
           <div className="space-y-3">
             <div>
               <div className="mb-1 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Tiến độ</span>
+                <span className="text-muted-foreground">Progress</span>
                 <span className="font-medium">{subject.progressPercent}%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-primary/10">
@@ -114,11 +114,11 @@ function SubjectCard({ subject }: { subject: PracticeSubjectPersonalized }) {
               </div>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Câu đã làm</span>
+              <span className="text-muted-foreground">Questions done</span>
               <span className="font-medium">{subject.questionsAttempted}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Điểm TB</span>
+              <span className="text-muted-foreground">Avg. score</span>
               <span className="font-medium">{subject.averageScore}%</span>
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function PracticeSubjectsClient() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Không tải được danh sách môn luyện tập"
+          : "Could not load the list of practice subjects"
       );
     }
   }, [isError, error]);
@@ -200,10 +200,10 @@ export default function PracticeSubjectsClient() {
     return (
       <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-12 text-center">
         <p className="text-sm text-muted-foreground">
-          Không tải được danh sách môn luyện tập.
+          Could not load the list of practice subjects.
         </p>
         <Button onClick={() => refetch()} disabled={isFetching}>
-          {isFetching ? "Đang tải lại..." : "Thử lại"}
+          {isFetching ? "Reloading..." : "Retry"}
         </Button>
       </div>
     );
@@ -215,7 +215,7 @@ export default function PracticeSubjectsClient() {
     return (
       <div className="flex items-center justify-center rounded-lg border border-dashed py-12 text-center">
         <p className="text-sm text-muted-foreground">
-          Chưa có môn luyện tập nào.
+          No practice subjects yet.
         </p>
       </div>
     );

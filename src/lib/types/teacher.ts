@@ -25,56 +25,56 @@ export interface ReviewQueueResponse {
   pageSize: number;
 }
 
-// Decision string đã chuẩn hóa theo frontend (ACCEPT->approve, OVERRIDE->override, ESCALATE->escalate)
+// Decision string normalized for the frontend (ACCEPT->approve, OVERRIDE->override, ESCALATE->escalate)
 export type TeacherDecision = "approve" | "override" | "escalate";
 
 export interface TeacherHistoryDetail {
   submission: {
     id: string; // String(attempt.id)
     submittedAt: string; // ISO — attempt.createdAt
-    reviewedAt: string | null; // ISO — teacherCorrection.createdAt; null nếu chưa có correction
+    reviewedAt: string | null; // ISO — teacherCorrection.createdAt; null if there is no correction
   };
 
-  // Nhóm 4 — HS & ngữ cảnh
+  // Group 4 — Student & context
   student: {
     id: string; // String(attempt.userId ?? "")
     name: string; // firstName+lastName || email || "Unknown student"
   };
   context: {
-    subject: string; // question.subjectCode (vd "MATH_METHODS"); "Unknown" nếu null
+    subject: string; // question.subjectCode (e.g. "MATH_METHODS"); "Unknown" if null
     questionType: string; // question.questionType ?? answerType ?? "Unknown"
     maxScore: number; // attempt.maxScore ?? question.marks ?? 1
-    decision: TeacherDecision | null; // teacherCorrection.decision đã map; null nếu chưa review
+    decision: TeacherDecision | null; // teacherCorrection.decision mapped; null if not reviewed yet
   };
 
-  // Nhóm 1 — Đề bài + đáp án
+  // Group 1 — Question + answers
   question: {
     id: string; // String(question.id)
     questionText: string; // question.questionText
     studentAnswer: string; // attempt.answer
-    correctAnswer: string | null; // question.correctAnswer (nullable — draft có thể chưa có)
+    correctAnswer: string | null; // question.correctAnswer (nullable — a draft may not have one yet)
   };
 
-  // Nhóm 3 — AI chấm
+  // Group 3 — AI marking
   aiMarking: {
-    aiScore: number; // điểm AI GỐC (originalScore nếu có correction, else attempt.score ?? 0)
-    confidence: number; // 0..1, clamp; lấy như getConfidence()
+    aiScore: number; // ORIGINAL AI score (originalScore if there is a correction, else attempt.score ?? 0)
+    confidence: number; // 0..1, clamped; taken like getConfidence()
     confidenceLevel: "high" | "medium" | "low"; // >=0.8 high, >=0.6 medium, else low
     routingReason: string; // confidence < 0.75 ? "low_confidence" : "auto_marked"
-    aiErrorTags: string[]; // attempt.errorTags (mảng tag AI gợi ý); [] nếu rỗng
-    aiExplanation: string | null; // attempt.aiExplanation; null nếu không có
+    aiErrorTags: string[]; // attempt.errorTags (array of AI-suggested tags); [] if empty
+    aiExplanation: string | null; // attempt.aiExplanation; null if absent
   };
 
-  // Nhóm 2 — Nhận xét & chỉnh sửa GV. null nếu submission CHƯA có teacherCorrection.
+  // Group 2 — Teacher comments & corrections. null if the submission does NOT have a teacherCorrection yet.
   correction: {
     correctedScore: number; // teacherCorrection.correctedScore
-    originalScore: number; // teacherCorrection.originalScore (= điểm AI tại thời điểm review)
+    originalScore: number; // teacherCorrection.originalScore (= AI score at review time)
     comment: string | null; // teacherCorrection.comment
-    teacherErrorTags: string[]; // teacherCorrection.errorTags; [] nếu rỗng
-    criterionOverrides: CriterionOverride[]; // join với rubric criteria; [] nếu rỗng/rubric null
+    teacherErrorTags: string[]; // teacherCorrection.errorTags; [] if empty
+    criterionOverrides: CriterionOverride[]; // joined with rubric criteria; [] if empty/rubric null
   } | null;
 
-  // Rubric criteria (để hiển thị nhãn cho criterionOverrides). [] nếu rubric null.
+  // Rubric criteria (to display labels for criterionOverrides). [] if rubric is null.
   rubric: {
     criteria: RubricCriterionLite[];
   };
@@ -87,12 +87,12 @@ export interface RubricCriterionLite {
   maxMarks: number; // criterion.marks
 }
 
-// criterionOverrides trong DB là Json dạng Record<criterionKey, number>.
-// Backend JOIN key với rubric criteria để trả ra mảng có nhãn; key không khớp criterion
-// vẫn trả với label = chính key đó (đừng bỏ sót dữ liệu GV đã nhập).
+// criterionOverrides in the DB is Json of shape Record<criterionKey, number>.
+// The backend JOINs the key with rubric criteria to return a labeled array; a key that
+// matches no criterion is still returned with label = the key itself (don't drop teacher-entered data).
 export interface CriterionOverride {
-  criterionId: string; // key trong criterionOverrides (String). Nếu khớp criterion.id thì là id đó.
-  label: string; // criterion.criterionCode nếu khớp; else = criterionId
-  overrideScore: number; // giá trị điểm GV override (Number)
-  maxMarks: number | null; // criterion.marks nếu khớp; null nếu key không khớp criterion nào
+  criterionId: string; // key in criterionOverrides (String). If it matches criterion.id, it is that id.
+  label: string; // criterion.criterionCode if it matches; else = criterionId
+  overrideScore: number; // the teacher's override score value (Number)
+  maxMarks: number | null; // criterion.marks if it matches; null if the key matches no criterion
 }

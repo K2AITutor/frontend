@@ -68,11 +68,11 @@ export default function StudentSubmissionPage({
 
         {/* Back link */}
         <Link
-          href="/student/practice/math-methods/topic"
+          href="/student/submissions"
           className="inline-flex items-center gap-1.5 text-sm text-slate-400 transition hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Practice
+          Back to History
         </Link>
 
         {/* Header */}
