@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard
 import { Progress } from "@/components/dashboard/ui/progress";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Button } from "@/components/dashboard/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
+import { UserAvatar } from "@/components/dashboard/UserAvatar";
 import { cn } from "@/lib/utils";
 import type { ParentChild } from "@/lib/types/parent";
 
@@ -14,15 +14,6 @@ function TrendIcon({ trend }: { trend: "up" | "down" | "stable" }) {
   if (trend === "up") return <TrendingUp className="h-4 w-4 text-green-500" />;
   if (trend === "down") return <TrendingDown className="h-4 w-4 text-red-500" />;
   return <Minus className="h-4 w-4 text-muted-foreground" />;
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
 }
 
 export function ChildCard({ child, className }: { child: ParentChild; className?: string }) {
@@ -36,10 +27,7 @@ export function ChildCard({ child, className }: { child: ParentChild; className?
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <Avatar className="h-9 w-9 shrink-0">
-              {child.avatarUrl && <AvatarImage src={child.avatarUrl} alt={child.name} />}
-              <AvatarFallback className="text-xs font-medium">{initials(child.name)}</AvatarFallback>
-            </Avatar>
+            <UserAvatar name={child.name} src={child.avatarUrl} className="h-9 w-9 shrink-0" />
             <div className="min-w-0">
               <CardTitle className="truncate text-base">{child.name}</CardTitle>
               <p className="text-sm text-muted-foreground">{child.grade}</p>

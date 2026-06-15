@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Badge } from "@/components/dashboard/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
+import { UserAvatar } from "@/components/dashboard/UserAvatar";
 import { Button } from "@/components/dashboard/ui/button";
 import { DataTable, SortHeader } from "@/components/dashboard/DataTable";
 import {
@@ -54,34 +54,6 @@ function formatDate(dateString: string): string {
     day: "numeric",
     year: "numeric",
   });
-}
-
-// Deterministic gradient for avatar fallbacks so each user keeps a stable, distinct color.
-const AVATAR_GRADIENTS = [
-  "from-sky-500 to-blue-600",
-  "from-violet-500 to-purple-600",
-  "from-rose-500 to-pink-600",
-  "from-amber-500 to-orange-600",
-  "from-emerald-500 to-green-600",
-  "from-cyan-500 to-teal-600",
-  "from-indigo-500 to-blue-700",
-  "from-fuchsia-500 to-pink-600",
-];
-
-function avatarGradient(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
-}
-
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase();
 }
 
 const ROLE_STYLES: Record<string, string> = {
@@ -153,17 +125,7 @@ export function getUserColumns({
         const user = info.row.original;
         return (
           <div className="flex items-center gap-3">
-            <Avatar className="h-9 w-9 ring-2 ring-white shadow-sm dark:ring-slate-800">
-              <AvatarImage src={user.avatar ?? undefined} alt={user.name} />
-              <AvatarFallback
-                className={cn(
-                  "bg-gradient-to-br text-xs font-semibold text-white",
-                  avatarGradient(user.name)
-                )}
-              >
-                {initials(user.name)}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar name={user.name} src={user.avatar} className="h-9 w-9" />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{user.name}</p>
               <p className="truncate text-xs text-muted-foreground">{user.email}</p>
