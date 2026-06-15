@@ -9,7 +9,6 @@ import { Separator } from "@/components/dashboard/ui/separator";
 import { Skeleton } from "@/components/dashboard/ui/skeleton";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { CourseCard } from "@/components/dashboard/CourseCard";
-import { AssignmentItem } from "@/components/dashboard/AssignmentItem";
 import { ActivityItem } from "@/components/dashboard/ActivityItem";
 import { useStudentDashboardData } from "@/lib/api/dashboard";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -21,7 +20,6 @@ import {
   Flame,
   GraduationCap,
   ArrowRight,
-  CalendarDays,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -99,8 +97,7 @@ export default function StudentDashboardPage() {
     );
   }
 
-  const { profile, courses, assignments, recentActivities, stats } = data as DashboardData;
-  const pendingAssignments = assignments.filter((a) => a.status !== "completed");
+  const { profile, courses, recentActivities, stats } = data as DashboardData;
 
   return (
     <div className="space-y-6 p-6">
@@ -150,7 +147,7 @@ export default function StudentDashboardPage() {
         <StatsCard
           title="Courses Enrolled"
           value={stats.coursesEnrolled}
-          subtitle={`${stats.assignmentsPending} pending tasks`}
+          subtitle="Active subjects"
           icon={BookOpen}
         />
       </div>
@@ -223,39 +220,6 @@ export default function StudentDashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Assignments Section */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CalendarDays className="h-5 w-5" />
-              Upcoming Assignments
-            </CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {pendingAssignments.length > 0 ? (
-              pendingAssignments.map((assignment) => (
-                <AssignmentItem
-                  key={assignment.id}
-                  id={assignment.id}
-                  title={assignment.title}
-                  course={assignment.course}
-                  dueDate={assignment.dueDate}
-                  status={assignment.status}
-                  priority={assignment.priority}
-                />
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground py-8">
-                No pending assignments. Great job!
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

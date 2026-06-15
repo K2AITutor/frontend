@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 type TopicStatus = 'Not started' | 'Early signal' | 'Weak' | 'Monitor' | 'Strong';
 
@@ -46,9 +49,11 @@ function getApiBase() {
     return clean.endsWith('/api') ? clean : `${clean}/api`;
 }
 
-async function fetchWeakAreaData(): Promise<WeakAreaResponse> {
+async function fetchWeakAreaData(userId: number): Promise<WeakAreaResponse> {
     const base = getApiBase();
-    const url = `${base}/progress/weak-area?userId=1&subjectCode=MATH_METHODS`;
+    const url = `${base}/progress/weak-area?userId=${encodeURIComponent(
+        String(userId)
+    )}&subjectCode=MATH_METHODS`;
 
     const res = await fetch(url, {
         cache: 'no-store',
@@ -175,7 +180,13 @@ function TopicCard({
 }
 
 export default async function WeakAreaPage() {
-    const data = await fetchWeakAreaData();
+    const session = await getServerSession(authOptions);
+    const userId = Number((session?.user as any)?.id);
+    if (!session || !Number.isFinite(userId) || userId <= 0) {
+        redirect('/auth/login?callbackUrl=/student/practice/math-methods/weak-area');
+    }
+
+    const data = await fetchWeakAreaData(userId);
 
     const weakestSubtopics = data.weakestSubtopics;
     const earlySignalTopics = data.earlySignalTopics;

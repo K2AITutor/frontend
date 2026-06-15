@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 import PracticeClient from '@/app/(dashboard)/student/practice/[subject]/PracticeClient';
 import {
     fetchPracticeQuestions,
@@ -16,8 +19,11 @@ export default async function StudentMathMethodsTopicPracticePage({
 }) {
     const subject = 'MATH_METHODS';
 
-    // TODO: replace with real authenticated user id once auth is wired properly
-    const currentUserId = 1;
+    const session = await getServerSession(authOptions);
+    const currentUserId = Number((session?.user as any)?.id);
+    if (!session || !Number.isFinite(currentUserId) || currentUserId <= 0) {
+        redirect('/auth/login?callbackUrl=/student/practice/math-methods/topic');
+    }
 
     const catalogue = await fetchTopicCatalogue(subject);
     const topicCountsDto = await fetchTopicCounts(subject);

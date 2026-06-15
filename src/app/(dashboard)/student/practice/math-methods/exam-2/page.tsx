@@ -58,7 +58,7 @@ export default async function MathMethodsExam2Page() {
         <div className="min-h-screen">
             <div className="p-6 flex items-center justify-between">
                 <Link
-                    href="/practice"
+                    href="/student/practice"
                     className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm"
                 >
                     ← Back
