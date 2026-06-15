@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, FileX2, ArrowRight } from "lucide-react";
+import { AlertCircle, FileX2, ArrowRight, Search } from "lucide-react";
 import { createColumnHelper } from "@tanstack/react-table";
 import { DataTable, SortHeader } from "@/components/dashboard/DataTable";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Button } from "@/components/dashboard/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
+import { Input } from "@/components/dashboard/ui/input";
 import {
   Select,
   SelectContent,
@@ -47,6 +49,22 @@ const DATE_OPTIONS = [
   { value: "90d", label: "Last 90 days" },
 ];
 
+// Statuses the backend can actually return (mapped from teacher corrections).
+const STATUS_OPTIONS = [
+  { value: "all", label: "All statuses" },
+  { value: "pending_review", label: "Pending Review" },
+  { value: "reviewed", label: "Reviewed" },
+  { value: "overridden", label: "Overridden" },
+  { value: "escalated", label: "Escalated" },
+];
+
+const SCORE_OPTIONS = [
+  { value: "all", label: "All scores" },
+  { value: "correct", label: "Correct" },
+  { value: "partial", label: "Partial" },
+  { value: "incorrect", label: "Incorrect" },
+];
+
 const columnHelper = createColumnHelper<StudentSubmissionListItem>();
 
 const PAGE_SIZE = 10;
@@ -54,12 +72,19 @@ const PAGE_SIZE = 10;
 export function SubmissionsListClient() {
   const [page, setPage] = useState(1);
   const [subject, setSubject] = useState<string>("all"); // slug or "all"
-  const [dateRange, setDateRange] = useState<string>("all"); // client-side
+  const [status, setStatus] = useState<string>("all");
+  const [score, setScore] = useState<string>("all");
+  const [question, setQuestion] = useState<string>(""); // free-text search
+  const [dateRange, setDateRange] = useState<string>("all");
 
   const { data, isLoading, error, refetch } = useStudentSubmissions({
     page,
     pageSize: PAGE_SIZE,
-    subject: subject === "all" ? undefined : subject,
+    subject,
+    status,
+    score,
+    question,
+    dateRange,
   });
 
   // Subject dropdown options reuse the Phase 2 personalized catalog.
@@ -76,14 +101,21 @@ export function SubmissionsListClient() {
     }
   }, [error]);
 
-  // Client-side date filter applies only to the current server page's items.
-  const filteredItems = useMemo(() => {
-    const items = data?.items ?? [];
-    if (dateRange === "all") return items;
-    const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
-    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    return items.filter((item) => new Date(item.submittedAt).getTime() >= cutoff);
-  }, [data, dateRange]);
+  // Any filter changing must reset to page 1, otherwise the current page can
+  // land beyond the filtered result's page count and render empty.
+  const setFilter = (setter: (value: string) => void) => (value: string) => {
+    setter(value);
+    setPage(1);
+  };
+
+  const anyFilterActive =
+    subject !== "all" ||
+    status !== "all" ||
+    score !== "all" ||
+    dateRange !== "all" ||
+    question.trim() !== "";
+
+  const items = data?.items ?? [];
 
   const columns = useMemo(
     () => [
@@ -155,15 +187,6 @@ export function SubmissionsListClient() {
     [],
   );
 
-  const handleSubjectChange = (value: string) => {
-    setSubject(value);
-    setPage(1);
-  };
-
-  const handleDateChange = (value: string) => {
-    setDateRange(value);
-  };
-
   // Error state: never leave a blank screen — show a retry affordance.
   if (error) {
     return (
@@ -177,9 +200,10 @@ export function SubmissionsListClient() {
     );
   }
 
-  // Empty state (no submissions for this user) — only when the unfiltered list
-  // is genuinely empty, not when the local date filter hid everything.
-  if (!isLoading && data && data.total === 0) {
+  // Full-page empty state ONLY when the user genuinely has no submissions — i.e.
+  // no filter is active. When a filter is active and the result is empty, we keep
+  // the table + filters mounted and show an in-table "no data" message instead.
+  if (!isLoading && !anyFilterActive && data && data.total === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border">
         <FileX2 className="h-10 w-10 text-muted-foreground" />
@@ -194,54 +218,105 @@ export function SubmissionsListClient() {
     );
   }
 
-  const toolbar = (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-      <Select value={subject} onValueChange={handleSubjectChange}>
-        <SelectTrigger className="w-full bg-muted/50 sm:w-[200px]">
-          <SelectValue placeholder="All subjects" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All subjects</SelectItem>
-          {subjectOptions.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select value={dateRange} onValueChange={handleDateChange}>
-        <SelectTrigger className="w-full bg-muted/50 sm:w-[170px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {DATE_OPTIONS.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-
   return (
-    <DataTable
-      columns={columns}
-      data={filteredItems}
-      isLoading={isLoading}
-      toolbar={toolbar}
-      hidePageSize
-      emptyMessage={
-        dateRange !== "all"
-          ? "No submissions in the selected date range."
-          : "No submissions match the selected filters."
-      }
-      server={{
-        total: data?.total ?? 0,
-        pageIndex: (data?.page ?? page) - 1,
-        pageSize: PAGE_SIZE,
-        onPaginationChange: ({ pageIndex }) => setPage(pageIndex + 1),
-      }}
-    />
+    <Card className="shadow-sm border-border">
+      <CardHeader className="border-b border-border pb-4">
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <CardTitle className="text-lg">Your Submissions</CardTitle>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              Search and filter your past practice submissions, scores, and review status.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="relative min-w-0">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search questions…"
+                value={question}
+                onChange={(e) => {
+                  setQuestion(e.target.value);
+                  setPage(1);
+                }}
+                className="bg-muted/50 pl-9"
+              />
+            </div>
+
+            <Select value={subject} onValueChange={setFilter(setSubject)}>
+              <SelectTrigger className="w-full bg-muted/50">
+                <SelectValue placeholder="All subjects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All subjects</SelectItem>
+                {subjectOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={status} onValueChange={setFilter(setStatus)}>
+              <SelectTrigger className="w-full bg-muted/50">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={score} onValueChange={setFilter(setScore)}>
+              <SelectTrigger className="w-full bg-muted/50">
+                <SelectValue placeholder="All scores" />
+              </SelectTrigger>
+              <SelectContent>
+                {SCORE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={dateRange} onValueChange={setFilter(setDateRange)}>
+              <SelectTrigger className="w-full bg-muted/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DATE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-6">
+        <DataTable
+          columns={columns}
+          data={items}
+          isLoading={isLoading}
+          hidePageSize
+          emptyMessage={
+            anyFilterActive
+              ? "No submissions match the selected filters."
+              : "No submissions yet."
+          }
+          server={{
+            total: data?.total ?? 0,
+            pageIndex: (data?.page ?? page) - 1,
+            pageSize: PAGE_SIZE,
+            onPaginationChange: ({ pageIndex }) => setPage(pageIndex + 1),
+          }}
+        />
+      </CardContent>
+    </Card>
   );
 }
