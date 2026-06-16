@@ -16,12 +16,15 @@ export function useTeacherStats(options?: { refetchInterval?: number }) {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken as string | undefined;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["teacher", "stats", accessToken],
     queryFn: () => apiGet<TeacherStats>("/teacher/stats", accessToken),
     enabled: !!accessToken,
     ...options,
   });
+  // Keep loading until the session token resolves (query stays disabled until
+  // then), so reloads show a skeleton instead of a flash of error/empty state.
+  return { ...query, isLoading: query.isPending };
 }
 
 export interface ReviewQueueFilters {
@@ -44,7 +47,7 @@ export function useReviewQueue(filters: ReviewQueueFilters = {}) {
   if (filters.page != null) params.set("page", String(filters.page));
   const qs = params.toString();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["teacher", "review-queue", filters, accessToken],
     queryFn: () =>
       apiGet<ReviewQueueResponse>(
@@ -53,17 +56,21 @@ export function useReviewQueue(filters: ReviewQueueFilters = {}) {
       ),
     enabled: !!accessToken,
   });
+  // See useTeacherStats: keep loading until the session token resolves.
+  return { ...query, isLoading: query.isPending };
 }
 
 export function useSubmissionFull(id: string) {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken as string | undefined;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["teacher", "submissions", id, accessToken],
     queryFn: () => apiGet<SubmissionFull>(`/teacher/submissions/${id}`, accessToken),
     enabled: !!id && !!accessToken,
   });
+  // See useTeacherStats: keep loading until id + session token resolve.
+  return { ...query, isLoading: query.isPending };
 }
 
 export function useSubmitTeacherCorrection(submissionId: string) {
@@ -104,23 +111,27 @@ export function useTeacherHistory(range: string = "7d", options?: { refetchInter
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken as string | undefined;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["teacher", "history", range, accessToken],
     queryFn: () =>
       apiGet<TeacherHistoryItem[]>(`/teacher/history?range=${range}`, accessToken),
     enabled: !!accessToken,
     ...options,
   });
+  // See useTeacherStats: keep loading until the session token resolves.
+  return { ...query, isLoading: query.isPending };
 }
 
 export function useTeacherHistoryDetail(submissionId: string | null) {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken as string | undefined;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["teacher", "history-detail", submissionId, accessToken],
     queryFn: () =>
       apiGet<TeacherHistoryDetail>(`/teacher/history/${submissionId}`, accessToken),
     enabled: !!submissionId && !!accessToken,
   });
+  // See useTeacherStats: keep loading until submissionId + session token resolve.
+  return { ...query, isLoading: query.isPending };
 }

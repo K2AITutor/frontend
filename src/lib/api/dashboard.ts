@@ -85,33 +85,42 @@ export function useDashboardStats() {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["dashboardData", accessToken],
     queryFn: () => apiGet<StudentDashboardData>("/dashboard/data", accessToken),
     enabled: !!accessToken,
   });
+  // While the query is disabled (session token not resolved yet on reload),
+  // `isLoading` is false but there is no data — surface that window as loading
+  // so pages show a skeleton instead of a flash of error/empty state.
+  return { ...query, isLoading: query.isPending };
 }
 
 export function useStudentDashboardData() {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["studentDashboardData", accessToken],
     queryFn: () => apiGet<StudentDashboardData>("/dashboard/data", accessToken),
     enabled: !!accessToken,
     staleTime: 30_000,
   });
+  // Treat the pre-auth window (query disabled until the session token loads)
+  // as loading so the page shows a skeleton instead of "Failed to load dashboard".
+  return { ...query, isLoading: query.isPending };
 }
 
 export function useAdminDashboardData() {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken;
 
-  return useQuery<AdminDashboardData>({
+  const query = useQuery<AdminDashboardData>({
     queryKey: ["adminDashboard", accessToken],
     queryFn: () => apiGet<AdminDashboardData>("/admin/dashboard", accessToken),
     enabled: !!accessToken,
   });
+  // See useStudentDashboardData: keep loading until the session token resolves.
+  return { ...query, isLoading: query.isPending };
 }
 
