@@ -85,11 +85,11 @@ function SubjectCard({ subject }: { subject: PracticeSubjectPersonalized }) {
           <div className="flex flex-col">
             <CardTitle className="text-lg">{subject.name}</CardTitle>
             {isActive ? (
-              <Badge variant="secondary" className="mt-1 w-fit">
+              <Badge variant="success" className="mt-1 w-fit">
                 Available
               </Badge>
             ) : (
-              <Badge variant="secondary" className="mt-1 w-fit gap-1">
+              <Badge variant="outline" className="mt-1 w-fit gap-1">
                 <Clock className="h-3 w-3" />
                 Coming Soon
               </Badge>
@@ -141,7 +141,7 @@ function SubjectCard({ subject }: { subject: PracticeSubjectPersonalized }) {
             </Link>
           </Button>
         ) : (
-          <Button variant="secondary" disabled className="w-full">
+          <Button variant="outline" disabled className="w-full">
             Coming Soon
           </Button>
         )}
