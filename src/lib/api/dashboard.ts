@@ -5,50 +5,79 @@ import { useSession } from "next-auth/react";
 import { apiGet } from "@/lib/apiClient";
 
 type ActivityType = "quiz_completed" | "lesson_completed" | "achievement" | "practice";
-type AssignmentStatus = "pending" | "in_progress" | "completed";
-type Priority = "high" | "medium" | "low";
+
+/**
+ * Canonical course icon keys agreed with the backend. The backend normalizes
+ * `Subject.icon` into one of these lowercase keys (default "book"); the
+ * frontend `iconMap` (CourseCard) maps each key to a lucide icon.
+ */
+export type CourseIconKey =
+  | "calculator"
+  | "book"
+  | "flask"
+  | "atom"
+  | "globe"
+  | "pen"
+  | "chart";
 
 export interface StudentDashboardData {
   profile: {
     id: string;
     name: string;
     email: string;
-    avatar: string;
+    avatar: string; // may be "" — header renders initials fallback
     grade: string;
-    enrollmentDate: string;
-    overallProgress: number;
+    enrollmentDate: string; // ISO
+    overallProgress: number; // 0-100
     streak: number;
   };
   courses: Array<{
     id: string;
     name: string;
-    progress: number;
-    grade: string;
-    nextLesson: string;
-    icon: string;
+    progress: number; // 0-100
+    grade: string; // letter grade
+    nextLesson: string; // human-readable Topic name (not raw subtopicCode)
+    icon: CourseIconKey; // canonical key — never raw/empty
   }>;
-  assignments: Array<{
-    id: string;
+  // Adaptive recommended questions for this user. May be [] (no data).
+  recommendedNext: Array<{
+    questionId: string;
     title: string;
-    course: string;
-    dueDate: string;
-    status: AssignmentStatus;
-    priority: Priority;
+    subjectCode: string; // e.g. "MATH_METHODS"
+    topicCode: string;
+    difficulty: string | null; // e.g. "EASY" | "MEDIUM" | "HARD" or null
+    href: string; // ready-to-use practice link
+  }>;
+  // Student's weakest areas for the "Areas to improve" card. May be [] (no data).
+  weakAreas: Array<{
+    topicCode: string;
+    topicName: string; // resolved display name (fallback topicCode)
+    subjectCode: string; // e.g. "MATH_METHODS"
+    masteryPercent: number; // 0-100 (already converted)
+    status: string; // "Weak" | "Early signal" | ...
+    href: string; // link into weak-area practice
   }>;
   recentActivities: Array<{
-    id: string;
+    id: string; // String(attempt.id) — Attempt model
     type: ActivityType;
     title: string;
     description: string;
-    timestamp: string;
+    timestamp: string; // ISO (attempt.createdAt)
+    submissionId: string; // String(attempt.id) — opens /student/submissions/[submissionId]
+    href: string; // "/student/submissions/" + submissionId (ready-to-use)
+    subjectCode: string; // e.g. "MATH_METHODS"
+    subjectName: string; // display name; fallback subjectCode
+    score: {
+      awarded: number;
+      max: number;
+      percent: number | null; // max>0 ? round(awarded/max*100) : null
+    };
   }>;
   stats: {
     totalHoursLearned: number;
     questionsAnswered: number;
-    averageScore: number;
+    averageScore: number; // 0-100
     coursesEnrolled: number;
-    assignmentsCompleted: number;
-    assignmentsPending: number;
   };
 }
 

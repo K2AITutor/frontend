@@ -18,7 +18,7 @@ export default function MathMethodsPracticeHub() {
                 </p>
             </section>
 
-            <section className="grid gap-6 xl:grid-cols-4">
+            <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <Card>
                     <CardHeader>
                         <div className="mb-2 inline-flex w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
