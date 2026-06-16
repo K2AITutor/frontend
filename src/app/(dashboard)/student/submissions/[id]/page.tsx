@@ -19,13 +19,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard
 import { RubricChecklist } from "@/components/marking/RubricChecklist";
 
 // Mirror STATUS_CONFIG from the submissions list so the badge styling is
-// consistent between the list and the detail screen (light dashboard theme).
+// consistent between the list and the detail screen. Use solid, high-contrast
+// fills (not low-opacity tints) so the status reads clearly.
 const STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
-  pending_review: { label: "Pending Review", classes: "bg-amber-500/15 text-amber-700 border-amber-500/30" },
-  reviewed:       { label: "Reviewed",        classes: "bg-sky-500/15 text-sky-700 border-sky-500/30" },
-  approved:       { label: "Approved",        classes: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30" },
-  overridden:     { label: "Overridden",      classes: "bg-violet-500/15 text-violet-700 border-violet-500/30" },
-  escalated:      { label: "Escalated",       classes: "bg-red-500/15 text-red-700 border-red-500/30" },
+  pending_review: { label: "Pending Review", classes: "border-transparent bg-amber-500 text-white" },
+  reviewed:       { label: "Reviewed",        classes: "border-transparent bg-sky-600 text-white" },
+  approved:       { label: "Approved",        classes: "border-transparent bg-emerald-600 text-white" },
+  overridden:     { label: "Overridden",      classes: "border-transparent bg-violet-600 text-white" },
+  escalated:      { label: "Escalated",       classes: "border-transparent bg-red-600 text-white" },
 };
 
 // Reused section label styling — matches the uppercase muted headers used
@@ -74,7 +75,7 @@ export default function StudentSubmissionPage({
 
   const statusCfg = STATUS_CONFIG[submission.status] ?? {
     label: submission.status,
-    classes: "bg-slate-500/15 text-slate-600 border-slate-500/30",
+    classes: "border-transparent bg-slate-500 text-white",
   };
   const scorePct = question.maxScore ? Math.round((aiMarking.finalScore / question.maxScore) * 100) : null;
   const isCorrect = scorePct !== null && scorePct >= 100;
@@ -82,10 +83,10 @@ export default function StudentSubmissionPage({
   const scoreText = isCorrect ? "text-emerald-600" : isPartial ? "text-amber-600" : "text-red-600";
   const scoreBar = isCorrect ? "bg-emerald-500" : isPartial ? "bg-amber-500" : "bg-red-500";
   const scoreChip = isCorrect
-    ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/30"
+    ? "border-transparent bg-emerald-600 text-white"
     : isPartial
-    ? "bg-amber-500/15 text-amber-700 border-amber-500/30"
-    : "bg-red-500/15 text-red-700 border-red-500/30";
+    ? "border-transparent bg-amber-500 text-white"
+    : "border-transparent bg-red-600 text-white";
 
   // Student-facing visibility gates: hide teacher/pipeline internals and any
   // section that has no real data to show.

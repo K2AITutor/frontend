@@ -3,6 +3,8 @@ import Link from "next/link";
 import PracticeClient from "../../[subject]/PracticeClient";
 import type { PracticeQuestion } from "@/types/question";
 import { SUBJECT } from "@/lib/subjects";
+import { Card, CardContent } from "@/components/dashboard/ui/card";
+import { Button } from "@/components/dashboard/ui/button";
 
 /**
  * Ensure base includes /api (your backend logs show routes under /api)
@@ -55,25 +57,25 @@ export default async function MathMethodsExam2Page() {
     const initialQuestions = await fetchExam2Questions();
 
     return (
-        <div className="min-h-screen">
-            <div className="p-6 flex items-center justify-between">
-                <Link
-                    href="/student/practice"
-                    className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm"
-                >
-                    ← Back
-                </Link>
+        <div className="space-y-6 p-6">
+            <Card>
+                <CardContent className="p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <Button asChild variant="outline" size="sm">
+                            <Link href="/student/practice">
+                                ← Back
+                            </Link>
+                        </Button>
 
-                <div className="text-slate-300 text-sm">
-                    <span className="font-semibold">Mathematical Methods</span> · Exam 2 (Practice Mode)
-                </div>
-            </div>
+                        <div className="text-sm text-muted-foreground">
+                            <span className="font-semibold text-foreground">Mathematical Methods</span> · Exam 2 (Practice Mode)
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
-            <div className="px-6 pb-10">
-                {/* ✅ PracticeClient only takes (initialQuestions, subject) */}
-            
-                <PracticeClient initialQuestions={initialQuestions} subject={SUBJECT.MATH_METHODS} />
-            </div>
+            {/* ✅ PracticeClient only takes (initialQuestions, subject) */}
+            <PracticeClient initialQuestions={initialQuestions} subject={SUBJECT.MATH_METHODS} />
         </div>
     );
 }

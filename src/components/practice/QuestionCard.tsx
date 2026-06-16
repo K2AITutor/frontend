@@ -17,32 +17,32 @@ export default function QuestionCard({
     return (
         <div className="glass p-4 space-y-4">
             <div className="flex items-start justify-between gap-4">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {(question as any).topicCode && (
-                        <span className="px-2 py-1 rounded bg-slate-800">
+                        <span className="px-2 py-1 rounded border border-border bg-muted">
                             {(question as any).topicCode}
                         </span>
                     )}
                     {(question as any).subtopicCode && (
-                        <span className="px-2 py-1 rounded bg-slate-800">
+                        <span className="px-2 py-1 rounded border border-border bg-muted">
                             {(question as any).subtopicCode}
                         </span>
                     )}
                     {(question as any).isMarkable === false && (
-                        <span className="px-2 py-1 rounded bg-amber-900/60 text-amber-200">
+                        <span className="px-2 py-1 rounded border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-200">
                             Manual review
                         </span>
                     )}
                 </div>
 
                 {marks != null && (
-                    <span className="shrink-0 px-2 py-1 rounded bg-slate-800 text-xs text-slate-300">
+                    <span className="shrink-0 px-2 py-1 rounded border border-border bg-muted text-xs text-muted-foreground">
                         {marks} mark{Number(marks) === 1 ? "" : "s"}
                     </span>
                 )}
             </div>
 
-            <div className="flex gap-4 text-slate-100">
+            <div className="flex gap-4 text-foreground">
                 {partLabel && (
                     <div className="w-8 shrink-0 pt-1 text-lg font-semibold">
                         {partLabel}.

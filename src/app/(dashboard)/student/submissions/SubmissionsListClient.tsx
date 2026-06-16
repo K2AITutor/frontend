@@ -25,13 +25,15 @@ import {
 import { usePracticeSubjects } from "@/lib/api/subjects";
 
 // Mirror STATUS_CONFIG from submissions/[id]/page.tsx so the badge styling is
-// consistent between the list and the detail screen.
+// consistent between the list and the detail screen. Use solid, high-contrast
+// fills (not low-opacity tints) so the status reads clearly — matching the
+// admin content badges.
 const STATUS_CONFIG: Record<SubmissionStatus, { label: string; classes: string }> = {
-  pending_review: { label: "Pending Review", classes: "bg-amber-500/15 text-amber-700 border-amber-500/30" },
-  reviewed: { label: "Reviewed", classes: "bg-sky-500/15 text-sky-700 border-sky-500/30" },
-  approved: { label: "Approved", classes: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30" },
-  overridden: { label: "Overridden", classes: "bg-violet-500/15 text-violet-700 border-violet-500/30" },
-  escalated: { label: "Escalated", classes: "bg-red-500/15 text-red-700 border-red-500/30" },
+  pending_review: { label: "Pending Review", classes: "border-transparent bg-amber-500 text-white" },
+  reviewed: { label: "Reviewed", classes: "border-transparent bg-sky-600 text-white" },
+  approved: { label: "Approved", classes: "border-transparent bg-emerald-600 text-white" },
+  overridden: { label: "Overridden", classes: "border-transparent bg-violet-600 text-white" },
+  escalated: { label: "Escalated", classes: "border-transparent bg-red-600 text-white" },
 };
 
 // Score colour mirrors the detail page: >=100% emerald, >0% amber, =0 red.
@@ -163,7 +165,7 @@ export function SubmissionsListClient() {
           const status = info.getValue();
           const cfg = STATUS_CONFIG[status] ?? {
             label: status,
-            classes: "bg-slate-500/15 text-slate-600 border-slate-500/30",
+            classes: "border-transparent bg-slate-500 text-white",
           };
           return (
             <Badge variant="outline" className={`text-xs ${cfg.classes}`}>
