@@ -72,7 +72,7 @@ export default function StudentDashboardPage() {
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-2xl font-bold">Welcome back, {profile.name.split(" ")[0]}!</h1>
+            <h1 className="text-2xl font-bold">Welcome back, {profile.name}!</h1>
             <p className="text-muted-foreground">{profile.grade} • {profile.email}</p>
           </div>
         </div>

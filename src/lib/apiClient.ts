@@ -191,6 +191,23 @@ export type TopicCountsDTO = {
 
 export type SubmitAnswerResponse = {
   correct: boolean | null;
+  submittedAnswer?: string | null;
+  normalizedAnswer?: string | null;
+  input?: {
+    rawAnswer: string;
+    normalizedAnswer: string;
+    displayAnswer: string;
+    warnings: Array<{
+      code: string;
+      severity: "info" | "warning" | "blocking";
+      message: string;
+      suggestion?: string;
+    }>;
+    isAmbiguous: boolean;
+    canMarkSafely: boolean;
+    normalizerVersion: string;
+  };
+  needsClarification?: boolean;
   correctAnswer?: string | null;
   explanation?: string | null;
   workedSolution?: string | null;
@@ -297,14 +314,20 @@ export async function submitExamAnswer(payload: {
   answer: string;
   userId?: number;
   token?: string;
+  normalizedAnswer?: string;
+  inputMode?: string;
+  parserWarnings?: unknown;
 }): Promise<SubmitAnswerResponse> {
-  const { examKey, questionId, answer, userId, token } = payload;
+  const { examKey, questionId, answer, userId, token, normalizedAnswer, inputMode, parserWarnings } = payload;
 
   return apiPost<SubmitAnswerResponse>(
     `/exams/${encodeURIComponent(examKey)}/submit`,
     {
       questionId: Number(questionId),
       answer,
+      ...(normalizedAnswer ? { normalizedAnswer } : {}),
+      ...(inputMode ? { inputMode } : {}),
+      ...(parserWarnings ? { parserWarnings } : {}),
       ...(typeof userId === "number" ? { userId } : {}),
     },
     token
