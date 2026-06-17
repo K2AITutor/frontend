@@ -17,11 +17,15 @@ const routeAccessMap: Record<string, string[]> = {
   parent: ["parent"],
 };
 
+function normalizeRole(role: unknown): string {
+  return String(role ?? "").trim().toLowerCase();
+}
+
 export default withAuth(
   function middleware(req) {
     const { pathname } = req.nextUrl;
     const token = req.nextauth.token;
-    const role = token?.role as string | undefined;
+    const role = normalizeRole(token?.role);
     const profileCompleted = token?.profileCompleted as boolean | undefined;
 
     const isAuthPage = pathname.startsWith("/auth");
@@ -35,7 +39,7 @@ export default withAuth(
     if (isCompleteProfile) {
       if (!token) return NextResponse.redirect(new URL("/auth/login", req.url));
       if (!isProfileIncomplete) {
-        return NextResponse.redirect(new URL(roleHomeMap[role ?? ""] ?? "/student", req.url));
+        return NextResponse.redirect(new URL(roleHomeMap[role] ?? "/student", req.url));
       }
       return NextResponse.next();
     }
@@ -45,7 +49,7 @@ export default withAuth(
     }
 
     if (token && isAuthPage) {
-      return NextResponse.redirect(new URL(roleHomeMap[role ?? ""] ?? "/student", req.url));
+      return NextResponse.redirect(new URL(roleHomeMap[role] ?? "/student", req.url));
     }
 
     for (const [routeRole, allowedRoles] of Object.entries(routeAccessMap)) {
@@ -54,7 +58,7 @@ export default withAuth(
         !allowedRoles.includes(String(role))
       ) {
         return NextResponse.redirect(
-          new URL(roleHomeMap[role ?? ""] ?? "/auth/login", req.url)
+          new URL(roleHomeMap[role] ?? "/auth/login", req.url)
         );
       }
     }

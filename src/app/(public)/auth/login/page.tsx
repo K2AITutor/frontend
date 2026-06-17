@@ -27,7 +27,11 @@ function LoginPageContent() {
     teacher: '/teacher/review',
     admin: '/admin',
     contributor: '/contributor',
+    parent: '/parent',
   }
+
+  const normalizeRole = (role: unknown) =>
+    String(role ?? '').trim().toLowerCase()
 
   // Đã đăng nhập thì không nên thấy lại form login. Middleware không xử lý được
   // trang này: next-auth withAuth early-return cho pages.signIn (/auth/login) để
@@ -35,8 +39,8 @@ function LoginPageContent() {
   // đăng nhập tại trang này (isRedirecting) để không đua với router.push của handleSubmit.
   useEffect(() => {
     if (status !== 'authenticated' || isRedirecting) return
-    const role = (session?.user as any)?.role as string | undefined
-    router.replace(roleHomeMap[role ?? ''] ?? '/student')
+    const role = normalizeRole((session?.user as any)?.role)
+    router.replace(roleHomeMap[role] ?? '/student')
     // roleHomeMap is a stable literal; deps tracked are the dynamic values.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session, isRedirecting, router])
@@ -92,7 +96,7 @@ function LoginPageContent() {
       // Fetch session to get role for redirect
       const sessionRes = await fetch('/api/auth/session')
       const session = await sessionRes.json()
-      const role = session?.user?.role
+      const role = normalizeRole(session?.user?.role)
 
       const roleHome = roleHomeMap[role] || '/student'
       const redirectTo =
