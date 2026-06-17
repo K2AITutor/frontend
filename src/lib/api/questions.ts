@@ -80,15 +80,10 @@ export function usePracticeQuestions(topic: string) {
 export function useSubmitAnswer() {
   return useMutation({
     mutationFn: async ({ questionId, answer }: { questionId: string; answer: string }) => {
-      const res = await fetch(`${API_BASE}/questions/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ questionId, answer }),
-      });
-
-      if (!res.ok) throw new Error("Submit failed");
-      return res.json();
+      // /questions/submit is JwtAuthGuard-protected and reads the token from the
+      // Authorization header only, so attach the session access token.
+      const token = await getAccessToken();
+      return apiPost("/questions/submit", { questionId, answer }, token);
     },
   });
 }

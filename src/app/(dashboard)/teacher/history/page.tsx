@@ -222,7 +222,7 @@ export default function TeacherHistoryPage() {
         </CardContent>
       </Card>
 
-      <HistoryDetailDrawer submissionId={openId} onClose={() => setOpenId(null)} />
+      <HistoryDetailDrawer attemptId={openId} onClose={() => setOpenId(null)} />
     </div>
   );
 }

@@ -33,7 +33,7 @@ export function AnnotationDrawer({ annotation, onClose }: Props) {
 }
 
 function DrawerBody({ annotation }: { annotation: Annotation }) {
-  const { data, isLoading, error, refetch } = useSubmissionFull(annotation.submissionId);
+  const { data, isLoading, error, refetch } = useSubmissionFull(annotation.attemptId);
 
   return (
     <>

@@ -47,7 +47,7 @@ export interface Annotation {
   id: string;
   teacherId: string;
   teacherName: string;
-  submissionId: string;
+  attemptId: string;
   createdAt: string;
   errorTags: string[];
   agreementWithModel: boolean;

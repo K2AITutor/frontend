@@ -19,11 +19,11 @@ function withinDays(iso: string, days: number) {
 }
 
 function exportCSV(rows: Annotation[]) {
-  const headers = ["Annotation ID", "Teacher", "Submission", "Agreement", "Error Tags", "Created"];
+  const headers = ["Annotation ID", "Teacher", "Attempt", "Agreement", "Error Tags", "Created"];
   const body = rows.map((a) => [
     a.id,
     a.teacherName,
-    a.submissionId,
+    a.attemptId,
     a.agreementWithModel ? "Agreed" : "Overridden",
     a.errorTags.join("; "),
     new Date(a.createdAt).toLocaleDateString(),
@@ -55,8 +55,8 @@ export default function AdminMarkingQueuePage() {
     columnHelper.accessor("teacherName", {
       header: SortHeader("Teacher"),
     }),
-    columnHelper.accessor("submissionId", {
-      header: SortHeader("Submission"),
+    columnHelper.accessor("attemptId", {
+      header: SortHeader("Attempt"),
       enableGlobalFilter: false,
       cell: (info) => <span className="font-mono text-xs">{info.getValue()}</span>,
     }),

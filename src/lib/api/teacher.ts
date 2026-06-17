@@ -73,15 +73,15 @@ export function useSubmissionFull(id: string) {
   return { ...query, isLoading: query.isPending };
 }
 
-export function useSubmitTeacherCorrection(submissionId: string) {
+export function useSubmitTeacherCorrection(attemptId: string) {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken as string | undefined;
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: (decision: ReviewDecision) =>
-      apiPost<{ ok: boolean; submissionId: string; newStatus: string }>(
-        `/teacher/submissions/${submissionId}/correct`,
+      apiPost<{ ok: boolean; attemptId: string; newStatus: string }>(
+        `/teacher/submissions/${attemptId}/correct`,
         decision,
         accessToken
       ),
@@ -89,7 +89,7 @@ export function useSubmitTeacherCorrection(submissionId: string) {
       qc.invalidateQueries({ queryKey: ["teacher", "review-queue"] });
       qc.invalidateQueries({ queryKey: ["teacher", "history"] });
       qc.invalidateQueries({ queryKey: ["teacher", "stats"] });
-      qc.invalidateQueries({ queryKey: ["teacher", "submissions", submissionId] });
+      qc.invalidateQueries({ queryKey: ["teacher", "submissions", attemptId] });
     },
   });
 }
@@ -100,7 +100,7 @@ export function usePostTeacherLabels() {
 
   return useMutation({
     mutationFn: (payload: {
-      submissionId: string;
+      attemptId: string;
       errorTags: string[];
       rubricNotes: string;
     }) => apiPost<{ ok: boolean; labelId: string }>("/teacher/labels", payload, accessToken),
@@ -122,16 +122,16 @@ export function useTeacherHistory(range: string = "7d", options?: { refetchInter
   return { ...query, isLoading: query.isPending };
 }
 
-export function useTeacherHistoryDetail(submissionId: string | null) {
+export function useTeacherHistoryDetail(attemptId: string | null) {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken as string | undefined;
 
   const query = useQuery({
-    queryKey: ["teacher", "history-detail", submissionId, accessToken],
+    queryKey: ["teacher", "history-detail", attemptId, accessToken],
     queryFn: () =>
-      apiGet<TeacherHistoryDetail>(`/teacher/history/${submissionId}`, accessToken),
-    enabled: !!submissionId && !!accessToken,
+      apiGet<TeacherHistoryDetail>(`/teacher/history/${attemptId}`, accessToken),
+    enabled: !!attemptId && !!accessToken,
   });
-  // See useTeacherStats: keep loading until submissionId + session token resolve.
+  // See useTeacherStats: keep loading until attemptId + session token resolve.
   return { ...query, isLoading: query.isPending };
 }

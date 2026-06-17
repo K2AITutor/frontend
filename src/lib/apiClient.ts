@@ -355,23 +355,17 @@ export async function submitAnswer(
   hintCount?: number,
   userId?: number
 ): Promise<SubmitAnswerResponse> {
-  const base = getApiBase();
-  const url = `${base}/questions/submit`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({
-      questionId: Number(questionId),
-      answer,
-      userId: userId ?? 1,
-      ...(examKey ? { examKey } : {}),
-      ...(typeof hintCount === "number" ? { hintCount } : {}),
-    }),
+  // Route through apiPost so the request carries the Authorization: Bearer
+  // header resolved from the NextAuth session. The /questions/submit endpoint
+  // is JwtAuthGuard-protected and reads the token from the Authorization header
+  // only (not cookies), so a raw fetch with credentials alone returns 401.
+  return apiPost<SubmitAnswerResponse>("/questions/submit", {
+    questionId: Number(questionId),
+    answer,
+    userId: userId ?? 1,
+    ...(examKey ? { examKey } : {}),
+    ...(typeof hintCount === "number" ? { hintCount } : {}),
   });
-
-  return safeJsonFromResponse<SubmitAnswerResponse>(res, url);
 }
 
 export async function getNextRecommendedQuestions(args: {

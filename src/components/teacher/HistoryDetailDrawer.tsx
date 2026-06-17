@@ -12,7 +12,7 @@ import type {
 } from "@/lib/types/teacher";
 
 interface Props {
-  submissionId: string | null;
+  attemptId: string | null;
   onClose: () => void;
 }
 
@@ -34,22 +34,22 @@ const CONFIDENCE_BADGE: Record<
   low: "bg-red-50 text-red-700 border-red-200",
 };
 
-export function HistoryDetailDrawer({ submissionId, onClose }: Props) {
+export function HistoryDetailDrawer({ attemptId, onClose }: Props) {
   return (
     <DetailDrawer
-      open={submissionId !== null}
+      open={attemptId !== null}
       onClose={onClose}
       title="Review Detail"
       description="Full context for a single graded submission."
       size="2xl"
     >
-      {submissionId && <DrawerBody submissionId={submissionId} />}
+      {attemptId && <DrawerBody attemptId={attemptId} />}
     </DetailDrawer>
   );
 }
 
-function DrawerBody({ submissionId }: { submissionId: string }) {
-  const { data, isLoading, error, refetch } = useTeacherHistoryDetail(submissionId);
+function DrawerBody({ attemptId }: { attemptId: string }) {
+  const { data, isLoading, error, refetch } = useTeacherHistoryDetail(attemptId);
 
   if (isLoading) {
     return (
