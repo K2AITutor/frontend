@@ -340,6 +340,19 @@ function buildAnalytics(rows: DatasetQaQuestion[]) {
     };
 }
 
+function asDatasetRows(value: unknown): DatasetQaQuestion[] {
+    if (Array.isArray(value)) return value;
+    if (value && typeof value === "object") {
+        const maybeRecords = (value as { records?: unknown; items?: unknown; data?: unknown }).records;
+        const maybeItems = (value as { records?: unknown; items?: unknown; data?: unknown }).items;
+        const maybeData = (value as { records?: unknown; items?: unknown; data?: unknown }).data;
+        if (Array.isArray(maybeRecords)) return maybeRecords;
+        if (Array.isArray(maybeItems)) return maybeItems;
+        if (Array.isArray(maybeData)) return maybeData;
+    }
+    return [];
+}
+
 export default function ContributorDatasetAnalyticsPage() {
     usePageTitle("Dataset Analytics");
 
@@ -351,7 +364,8 @@ export default function ContributorDatasetAnalyticsPage() {
     });
     const examKey = examKeyBySubject[subjectKey] ?? availableExam.key;
     const selectedExam = selectedSubject.exams.find((exam) => exam.key === examKey) ?? availableExam;
-    const { data = [], isLoading, isError } = useDatasetQaQuestions(examKey, selectedExam.available);
+    const { data: rawData, isLoading, isError } = useDatasetQaQuestions(examKey, selectedExam.available);
+    const data = useMemo(() => asDatasetRows(rawData), [rawData]);
     const analytics = useMemo(() => buildAnalytics(data), [data]);
 
     return (

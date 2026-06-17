@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import QuestionCard from "@/components/practice/QuestionCard";
 import MathpixMarkdown from "@/components/practice/MathpixMarkdown";
 import { submitExamAnswer } from "@/lib/apiClient";
+import { normalizeAnswerInput, type NormalizedAnswerInput } from "@/lib/mathAnswerInput";
 
 type MarkingResult = {
   correct?: boolean;
@@ -26,6 +27,8 @@ type MarkingResult = {
     sourceRef?: string | null;
   } | null;
   diagnostics?: any;
+  input?: NormalizedAnswerInput;
+  needsClarification?: boolean;
 };
 
 type ExamQuestionLike = {
@@ -165,6 +168,15 @@ export default function ExamSessionClient(props: {
     : answerType.includes("NUMERIC")
       ? "Example: 1, 3/2, sqrt(2), pi/4"
       : "Example: 2*x*cos(x)-x^2*sin(x)";
+  const interpretedAnswer = useMemo(
+    () => normalizeAnswerInput(answer, answerType),
+    [answer, answerType]
+  );
+  const hasTypedAnswer = answer.trim().length > 0;
+  const canSubmitAnswer =
+    !isSubmitting &&
+    hasTypedAnswer &&
+    (needsWorkingInput || interpretedAnswer.canMarkSafely);
 
   const answerShortcuts = useMemo(() => {
     if (needsWorkingInput) {
@@ -216,6 +228,14 @@ export default function ExamSessionClient(props: {
 
   const handleSubmit = async () => {
     if (!question || isSubmitting) return;
+    if (!hasTypedAnswer) {
+      setSubmitError("Enter an answer before submitting.");
+      return;
+    }
+    if (!needsWorkingInput && !interpretedAnswer.canMarkSafely) {
+      setSubmitError("Fix the answer format warning before submitting.");
+      return;
+    }
 
     setSubmitError(null);
     setResult(null);
@@ -227,6 +247,9 @@ export default function ExamSessionClient(props: {
         examKey,
         questionId: question.id,
         answer,
+        normalizedAnswer: interpretedAnswer.normalizedAnswer,
+        inputMode: needsWorkingInput ? "working_text" : "calculator_text",
+        parserWarnings: interpretedAnswer.warnings,
         token: (session?.user as any)?.accessToken,
         userId:
           (session?.user as any)?.id != null
@@ -480,12 +503,40 @@ export default function ExamSessionClient(props: {
                   <span className="font-mono">sqrt(2)</span>, or{" "}
                   <span className="font-mono">2*x*cos(x)-x^2*sin(x)</span>.
                 </p>
+
+                {hasTypedAnswer && !needsWorkingInput && (
+                  <div
+                    className={`rounded-lg border p-3 text-xs ${
+                      interpretedAnswer.canMarkSafely
+                        ? "border-slate-700 bg-slate-900/40 text-slate-300"
+                        : "border-amber-600/70 bg-amber-950/30 text-amber-100"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-slate-400">Interpreted as</span>
+                      <code className="rounded bg-slate-950/60 px-2 py-1 text-slate-100">
+                        {interpretedAnswer.displayAnswer || "empty"}
+                      </code>
+                    </div>
+
+                    {interpretedAnswer.warnings.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {interpretedAnswer.warnings.map((warning) => (
+                          <p key={`${warning.code}-${warning.message}`}>
+                            <span className="font-semibold">{warning.message}</span>
+                            {warning.suggestion ? ` ${warning.suggestion}` : ""}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <button
                   data-testid="exam-submit-answer"
-                  disabled={isSubmitting}
+                  disabled={!canSubmitAnswer}
                   onClick={handleSubmit}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold disabled:opacity-50"
                 >

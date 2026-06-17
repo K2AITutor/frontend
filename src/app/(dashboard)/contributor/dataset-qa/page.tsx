@@ -265,6 +265,19 @@ function formatReviewDate(value: string | null | undefined) {
     return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+function asDatasetRows(value: unknown): DatasetQaQuestion[] {
+    if (Array.isArray(value)) return value;
+    if (value && typeof value === "object") {
+        const maybeRecords = (value as { records?: unknown; items?: unknown; data?: unknown }).records;
+        const maybeItems = (value as { records?: unknown; items?: unknown; data?: unknown }).items;
+        const maybeData = (value as { records?: unknown; items?: unknown; data?: unknown }).data;
+        if (Array.isArray(maybeRecords)) return maybeRecords;
+        if (Array.isArray(maybeItems)) return maybeItems;
+        if (Array.isArray(maybeData)) return maybeData;
+    }
+    return [];
+}
+
 export default function ContributorDatasetQaPage() {
     usePageTitle("Dataset QA");
 
@@ -281,7 +294,8 @@ export default function ContributorDatasetQaPage() {
         ],
         []
     );
-    const { data = [], isLoading: loading, isError: hasError, refetch } = useDatasetQaQuestions(datasetSourceKey);
+    const { data: rawData, isLoading: loading, isError: hasError, refetch } = useDatasetQaQuestions(datasetSourceKey);
+    const data = useMemo(() => asDatasetRows(rawData), [rawData]);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [selectedPublishIds, setSelectedPublishIds] = useState<Set<number>>(new Set());
     const [publishing, setPublishing] = useState(false);
