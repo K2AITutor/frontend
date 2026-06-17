@@ -83,6 +83,21 @@ interface DashboardData {
   stats: Stats;
 }
 
+const FALLBACK_PROFILE: StudentProfile = {
+  id: "",
+  name: "Student",
+  email: "",
+  avatar: "",
+  grade: "VCE Student",
+  enrollmentDate: "",
+  overallProgress: 0,
+  streak: 0,
+};
+
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
 export default function StudentDashboardPage() {
   usePageTitle("Student Dashboard");
   const { data, isLoading, isError } = useStudentDashboardData();
@@ -99,8 +114,22 @@ export default function StudentDashboardPage() {
     );
   }
 
-  const { profile, courses, assignments, recentActivities, stats } = data as DashboardData;
+  const dashboard = data as Partial<DashboardData>;
+  const profile = dashboard.profile ?? FALLBACK_PROFILE;
+  const courses = asArray<Course>(dashboard.courses);
+  const assignments = asArray<Assignment>(dashboard.assignments);
+  const recentActivities = asArray<Activity>(dashboard.recentActivities);
+  const stats: Stats = {
+    totalHoursLearned: 0,
+    questionsAnswered: 0,
+    averageScore: 0,
+    coursesEnrolled: courses.length,
+    assignmentsCompleted: 0,
+    assignmentsPending: 0,
+    ...dashboard.stats,
+  };
   const pendingAssignments = assignments.filter((a) => a.status !== "completed");
+  const firstName = String(profile.name || "Student").split(" ")[0] || "Student";
 
   return (
     <div className="space-y-6 p-6">
@@ -108,7 +137,7 @@ export default function StudentDashboardPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Welcome back, {profile.name.split(" ")[0]}!</h1>
+            <h1 className="text-2xl font-bold">Welcome back, {firstName}!</h1>
             <p className="text-muted-foreground">{profile.grade} • {profile.email}</p>
           </div>
         </div>
