@@ -14,6 +14,10 @@ function getApiBase() {
     return apiBase.endsWith("/api") ? apiBase : `${apiBase}/api`;
 }
 
+function normalizeRole(role: unknown): string {
+    return String(role ?? "").trim().toLowerCase();
+}
+
 // Read the `exp` claim (seconds since epoch) from a JWT and return it as ms.
 // Returns 0 if the token can't be decoded so callers treat it as expired.
 function getAccessTokenExpiry(accessToken?: string): number {
@@ -96,7 +100,7 @@ export const authOptions: NextAuthOptions = {
                     id: String(data.userId),
                     email: data.email,
                     name: data.email?.split("@")[0] || data.email,
-                    role: data.role,
+                    role: normalizeRole(data.role),
                     accessToken: data.access_token,
                     refreshToken: data.refresh_token,
                     // Read the real value from backend so the complete-profile flow
@@ -134,7 +138,7 @@ export const authOptions: NextAuthOptions = {
                     const data = await res.json();
 
                     (user as any).id = String(data.userId);
-                    (user as any).role = data.role;
+                    (user as any).role = normalizeRole(data.role);
                     (user as any).accessToken = data.access_token;
                     (user as any).refreshToken = data.refresh_token;
                     (user as any).profileCompleted = data.profileCompleted;
@@ -152,7 +156,7 @@ export const authOptions: NextAuthOptions = {
             // Initial sign-in: seed the token from the authorize/signIn result.
             if (user) {
                 token.id = (user as any).id;
-                token.role = (user as any).role;
+                token.role = normalizeRole((user as any).role);
                 token.accessToken = (user as any).accessToken;
                 token.refreshToken = (user as any).refreshToken;
                 token.accessTokenExpires = getAccessTokenExpiry((user as any).accessToken);
@@ -177,7 +181,7 @@ export const authOptions: NextAuthOptions = {
 
         async session({ session, token }) {
             (session.user as any).id = token.id;
-            (session.user as any).role = token.role;
+            (session.user as any).role = normalizeRole(token.role);
             (session.user as any).accessToken = token.accessToken;
             (session.user as any).profileCompleted = token.profileCompleted;
             // Surface refresh failure so the client can force a re-login.
