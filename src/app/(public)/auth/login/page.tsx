@@ -7,6 +7,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { signIn, useSession } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from '@/components/dashboard/ui/sonner'
+import { homeForRole, normalizeRole } from '@/lib/roleRouting'
 
 function LoginPageContent() {
   const [showPassword, setShowPassword] = useState(false)
@@ -22,17 +23,6 @@ function LoginPageContent() {
   const router = useRouter()
   const { status, data: session } = useSession()
 
-  const roleHomeMap: Record<string, string> = {
-    student: '/student',
-    teacher: '/teacher/review',
-    admin: '/admin',
-    contributor: '/contributor',
-    parent: '/parent',
-  }
-
-  const normalizeRole = (role: unknown) =>
-    String(role ?? '').trim().toLowerCase()
-
   // Đã đăng nhập thì không nên thấy lại form login. Middleware không xử lý được
   // trang này: next-auth withAuth early-return cho pages.signIn (/auth/login) để
   // tránh redirect loop, nên phải redirect ở client. Bỏ qua khi đang trong luồng
@@ -40,7 +30,7 @@ function LoginPageContent() {
   useEffect(() => {
     if (status !== 'authenticated' || isRedirecting) return
     const role = normalizeRole((session?.user as any)?.role)
-    router.replace(roleHomeMap[role] ?? '/student')
+    router.replace(homeForRole(role))
     // roleHomeMap is a stable literal; deps tracked are the dynamic values.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session, isRedirecting, router])
@@ -98,7 +88,7 @@ function LoginPageContent() {
       const session = await sessionRes.json()
       const role = normalizeRole(session?.user?.role)
 
-      const roleHome = roleHomeMap[role] || '/student'
+      const roleHome = homeForRole(role)
       const redirectTo =
         callbackUrl && isCallbackForOwnRole(callbackUrl, role)
           ? callbackUrl

@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import { normalizeRole } from "@/lib/roleRouting";
 
 const SESSION_MAX_AGE = Number(process.env.SESSION_MAX_AGE_SECONDS) || 3600; // 1 hour
 const SESSION_REMEMBER_ME_MAX_AGE =
@@ -12,10 +13,6 @@ function getApiBase() {
         process.env.NEXT_PUBLIC_API_BASE_URL ||
         "http://localhost:4000/api";
     return apiBase.endsWith("/api") ? apiBase : `${apiBase}/api`;
-}
-
-function normalizeRole(role: unknown): string {
-    return String(role ?? "").trim().toLowerCase();
 }
 
 // Read the `exp` claim (seconds since epoch) from a JWT and return it as ms.
