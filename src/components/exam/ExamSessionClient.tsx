@@ -73,6 +73,19 @@ function plainAnswerForClipboard(value: string | null | undefined) {
     .trim();
 }
 
+function calculatorTextToLatex(value: string) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return "";
+
+  return normalized
+    .replace(/\s+/g, "")
+    .replace(/\*/g, "\\cdot ")
+    .replace(/\^(\d+|[a-zA-Z]+)/g, "^{$1}")
+    .replace(/\bpi\b/g, "\\pi")
+    .replace(/\bsqrt\(([^()]+)\)/g, "\\sqrt{$1}")
+    .replace(/\b(sin|cos|tan|log|ln)\(/g, "\\$1(");
+}
+
 export default function ExamSessionClient(props: {
   initialQuestions: ExamQuestionLike[];
   subject: string;
@@ -172,6 +185,10 @@ export default function ExamSessionClient(props: {
   const interpretedAnswer = useMemo(
     () => normalizeAnswerInput(answer, answerType),
     [answer, answerType]
+  );
+  const renderedInterpretedAnswer = useMemo(
+    () => calculatorTextToLatex(interpretedAnswer.displayAnswer),
+    [interpretedAnswer.displayAnswer]
   );
   const hasTypedAnswer = answer.trim().length > 0;
   const canSubmitAnswer =
@@ -507,21 +524,36 @@ export default function ExamSessionClient(props: {
 
                 {hasTypedAnswer && !needsWorkingInput && (
                   <div
-                    className={`rounded-lg border p-3 text-xs ${
+                    className={`rounded-lg border p-4 ${
                       interpretedAnswer.canMarkSafely
                         ? "border-slate-700 bg-slate-900/40 text-slate-300"
                         : "border-amber-600/70 bg-amber-950/30 text-amber-100"
                     }`}
                   >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-slate-400">Interpreted as</span>
-                      <code className="rounded bg-slate-950/60 px-2 py-1 text-slate-100">
-                        {interpretedAnswer.displayAnswer || "empty"}
-                      </code>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Your input means
+                        </div>
+                        <div className="mt-2 rounded-lg border border-slate-700/80 bg-slate-950/50 px-4 py-3 text-slate-100">
+                          {renderedInterpretedAnswer ? (
+                            <MathpixMarkdown value={`\\(${renderedInterpretedAnswer}\\)`} />
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No interpretable answer yet.</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="text-slate-400">Normalized text</span>
+                        <code className="rounded bg-slate-950/60 px-2 py-1 text-slate-100">
+                          {interpretedAnswer.displayAnswer || "empty"}
+                        </code>
+                      </div>
                     </div>
 
                     {interpretedAnswer.warnings.length > 0 && (
-                      <div className="mt-2 space-y-1">
+                      <div className="mt-3 space-y-1 text-xs">
                         {interpretedAnswer.warnings.map((warning) => (
                           <p key={`${warning.code}-${warning.message}`}>
                             <span className="font-semibold">{warning.message}</span>
