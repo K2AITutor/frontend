@@ -84,8 +84,11 @@ export interface StudentAnswer {
 
 export interface QuestionSummary {
   id: string;
+  title?: string | null;
   questionText: string;
   type: string;
+  subjectCode?: string | null;
+  subjectName?: string | null;
   maxScore: number;
   expectedAnswer?: string;
 }

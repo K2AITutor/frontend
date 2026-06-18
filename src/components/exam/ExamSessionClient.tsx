@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import QuestionCard from "@/components/practice/QuestionCard";
 import MathpixMarkdown from "@/components/practice/MathpixMarkdown";
+import { Button } from "@/components/dashboard/ui/button";
 import { submitExamAnswer } from "@/lib/apiClient";
 import { normalizeAnswerInput, type NormalizedAnswerInput } from "@/lib/mathAnswerInput";
 
@@ -328,7 +329,7 @@ export default function ExamSessionClient(props: {
   
   if (!questions.length) {
     return (
-      <div className="max-w-5xl mx-auto px-6 py-10 text-slate-300">
+      <div className="max-w-5xl mx-auto px-6 py-10 text-muted-foreground">
         No exam questions loaded for <span className="font-mono">{examKey}</span>.
       </div>
     );
@@ -336,56 +337,59 @@ export default function ExamSessionClient(props: {
 
   if (!question) {
     return (
-      <div className="max-w-5xl mx-auto px-6 py-10 text-slate-300">No current question.</div>
+      <div className="max-w-5xl mx-auto px-6 py-10 text-muted-foreground">No current question.</div>
     );
   }
 
   return (
     <div className="space-y-4" data-testid="exam-session">
-      <div className="px-4 py-2 rounded-lg bg-red-900/40 text-red-200 text-sm">
+      <div className="px-4 py-2 rounded-lg border border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300 text-sm">
         <strong>Exam Mode</strong> — AI assistance is disabled during the examination.
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         <div className="xl:col-span-7">
           <div className="space-y-4 sticky top-4">
-            <div className="glass p-5 text-slate-200">
+            <div className="glass p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h1 className="text-xl font-semibold">{qLabel}</h1>
-                  <p className="mt-1 text-sm text-slate-400">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {examTitle} • {currentIndex + 1} of {questions.length}
                     {isFlagged ? " • Flagged" : ""}
                   </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <button
+                  <Button
                     data-testid="exam-previous"
+                    variant="outline"
+                    size="sm"
                     onClick={goPrev}
                     disabled={currentIndex === 0}
-                    className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-sm"
                   >
                     Previous
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button
                     data-testid="exam-flag"
+                    variant={isFlagged ? "secondary" : "outline"}
+                    size="sm"
                     onClick={toggleFlag}
-                    className={`px-3 py-2 rounded-lg text-sm ${isFlagged ? "bg-yellow-700 hover:bg-yellow-600" : "bg-slate-800 hover:bg-slate-700"
-                      }`}
+                    className={isFlagged ? "border-amber-500/40 text-amber-700 dark:text-amber-300" : ""}
                   >
                     {isFlagged ? "Unflag" : "Flag"}
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button
                     data-testid="exam-next"
+                    variant="outline"
+                    size="sm"
                     onClick={goNext}
                     disabled={currentIndex >= questions.length - 1}
-                    className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-sm"
                   >
                     Next
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -396,24 +400,24 @@ export default function ExamSessionClient(props: {
 
         <div className="xl:col-span-5">
           <div className="space-y-6">
-            <div className="glass p-6 text-slate-200">
+            <div className="glass p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h1 className="text-xl font-semibold">{examTitle}</h1>
 
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-300">
-                    <span className="px-2 py-1 rounded bg-slate-800">Reading: {readingMins} min</span>
-                    <span className="px-2 py-1 rounded bg-slate-800">Writing: {writingMins} min</span>
-                    <span className="px-2 py-1 rounded bg-slate-800">
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span className="px-2 py-1 rounded border border-border bg-muted">Reading: {readingMins} min</span>
+                    <span className="px-2 py-1 rounded border border-border bg-muted">Writing: {writingMins} min</span>
+                    <span className="px-2 py-1 rounded border border-border bg-muted">
                       CAS: {allowCAS ? "Allowed" : "Not allowed"}
                     </span>
-                    <span className="px-2 py-1 rounded bg-slate-800">
+                    <span className="px-2 py-1 rounded border border-border bg-muted">
                       Exact: {exactRequired ? "Required" : "Not required"}
                     </span>
-                    <span className="px-2 py-1 rounded bg-slate-800">
+                    <span className="px-2 py-1 rounded border border-border bg-muted">
                       Working: {workingRequired ? "Required" : "Not required"}
                     </span>
-                    <span className="px-2 py-1 rounded bg-slate-800">
+                    <span className="px-2 py-1 rounded border border-border bg-muted">
                       Progress: {answeredCount}/{questions.length} • Correct: {correctCount}
                     </span>
                   </div>
@@ -421,26 +425,23 @@ export default function ExamSessionClient(props: {
               </div>
             </div>
 
-            <div className="glass p-5 text-slate-200">
+            <div className="glass p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="font-semibold">PDF reference</h2>
-                  <p className="mt-1 text-sm text-slate-400">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     Open the original exam PDF only when you need to check the source.
                   </p>
                 </div>
 
                 {examPdfSrc ? (
-                  <a
-                    href={examPdfSrc}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm font-semibold text-slate-100"
-                  >
-                    Open PDF
-                  </a>
+                  <Button asChild variant="outline" size="sm">
+                    <a href={examPdfSrc} target="_blank" rel="noreferrer">
+                      Open PDF
+                    </a>
+                  </Button>
                 ) : (
-                  <span className="px-3 py-2 rounded bg-slate-800 text-xs text-slate-400">
+                  <span className="px-3 py-2 rounded border border-border bg-muted text-xs text-muted-foreground">
                     No PDF
                   </span>
                 )}
@@ -449,8 +450,8 @@ export default function ExamSessionClient(props: {
 
             <div className="glass p-5 space-y-4">
               <div>
-                <h2 className="font-semibold text-slate-100">Your answer</h2>
-                <p className="mt-1 text-sm text-slate-400">
+                <h2 className="font-semibold">Your answer</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
                   {question.isMarkable === false
                     ? "This part is saved for manual review."
                     : "Submit your answer to check it against the dataset."}
@@ -468,7 +469,7 @@ export default function ExamSessionClient(props: {
                       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit();
                     }}
                     placeholder={answerPlaceholder}
-                    className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg text-slate-100"
+                    className="w-full px-4 py-3 bg-background border border-input rounded-lg text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   />
                 ) : (
                   <textarea
@@ -481,7 +482,7 @@ export default function ExamSessionClient(props: {
                     }}
                     placeholder={answerPlaceholder}
                     rows={question.isMarkable === false ? 6 : 4}
-                    className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg text-slate-200 resize-y"
+                    className="w-full px-4 py-3 bg-background border border-input rounded-lg text-foreground resize-y outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   />
                 )}
 
@@ -491,14 +492,14 @@ export default function ExamSessionClient(props: {
                       key={`${shortcut.label}-${shortcut.value}`}
                       type="button"
                       onClick={() => insertAnswerToken(shortcut.value)}
-                      className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200"
+                      className="px-3 py-1.5 rounded-md border border-border bg-muted hover:bg-accent text-xs font-medium text-foreground"
                     >
                       {shortcut.label}
                     </button>
                   ))}
                 </div>
 
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Accepted format: normal calculator-style typing, such as <span className="font-mono">3/2</span>,{" "}
                   <span className="font-mono">sqrt(2)</span>, or{" "}
                   <span className="font-mono">2*x*cos(x)-x^2*sin(x)</span>.
@@ -534,28 +535,28 @@ export default function ExamSessionClient(props: {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <button
+                <Button
                   data-testid="exam-submit-answer"
                   disabled={!canSubmitAnswer}
                   onClick={handleSubmit}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold disabled:opacity-50"
                 >
                   {isSubmitting ? "Checking..." : "Submit Answer"}
-                </button>
+                </Button>
 
-                <button
+                <Button
                   data-testid="exam-finish-review"
+                  variant="outline"
+                  size="lg"
                   onClick={finishAndReview}
-                  className="px-4 py-3 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-sm font-semibold"
                 >
                   Finish & Review
-                </button>
+                </Button>
               </div>
 
               {submitError && (
-                <div className="glass p-4 text-red-300">
+                <div className="glass p-4 text-red-600 dark:text-red-300">
                   <p className="font-semibold mb-1">Submission error</p>
-                  <p className="text-sm text-slate-300">{submitError}</p>
+                  <p className="text-sm text-muted-foreground">{submitError}</p>
                 </div>
               )}
             </div>
@@ -564,10 +565,10 @@ export default function ExamSessionClient(props: {
               <div
                 data-testid="exam-feedback"
                 className={`glass p-4 ${normalizedCorrect === null
-                    ? "text-slate-200"
+                    ? ""
                     : normalizedCorrect
-                      ? "text-green-400"
-                      : "text-red-400"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-red-600 dark:text-red-400"
                   }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -585,9 +586,9 @@ export default function ExamSessionClient(props: {
                     </p>
 
                     {displayedScore !== null && displayedMaxScore !== null && (
-                      <p className="mt-1 text-slate-300">
+                      <p className="mt-1 text-muted-foreground">
                         Marks:{" "}
-                        <span className="font-semibold">
+                        <span className="font-semibold text-foreground">
                           {displayedScore} / {displayedMaxScore}
                         </span>
                       </p>
@@ -595,23 +596,23 @@ export default function ExamSessionClient(props: {
                   </div>
                 </div>
 
-                <div className="mt-3 border-t border-slate-700 pt-3">
+                <div className="mt-3 border-t border-border pt-3">
                   {(result.correctAnswer ||
                     result.workedSolution ||
                     result.explanation ||
                     result.examinerFeedback ||
                     displayedRubric.length > 0) && (
-                    <div className="mb-4 space-y-4 text-sm text-slate-200">
+                    <div className="mb-4 space-y-4 text-sm text-foreground">
                       {result.examinerFeedback?.summary && (
                         <div>
-                          <div className="text-slate-400">Examiner feedback</div>
-                          <p className="mt-1 text-slate-200">{result.examinerFeedback.summary}</p>
+                          <div className="text-muted-foreground">Examiner feedback</div>
+                          <p className="mt-1">{result.examinerFeedback.summary}</p>
                         </div>
                       )}
 
                       {result.correctAnswer && (
                         <div>
-                          <div className="text-slate-400">Expected answer</div>
+                          <div className="text-muted-foreground">Expected answer</div>
                           <div
                             className="mt-1"
                             onCopy={copyPlainExpectedAnswer}
@@ -624,17 +625,17 @@ export default function ExamSessionClient(props: {
 
                       {displayedRubric.length > 0 && (
                         <div>
-                          <div className="text-slate-400">Marking guide</div>
-                          <div className="mt-2 overflow-hidden rounded-lg border border-slate-700">
+                          <div className="text-muted-foreground">Marking guide</div>
+                          <div className="mt-2 overflow-hidden rounded-lg border border-border">
                             {displayedRubric.map((item, index) => (
                               <div
                                 key={`${index}-${item.criterion}`}
-                                className="grid grid-cols-[72px_1fr] border-b border-slate-700 last:border-b-0"
+                                className="grid grid-cols-[72px_1fr] border-b border-border last:border-b-0"
                               >
-                                <div className="bg-slate-900/50 px-3 py-2 text-slate-300">
+                                <div className="bg-muted/50 px-3 py-2 text-muted-foreground">
                                   {item.marks ?? 1} mark{Number(item.marks ?? 1) === 1 ? "" : "s"}
                                 </div>
-                                <div className="px-3 py-2 text-slate-200">
+                                <div className="px-3 py-2">
                                   {item.criterion}
                                 </div>
                               </div>
@@ -645,7 +646,7 @@ export default function ExamSessionClient(props: {
 
                       {(result.workedSolution || result.explanation) && (
                         <div>
-                          <div className="text-slate-400">Worked solution</div>
+                          <div className="text-muted-foreground">Worked solution</div>
                           <div className="mt-1">
                             <MathpixMarkdown value={result.workedSolution || result.explanation || ""} />
                           </div>
@@ -654,40 +655,40 @@ export default function ExamSessionClient(props: {
 
                       {result.examinerFeedback?.commonMistake && (
                         <div>
-                          <div className="text-slate-400">Common mistake</div>
-                          <p className="mt-1 text-slate-200">{result.examinerFeedback.commonMistake}</p>
+                          <div className="text-muted-foreground">Common mistake</div>
+                          <p className="mt-1">{result.examinerFeedback.commonMistake}</p>
                         </div>
                       )}
                     </div>
                   )}
 
                   <button
-                    className="text-xs text-slate-300 underline"
+                    className="text-xs text-muted-foreground underline"
                     onClick={() => setShowDebug((v) => !v)}
                   >
                     {showDebug ? "Hide debug details" : "Show debug details"}
                   </button>
 
                   {showDebug && (
-                    <div className="mt-2 text-xs text-slate-200 space-y-2">
+                    <div className="mt-2 text-xs text-foreground space-y-2">
                       <div>
-                        <div className="text-slate-400">attempts (this question)</div>
-                        <pre className="whitespace-pre-wrap break-words bg-slate-900/50 p-2 rounded">
+                        <div className="text-muted-foreground">attempts (this question)</div>
+                        <pre className="whitespace-pre-wrap break-words bg-muted/50 p-2 rounded">
                           {JSON.stringify(attemptsByQid[qid] ?? [], null, 2)}
                         </pre>
                       </div>
 
                       <div>
-                        <div className="text-slate-400">latest result</div>
-                        <pre className="whitespace-pre-wrap break-words bg-slate-900/50 p-2 rounded">
+                        <div className="text-muted-foreground">latest result</div>
+                        <pre className="whitespace-pre-wrap break-words bg-muted/50 p-2 rounded">
                           {JSON.stringify(result ?? {}, null, 2)}
                         </pre>
                       </div>
 
                       {result?.explanation && (
                         <div>
-                          <div className="text-slate-400">Examiner feedback</div>
-                          <pre className="whitespace-pre-wrap break-words bg-slate-900/50 p-2 rounded">
+                          <div className="text-muted-foreground">Examiner feedback</div>
+                          <pre className="whitespace-pre-wrap break-words bg-muted/50 p-2 rounded">
                             {result.explanation}
                           </pre>
                         </div>

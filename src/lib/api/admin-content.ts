@@ -10,7 +10,7 @@ export interface ComboboxOption {
   value: string;
 }
 
-// Lấy nhiều record để combobox lọc client-side (xem follow-up nếu >500/subject).
+// Fetch many records so the combobox can filter client-side (revisit if >500/subject).
 const OPTION_PAGE_SIZE = 500;
 
 export type AdminContentKind = "topics" | "skills" | "questions" | "rubrics" | "tasks";
@@ -63,7 +63,7 @@ export interface AdminQuestion {
   updatedAt: string;
   topic?: { name: string } | null;
   rubric?: { id: number; status: string; maxMarks: number } | null;
-  /** Trạng thái QA của contributor (markingMeta.datasetQa.status); null nếu chưa review. */
+  /** Contributor QA status (markingMeta.datasetQa.status); null if not reviewed yet. */
   reviewStatus?: string | null;
 }
 

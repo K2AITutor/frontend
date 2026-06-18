@@ -1,6 +1,6 @@
 import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/apiClient";
 
-// Thông tin review do contributor ghi khi QA dataset (markingMeta.datasetQa).
+// Review info recorded by the contributor during dataset QA (markingMeta.datasetQa).
 export interface DatasetQaReview {
   status: string;
   reviewerName: string;

@@ -13,7 +13,7 @@ export interface CreateTopicDto {
   isActive?: boolean;
 }
 
-// topicCode là khoá unique được Question tham chiếu → backend bỏ qua khi update.
+// topicCode is a unique key referenced by Question → the backend ignores it on update.
 export type UpdateTopicDto = Partial<Omit<CreateTopicDto, "topicCode">>;
 
 export async function createTopic(data: CreateTopicDto, token: string): Promise<AdminTopic> {

@@ -1,3 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
+import { apiGet } from "@/lib/apiClient";
+
 const API_BASE_RAW =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   "http://localhost:4000";
@@ -80,4 +83,45 @@ export async function deleteSubject(id: number, token?: string): Promise<void> {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to delete subject");
+}
+
+/* =========================================================
+   PRACTICE SUBJECTS (Phase 2) — student personalized catalog
+   Contract: _workspace/01_architect_spec.md §2b
+   Endpoint: GET /api/student/practice-subjects (JwtAuthGuard)
+   Response is an OBJECT wrapper { subjects: [...] }, NOT a bare array.
+   ========================================================= */
+
+export type SubjectStatus = "active" | "coming";
+
+export interface PracticeSubjectPersonalized {
+  code: string; // "MATH_METHODS"
+  name: string; // "Maths Methods"
+  slug: string; // "math-methods"
+  icon: string | null; // "Calculator" (lucide icon name, may be null)
+  status: SubjectStatus; // "active" | "coming"
+  order: number; // 1...
+
+  // ----- Personalized (by userId from token) -----
+  progressPercent: number; // 0..100, rounded. 0 if not started.
+  questionsAttempted: number; // total StudentQuestionAttempt of user in subject
+  averageScore: number; // 0..100, rounded. 0 if no question attempted.
+  recommended: boolean; // true for exactly 1 subject "to keep practicing"; false otherwise
+}
+
+export interface PracticeSubjectsResponse {
+  subjects: PracticeSubjectPersonalized[]; // sorted by order asc
+}
+
+/**
+ * Fetches the personalized practice-subjects catalog for the logged-in student.
+ * apiGet attaches the Bearer token from the NextAuth session automatically
+ * (see apiClient.ts), so we must NOT pass userId from the client.
+ */
+export function usePracticeSubjects() {
+  return useQuery({
+    queryKey: ["practice-subjects"],
+    queryFn: () =>
+      apiGet<PracticeSubjectsResponse>("/student/practice-subjects"),
+  });
 }

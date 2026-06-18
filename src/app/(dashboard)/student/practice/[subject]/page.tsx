@@ -32,7 +32,7 @@ export default async function SubjectPracticePage({ params }: Props) {
     const subjectCode = SUBJECT_MAP[params.subject];
 
     if (!subjectCode) {
-        return <div className="p-8 text-slate-400">Subject not found.</div>;
+        return <div className="p-8 text-muted-foreground">Subject not found.</div>;
     }
 
     // 🚧 Placeholder: only Math Methods works
@@ -42,7 +42,7 @@ export default async function SubjectPracticePage({ params }: Props) {
                 <h1 className="text-xl font-semibold mb-2">
                     {params.subject.replace(/-/g, " ").toUpperCase()}
                 </h1>
-                <p className="text-slate-400">This subject is coming soon.</p>
+                <p className="text-muted-foreground">This subject is coming soon.</p>
             </div>
         );
     }
@@ -51,7 +51,7 @@ export default async function SubjectPracticePage({ params }: Props) {
 
     if (!defaultTopic) {
         return (
-            <div className="p-8 text-slate-400">
+            <div className="p-8 text-muted-foreground">
                 No topics available for this subject yet.
             </div>
         );

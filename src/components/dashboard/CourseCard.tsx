@@ -6,6 +6,12 @@ import { Badge } from "@/components/dashboard/ui/badge";
 import { Button } from "@/components/dashboard/ui/button";
 import {
   Calculator,
+  BookOpen,
+  FlaskConical,
+  Atom,
+  Globe,
+  PenLine,
+  BarChart3,
   ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,9 +27,19 @@ interface CourseCardProps {
   className?: string;
 }
 
+// Maps the canonical lowercase icon keys the backend sends to lucide icons.
+// Keys must stay in sync with CourseIconKey in @/lib/api/dashboard.
 const iconMap: Record<string, React.ReactNode> = {
-  Calculator: <Calculator className="h-5 w-5" />
+  calculator: <Calculator className="h-5 w-5" />,
+  book: <BookOpen className="h-5 w-5" />,
+  flask: <FlaskConical className="h-5 w-5" />,
+  atom: <Atom className="h-5 w-5" />,
+  globe: <Globe className="h-5 w-5" />,
+  pen: <PenLine className="h-5 w-5" />,
+  chart: <BarChart3 className="h-5 w-5" />,
 };
+
+const defaultIcon = <BookOpen className="h-5 w-5" />;
 
 function getGradeColor(grade?: string): string {
   if (!grade) return "bg-gray-100 text-gray-800";
@@ -38,7 +54,7 @@ export function CourseCard({
   progress,
   grade,
   nextLesson,
-  icon = "Calculator",
+  icon = "book",
   className,
 }: CourseCardProps) {
   return (
@@ -47,7 +63,7 @@ export function CourseCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              {iconMap[icon] || iconMap.BookOpen}
+              {iconMap[icon] ?? defaultIcon}
             </div>
             <CardTitle className="text-base">{name}</CardTitle>
           </div>

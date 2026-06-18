@@ -60,7 +60,7 @@ export default function Exam1SessionPage() {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-6 py-10 text-slate-300">
+      <div className="max-w-5xl mx-auto px-6 py-10 text-muted-foreground">
         Loading examination…
       </div>
     );
@@ -68,7 +68,7 @@ export default function Exam1SessionPage() {
 
   if (error) {
     return (
-      <div className="max-w-5xl mx-auto px-6 py-10 text-red-300">
+      <div className="max-w-5xl mx-auto px-6 py-10 text-red-600 dark:text-red-300">
         <p className="font-semibold">Unable to start examination</p>
         <p className="text-sm mt-2">{error}</p>
       </div>
@@ -77,7 +77,7 @@ export default function Exam1SessionPage() {
 
   if (!exam || questions.length === 0) {
     return (
-      <div className="max-w-5xl mx-auto px-6 py-10 text-slate-300">
+      <div className="max-w-5xl mx-auto px-6 py-10 text-muted-foreground">
         No questions available for this examination.
       </div>
     );
@@ -86,7 +86,7 @@ export default function Exam1SessionPage() {
   const pdfSrc = exam.pdf?.filePath || exam.pdf?.url || null;
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
+    <div className="p-6">
       <ExamSessionClient
         initialQuestions={questions as any}
         subject="math-methods"

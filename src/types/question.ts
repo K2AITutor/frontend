@@ -1,6 +1,6 @@
 export type PracticeQuestion = {
     id: number | string;
-    // Canonical keys (legacy prompt/answer/difficulty/subject đã bỏ khỏi API responses)
+    // Canonical keys (legacy prompt/answer/difficulty/subject removed from API responses)
     questionText: string;
     correctAnswer?: string | null;
     marks?: number;

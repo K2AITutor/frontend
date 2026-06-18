@@ -5,50 +5,79 @@ import { useSession } from "next-auth/react";
 import { apiGet } from "@/lib/apiClient";
 
 type ActivityType = "quiz_completed" | "lesson_completed" | "achievement" | "practice";
-type AssignmentStatus = "pending" | "in_progress" | "completed";
-type Priority = "high" | "medium" | "low";
+
+/**
+ * Canonical course icon keys agreed with the backend. The backend normalizes
+ * `Subject.icon` into one of these lowercase keys (default "book"); the
+ * frontend `iconMap` (CourseCard) maps each key to a lucide icon.
+ */
+export type CourseIconKey =
+  | "calculator"
+  | "book"
+  | "flask"
+  | "atom"
+  | "globe"
+  | "pen"
+  | "chart";
 
 export interface StudentDashboardData {
   profile: {
     id: string;
     name: string;
     email: string;
-    avatar: string;
+    avatar: string; // may be "" — header renders initials fallback
     grade: string;
-    enrollmentDate: string;
-    overallProgress: number;
+    enrollmentDate: string; // ISO
+    overallProgress: number; // 0-100
     streak: number;
   };
   courses: Array<{
     id: string;
     name: string;
-    progress: number;
-    grade: string;
-    nextLesson: string;
-    icon: string;
+    progress: number; // 0-100
+    grade: string; // letter grade
+    nextLesson: string; // human-readable Topic name (not raw subtopicCode)
+    icon: CourseIconKey; // canonical key — never raw/empty
   }>;
-  assignments: Array<{
-    id: string;
+  // Adaptive recommended questions for this user. May be [] (no data).
+  recommendedNext: Array<{
+    questionId: string;
     title: string;
-    course: string;
-    dueDate: string;
-    status: AssignmentStatus;
-    priority: Priority;
+    subjectCode: string; // e.g. "MATH_METHODS"
+    topicCode: string;
+    difficulty: string | null; // e.g. "EASY" | "MEDIUM" | "HARD" or null
+    href: string; // ready-to-use practice link
+  }>;
+  // Student's weakest areas for the "Areas to improve" card. May be [] (no data).
+  weakAreas: Array<{
+    topicCode: string;
+    topicName: string; // resolved display name (fallback topicCode)
+    subjectCode: string; // e.g. "MATH_METHODS"
+    masteryPercent: number; // 0-100 (already converted)
+    status: string; // "Weak" | "Early signal" | ...
+    href: string; // link into weak-area practice
   }>;
   recentActivities: Array<{
-    id: string;
+    id: string; // String(attempt.id) — Attempt model
     type: ActivityType;
     title: string;
     description: string;
-    timestamp: string;
+    timestamp: string; // ISO (attempt.createdAt)
+    submissionId: string; // String(attempt.id) — opens /student/submissions/[submissionId]
+    href: string; // "/student/submissions/" + submissionId (ready-to-use)
+    subjectCode: string; // e.g. "MATH_METHODS"
+    subjectName: string; // display name; fallback subjectCode
+    score: {
+      awarded: number;
+      max: number;
+      percent: number | null; // max>0 ? round(awarded/max*100) : null
+    };
   }>;
   stats: {
     totalHoursLearned: number;
     questionsAnswered: number;
-    averageScore: number;
+    averageScore: number; // 0-100
     coursesEnrolled: number;
-    assignmentsCompleted: number;
-    assignmentsPending: number;
   };
 }
 
@@ -85,33 +114,42 @@ export function useDashboardStats() {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["dashboardData", accessToken],
     queryFn: () => apiGet<StudentDashboardData>("/dashboard/data", accessToken),
     enabled: !!accessToken,
   });
+  // While the query is disabled (session token not resolved yet on reload),
+  // `isLoading` is false but there is no data — surface that window as loading
+  // so pages show a skeleton instead of a flash of error/empty state.
+  return { ...query, isLoading: query.isPending };
 }
 
 export function useStudentDashboardData() {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["studentDashboardData", accessToken],
     queryFn: () => apiGet<StudentDashboardData>("/dashboard/data", accessToken),
     enabled: !!accessToken,
     staleTime: 30_000,
   });
+  // Treat the pre-auth window (query disabled until the session token loads)
+  // as loading so the page shows a skeleton instead of "Failed to load dashboard".
+  return { ...query, isLoading: query.isPending };
 }
 
 export function useAdminDashboardData() {
   const { data: session } = useSession();
   const accessToken = (session?.user as any)?.accessToken;
 
-  return useQuery<AdminDashboardData>({
+  const query = useQuery<AdminDashboardData>({
     queryKey: ["adminDashboard", accessToken],
     queryFn: () => apiGet<AdminDashboardData>("/admin/dashboard", accessToken),
     enabled: !!accessToken,
   });
+  // See useStudentDashboardData: keep loading until the session token resolves.
+  return { ...query, isLoading: query.isPending };
 }
 

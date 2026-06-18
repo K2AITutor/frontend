@@ -64,14 +64,14 @@ const DECISION_CONFIG: Record<
 export default function AnnotationWorkspacePage({
   params,
 }: {
-  params: { submissionId: string };
+  params: { attemptId: string };
 }) {
-  const { submissionId } = params;
+  const { attemptId } = params;
   usePageTitle("Annotation Workspace");
   const router = useRouter();
 
-  const { data, isLoading, error, refetch } = useSubmissionFull(submissionId);
-  const mutation = useSubmitTeacherCorrection(submissionId);
+  const { data, isLoading, error, refetch } = useSubmissionFull(attemptId);
+  const mutation = useSubmitTeacherCorrection(attemptId);
 
   // Form state
   const [criterionOverrides, setCriterionOverrides] = useState<Record<string, number>>({});

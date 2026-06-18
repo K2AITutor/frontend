@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { fetchExam, fetchExamQuestionsByExamKey, type ExamDTO, type ExamQuestionDTO } from "@/lib/apiClient";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
+import { Button } from "@/components/dashboard/ui/button";
 
 const EXAM_OPTIONS = [
     { year: 2025, examKey: "VCE_MM_EXAM1_2025" },
@@ -177,191 +179,188 @@ export default function Exam1BriefingPage() {
     const startHref = `/student/practice/math-methods/exam-1/session?examKey=${encodeURIComponent(selectedExam.examKey)}`;
 
     return (
-        <div className="max-w-6xl mx-auto px-6 py-8 space-y-6 text-slate-200">
-            <section className="glass p-6">
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
-                    <div>
-                        <p className="text-sm font-medium text-emerald-300">VCE Mathematical Methods</p>
-                        <h1 className="mt-2 text-2xl font-semibold">Examination 1 practice</h1>
-                        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-                            Exam 1 is the non-CAS paper for Mathematical Methods. Use this page to review the
-                            exam conditions, check which dataset questions are loaded for each past exam, then start
-                            the selected test when the dataset is ready.
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                        <span className="rounded bg-slate-800 px-3 py-2">Reading: 15 min</span>
-                        <span className="rounded bg-slate-800 px-3 py-2">Writing: 60 min</span>
-                        <span className="rounded bg-slate-800 px-3 py-2">CAS: Not allowed</span>
-                        <span className="rounded bg-slate-800 px-3 py-2">Exact values</span>
-                    </div>
-                </div>
-            </section>
-
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-                <section className="xl:col-span-7 glass p-6 space-y-5">
-                    <div>
-                        <h2 className="text-lg font-semibold">Notes and guide</h2>
-                        <p className="mt-1 text-sm text-slate-400">
-                            These are the core rules students should keep in mind before starting a past Exam 1.
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div className="rounded-lg border border-slate-700 bg-slate-900/30 p-4">
-                            <h3 className="font-semibold text-slate-100">Exam conditions</h3>
-                            <ul className="mt-3 space-y-2 text-slate-300">
-                                <li>Answer all questions in the spaces provided.</li>
-                                <li>Show appropriate working where more than one mark is available.</li>
-                                <li>Diagrams are not drawn to scale unless stated.</li>
-                                <li>Use exact values unless the question asks for a decimal approximation.</li>
-                            </ul>
-                        </div>
-
-                        <div className="rounded-lg border border-slate-700 bg-slate-900/30 p-4">
-                            <h3 className="font-semibold text-slate-100">Answer expectations</h3>
-                            <ul className="mt-3 space-y-2 text-slate-300">
-                                <li>Use correct notation for intervals, coordinates, and functions.</li>
-                                <li>Include endpoints correctly in domain and inequality questions.</li>
-                                <li>For algebra and calculus, simplify enough for the answer to be clear.</li>
-                                <li>For explanation questions, write the reasoning, not only the final result.</li>
-                            </ul>
-                        </div>
-
-                        <div className="rounded-lg border border-slate-700 bg-slate-900/30 p-4">
-                            <h3 className="font-semibold text-slate-100">Input format in the app</h3>
-                            <ul className="mt-3 space-y-2 text-slate-300">
-                                <li>Use calculator-style typing such as <span className="font-mono">sqrt(2)</span>.</li>
-                                <li>Use <span className="font-mono">pi</span> for π and <span className="font-mono">^</span> for powers.</li>
-                                <li>Use <span className="font-mono">*</span> for multiplication when it avoids ambiguity.</li>
-                                <li>For answer sets, separate values with commas.</li>
-                            </ul>
-                        </div>
-
-                        <div className="rounded-lg border border-slate-700 bg-slate-900/30 p-4">
-                            <h3 className="font-semibold text-slate-100">Common mark losses</h3>
-                            <ul className="mt-3 space-y-2 text-slate-300">
-                                <li>Decimal answers where exact form is required.</li>
-                                <li>Missing a solution in a trigonometric or polynomial equation.</li>
-                                <li>Dropping endpoint brackets in intervals.</li>
-                                <li>Correct answer with no method when working is required.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </section>
-
-                <aside className="xl:col-span-5 space-y-6">
-                    <section className="glass p-6 space-y-4">
+        <div className="space-y-6 p-6">
+            <Card>
+                <CardContent className="p-6">
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
                         <div>
-                            <h2 className="text-lg font-semibold">Select past exam</h2>
-                            <p className="mt-1 text-sm text-slate-400">
-                                Choose a year to inspect the loaded dataset before starting.
+                            <p className="text-sm font-medium text-primary">VCE Mathematical Methods</p>
+                            <h1 className="mt-2 text-2xl font-bold tracking-tight">Examination 1 practice</h1>
+                            <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+                                Exam 1 is the non-CAS paper for Mathematical Methods. Use this page to review the
+                                exam conditions, check which dataset questions are loaded for each past exam, then start
+                                the selected test when the dataset is ready.
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                            {EXAM_OPTIONS.map((option) => {
-                                const selected = option.year === selectedYear;
-                                return (
-                                    <button
-                                        key={option.examKey}
-                                        type="button"
-                                        onClick={() => setSelectedYear(option.year)}
-                                        className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${selected
-                                            ? "bg-blue-600 text-white"
-                                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                                            }`}
-                                    >
-                                        {option.year}
-                                    </button>
-                                );
-                            })}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                            <span className="rounded-full border border-border bg-muted px-3 py-2 text-muted-foreground">Reading: 15 min</span>
+                            <span className="rounded-full border border-border bg-muted px-3 py-2 text-muted-foreground">Writing: 60 min</span>
+                            <span className="rounded-full border border-border bg-muted px-3 py-2 text-muted-foreground">CAS: Not allowed</span>
+                            <span className="rounded-full border border-border bg-muted px-3 py-2 text-muted-foreground">Exact values</span>
                         </div>
+                    </div>
+                </CardContent>
+            </Card>
 
-                        <div className="rounded-lg border border-slate-700 bg-slate-900/30 p-4">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <h3 className="font-semibold">
-                                        {exam?.title ?? `${selectedExam.year} VCE Mathematical Methods Exam 1`}
-                                    </h3>
-                                    <p className="mt-1 text-xs text-slate-400">{selectedExam.examKey}</p>
-                                </div>
-                                <span className={`rounded px-2 py-1 text-xs ${canStart ? "bg-emerald-900/60 text-emerald-200" : "bg-slate-800 text-slate-400"}`}>
-                                    {loading ? "Loading" : canStart ? "Loaded" : "Not loaded"}
-                                </span>
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+                <Card className="xl:col-span-7">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Notes and guide</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                            These are the core rules students should keep in mind before starting a past Exam 1.
+                        </p>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div className="rounded-lg border border-border bg-muted/50 p-4">
+                                <h3 className="font-semibold">Exam conditions</h3>
+                                <ul className="mt-3 space-y-2 text-muted-foreground">
+                                    <li>Answer all questions in the spaces provided.</li>
+                                    <li>Show appropriate working where more than one mark is available.</li>
+                                    <li>Diagrams are not drawn to scale unless stated.</li>
+                                    <li>Use exact values unless the question asks for a decimal approximation.</li>
+                                </ul>
                             </div>
 
-                            <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-                                <div className="rounded bg-slate-800 px-2 py-3">
-                                    <div className="text-lg font-semibold">{questions.length}</div>
-                                    <div className="text-xs text-slate-400">Parts</div>
-                                </div>
-                                <div className="rounded bg-slate-800 px-2 py-3">
-                                    <div className="text-lg font-semibold">{totalMarks}</div>
-                                    <div className="text-xs text-slate-400">Marks</div>
-                                </div>
-                                <div className="rounded bg-slate-800 px-2 py-3">
-                                    <div className="text-lg font-semibold">{autoMarkedCount}</div>
-                                    <div className="text-xs text-slate-400">Auto-check</div>
-                                </div>
+                            <div className="rounded-lg border border-border bg-muted/50 p-4">
+                                <h3 className="font-semibold">Answer expectations</h3>
+                                <ul className="mt-3 space-y-2 text-muted-foreground">
+                                    <li>Use correct notation for intervals, coordinates, and functions.</li>
+                                    <li>Include endpoints correctly in domain and inequality questions.</li>
+                                    <li>For algebra and calculus, simplify enough for the answer to be clear.</li>
+                                    <li>For explanation questions, write the reasoning, not only the final result.</li>
+                                </ul>
+                            </div>
+
+                            <div className="rounded-lg border border-border bg-muted/50 p-4">
+                                <h3 className="font-semibold">Input format in the app</h3>
+                                <ul className="mt-3 space-y-2 text-muted-foreground">
+                                    <li>Use calculator-style typing such as <span className="font-mono">sqrt(2)</span>.</li>
+                                    <li>Use <span className="font-mono">pi</span> for π and <span className="font-mono">^</span> for powers.</li>
+                                    <li>Use <span className="font-mono">*</span> for multiplication when it avoids ambiguity.</li>
+                                    <li>For answer sets, separate values with commas.</li>
+                                </ul>
+                            </div>
+
+                            <div className="rounded-lg border border-border bg-muted/50 p-4">
+                                <h3 className="font-semibold">Common mark losses</h3>
+                                <ul className="mt-3 space-y-2 text-muted-foreground">
+                                    <li>Decimal answers where exact form is required.</li>
+                                    <li>Missing a solution in a trigonometric or polynomial equation.</li>
+                                    <li>Dropping endpoint brackets in intervals.</li>
+                                    <li>Correct answer with no method when working is required.</li>
+                                </ul>
                             </div>
                         </div>
+                    </CardContent>
+                </Card>
 
-                        {canStart ? (
-                            <Link
-                                href={startHref}
-                                className="block w-full rounded-lg bg-blue-600 px-5 py-3 text-center font-semibold text-white hover:bg-blue-500"
-                            >
-                                Start {selectedExam.year} test
-                            </Link>
-                        ) : (
-                            <button
-                                type="button"
-                                disabled
-                                className="w-full rounded-lg bg-slate-800 px-5 py-3 font-semibold text-slate-500"
-                            >
-                                Start {selectedExam.year} test
-                            </button>
-                        )}
-                    </section>
+                <aside className="xl:col-span-5 space-y-6">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg">Select past exam</CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                                Choose a year to inspect the loaded dataset before starting.
+                            </p>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                {EXAM_OPTIONS.map((option) => {
+                                    const selected = option.year === selectedYear;
+                                    return (
+                                        <Button
+                                            key={option.examKey}
+                                            type="button"
+                                            size="sm"
+                                            variant={selected ? "default" : "outline"}
+                                            onClick={() => setSelectedYear(option.year)}
+                                        >
+                                            {option.year}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="rounded-lg border border-border bg-muted/50 p-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <h3 className="font-semibold">
+                                            {exam?.title ?? `${selectedExam.year} VCE Mathematical Methods Exam 1`}
+                                        </h3>
+                                        <p className="mt-1 text-xs text-muted-foreground">{selectedExam.examKey}</p>
+                                    </div>
+                                    <span className={`rounded-full border px-2 py-1 text-xs font-medium ${canStart ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border bg-muted text-muted-foreground"}`}>
+                                        {loading ? "Loading" : canStart ? "Loaded" : "Not loaded"}
+                                    </span>
+                                </div>
+
+                                <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
+                                    <div className="rounded-md border border-border bg-card px-2 py-3">
+                                        <div className="text-lg font-semibold">{questions.length}</div>
+                                        <div className="text-xs text-muted-foreground">Parts</div>
+                                    </div>
+                                    <div className="rounded-md border border-border bg-card px-2 py-3">
+                                        <div className="text-lg font-semibold">{totalMarks}</div>
+                                        <div className="text-xs text-muted-foreground">Marks</div>
+                                    </div>
+                                    <div className="rounded-md border border-border bg-card px-2 py-3">
+                                        <div className="text-lg font-semibold">{autoMarkedCount}</div>
+                                        <div className="text-xs text-muted-foreground">Auto-check</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {canStart ? (
+                                <Button asChild variant="destructive" className="w-full">
+                                    <Link href={startHref}>
+                                        Start {selectedExam.year} test
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button type="button" disabled variant="destructive" className="w-full">
+                                    Start {selectedExam.year} test
+                                </Button>
+                            )}
+                        </CardContent>
+                    </Card>
                 </aside>
             </div>
 
-            <section className="glass p-6">
-                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-                    <div>
-                        <h2 className="text-lg font-semibold">Loaded dataset questions</h2>
-                        <p className="mt-1 text-sm text-slate-400">
-                            Topic coverage for the selected past exam.
-                        </p>
+            <Card>
+                <CardHeader className="pb-2">
+                    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                        <div>
+                            <CardTitle className="text-lg">Loaded dataset questions</CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                                Topic coverage for the selected past exam.
+                            </p>
+                        </div>
+                        {canStart && (
+                            <Button asChild variant="destructive" size="sm">
+                                <Link href={startHref}>
+                                    Start {selectedExam.year} test
+                                </Link>
+                            </Button>
+                        )}
                     </div>
-                    {canStart && (
-                        <Link
-                            href={startHref}
-                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
-                        >
-                            Start {selectedExam.year} test
-                        </Link>
-                    )}
-                </div>
-
-                <div className="mt-5">
+                </CardHeader>
+                <CardContent>
                     {loading ? (
-                        <p className="text-sm text-slate-300">Loading dataset questions from PostgreSQL...</p>
+                        <p className="text-sm text-muted-foreground">Loading dataset questions from PostgreSQL...</p>
                     ) : error ? (
-                        <div className="rounded-lg border border-amber-800 bg-amber-950/30 p-4 text-sm text-amber-200">
+                        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
                             {error}
                         </div>
                     ) : questions.length === 0 ? (
-                        <p className="text-sm text-slate-300">
+                        <p className="text-sm text-muted-foreground">
                             No published questions are available for this exam yet. Approve and publish QA records before students can start.
                         </p>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
-                                <thead className="text-slate-400">
-                                    <tr className="border-b border-slate-700">
+                                <thead className="text-muted-foreground">
+                                    <tr className="border-b border-border">
                                         <th className="py-2 pr-4 text-left font-medium">Topic</th>
                                         <th className="py-2 pr-4 text-left font-medium">Subtopic</th>
                                         <th className="py-2 pr-4 text-left font-medium">Question parts</th>
@@ -371,18 +370,18 @@ export default function Exam1BriefingPage() {
                                 </thead>
                                 <tbody>
                                     {tableRows.map((row) => (
-                                        <tr key={`${row.topicCode}-${row.subtopicCode}`} className="border-b border-slate-800">
+                                        <tr key={`${row.topicCode}-${row.subtopicCode}`} className="border-b border-border">
                                             <td className="py-3 pr-4">
-                                                <div className="font-medium text-slate-100">{topicDisplayName(row.topicCode)}</div>
-                                                <div className="mt-0.5 text-xs text-slate-500">{row.topicCode}</div>
+                                                <div className="font-medium">{topicDisplayName(row.topicCode)}</div>
+                                                <div className="mt-0.5 text-xs text-muted-foreground">{row.topicCode}</div>
                                             </td>
                                             <td className="py-3 pr-4">
-                                                <div className="text-slate-200">{subtopicDisplayName(row.subtopicCode)}</div>
-                                                <div className="mt-0.5 text-xs text-slate-500">{row.subtopicCode}</div>
+                                                <div>{subtopicDisplayName(row.subtopicCode)}</div>
+                                                <div className="mt-0.5 text-xs text-muted-foreground">{row.subtopicCode}</div>
                                             </td>
-                                            <td className="py-3 pr-4 text-slate-300">{row.parts}</td>
-                                            <td className="py-3 pr-4 text-slate-300">{row.marks}</td>
-                                            <td className="py-3 text-slate-300">
+                                            <td className="py-3 pr-4 text-muted-foreground">{row.parts}</td>
+                                            <td className="py-3 pr-4 text-muted-foreground">{row.marks}</td>
+                                            <td className="py-3 text-muted-foreground">
                                                 {row.auto}/{row.parts} auto-check
                                             </td>
                                         </tr>
@@ -391,8 +390,8 @@ export default function Exam1BriefingPage() {
                             </table>
                         </div>
                     )}
-                </div>
-            </section>
+                </CardContent>
+            </Card>
         </div>
     );
 }

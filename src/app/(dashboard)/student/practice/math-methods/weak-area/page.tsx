@@ -1,4 +1,9 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
+import { Button } from '@/components/dashboard/ui/button';
 
 type TopicStatus = 'Not started' | 'Early signal' | 'Weak' | 'Monitor' | 'Strong';
 
@@ -46,9 +51,11 @@ function getApiBase() {
     return clean.endsWith('/api') ? clean : `${clean}/api`;
 }
 
-async function fetchWeakAreaData(): Promise<WeakAreaResponse> {
+async function fetchWeakAreaData(userId: number): Promise<WeakAreaResponse> {
     const base = getApiBase();
-    const url = `${base}/progress/weak-area?userId=1&subjectCode=MATH_METHODS`;
+    const url = `${base}/progress/weak-area?userId=${encodeURIComponent(
+        String(userId)
+    )}&subjectCode=MATH_METHODS`;
 
     const res = await fetch(url, {
         cache: 'no-store',
@@ -91,15 +98,15 @@ async function fetchWeakAreaData(): Promise<WeakAreaResponse> {
 function statusClasses(status: TopicStatus) {
     switch (status) {
         case 'Weak':
-            return 'bg-red-500/15 text-red-300 border border-red-500/20';
+            return 'bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20';
         case 'Monitor':
-            return 'bg-amber-500/15 text-amber-300 border border-amber-500/20';
+            return 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20';
         case 'Strong':
-            return 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20';
+            return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20';
         case 'Early signal':
-            return 'bg-sky-500/15 text-sky-300 border border-sky-500/20';
+            return 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20';
         default:
-            return 'bg-slate-500/15 text-slate-300 border border-white/10';
+            return 'bg-muted text-muted-foreground border border-border';
     }
 }
 
@@ -121,34 +128,34 @@ function TopicCard({
     actionLabel?: string;
 }) {
     return (
-        <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+        <div className="rounded-lg border border-border bg-muted/50 p-4">
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <div className="text-lg font-semibold text-white">
+                    <div className="text-lg font-semibold">
                         {item.topicName ?? item.topicCode}
                     </div>
-                    <div className="text-sm text-emerald-300">
+                    <div className="text-sm text-primary">
                         {item.strandName ?? 'Topic'}
                     </div>
 
-                    <div className="mt-3 grid gap-2 text-sm text-slate-300 sm:grid-cols-4">
+                    <div className="mt-3 grid gap-2 text-sm text-muted-foreground sm:grid-cols-4">
                         <div>
                             Attempts:{' '}
-                            <span className="font-semibold text-white">{item.attempts}</span>
+                            <span className="font-semibold text-foreground">{item.attempts}</span>
                         </div>
                         <div>
                             Correct:{' '}
-                            <span className="font-semibold text-white">{item.correct}</span>
+                            <span className="font-semibold text-foreground">{item.correct}</span>
                         </div>
                         <div>
                             Accuracy:{' '}
-                            <span className="font-semibold text-white">
+                            <span className="font-semibold text-foreground">
                                 {formatAccuracy(item.accuracy)}
                             </span>
                         </div>
                         <div>
                             Mastery:{' '}
-                            <span className="font-semibold text-white">
+                            <span className="font-semibold text-foreground">
                                 {formatMastery(item.masteryPercent)}
                             </span>
                         </div>
@@ -161,21 +168,28 @@ function TopicCard({
             </div>
 
             <div className="mt-4">
-                <Link
-                    href={`/student/practice/math-methods/topic?topicCode=${encodeURIComponent(
-                        item.topicCode
-                    )}`}
-                    className="inline-flex items-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-400"
-                >
-                    {actionLabel}
-                </Link>
+                <Button asChild size="sm">
+                    <Link
+                        href={`/student/practice/math-methods/topic?topicCode=${encodeURIComponent(
+                            item.topicCode
+                        )}`}
+                    >
+                        {actionLabel}
+                    </Link>
+                </Button>
             </div>
         </div>
     );
 }
 
 export default async function WeakAreaPage() {
-    const data = await fetchWeakAreaData();
+    const session = await getServerSession(authOptions);
+    const userId = Number((session?.user as any)?.id);
+    if (!session || !Number.isFinite(userId) || userId <= 0) {
+        redirect('/auth/login?callbackUrl=/student/practice/math-methods/weak-area');
+    }
+
+    const data = await fetchWeakAreaData(userId);
 
     const weakestSubtopics = data.weakestSubtopics;
     const earlySignalTopics = data.earlySignalTopics;
@@ -194,109 +208,117 @@ export default async function WeakAreaPage() {
             : null;
 
     return (
-        <div className="min-h-screen bg-[#0b1020] px-6 py-8 text-white">
-            <div className="mx-auto max-w-7xl space-y-6">
-                <section className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-xl backdrop-blur">
-                    <div className="space-y-4">
-                        <h1 className="text-3xl font-bold tracking-tight text-white">
-                            Weak Area Dashboard
-                        </h1>
+        <div className="space-y-6 p-6">
+            <Card>
+                <CardContent className="space-y-4 p-6">
+                    <h1 className="text-2xl font-bold tracking-tight">
+                        Weak Area Dashboard
+                    </h1>
 
-                        <p className="text-sm leading-7 text-slate-300">
-                            This dashboard ranks your Mathematical Methods topics using real
-                            practice performance. Topics with low accuracy and enough attempts are
-                            prioritised first, while low-attempt topics are shown as early signals.
-                        </p>
+                    <p className="text-sm leading-7 text-muted-foreground">
+                        This dashboard ranks your Mathematical Methods topics using real
+                        practice performance. Topics with low accuracy and enough attempts are
+                        prioritised first, while low-attempt topics are shown as early signals.
+                    </p>
 
-                        <div className="flex flex-wrap gap-3">
-                            <Link
-                                href="/student/practice/math-methods/topic"
-                                className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-black"
-                            >
+                    <div className="flex flex-wrap gap-3">
+                        <Button asChild size="sm">
+                            <Link href="/student/practice/math-methods/topic">
                                 Topic Mastery
                             </Link>
-                            <Link
-                                href="/student/practice/math-methods/weak-area"
-                                className="rounded-full border border-white/10 bg-slate-900/60 px-4 py-2 text-sm font-semibold text-white"
-                            >
+                        </Button>
+                        <Button asChild size="sm" variant="outline">
+                            <Link href="/student/practice/math-methods/weak-area">
                                 Weak Area
                             </Link>
-                        </div>
+                        </Button>
                     </div>
-                </section>
+                </CardContent>
+            </Card>
 
-                <section className="grid gap-4 md:grid-cols-3">
-                    <div className="rounded-3xl border border-white/10 bg-white/10 p-5 shadow-xl">
-                        <div className="text-sm uppercase tracking-wide text-slate-400">
+            <section className="grid gap-4 md:grid-cols-3">
+                <Card>
+                    <CardContent className="p-5">
+                        <div className="text-sm uppercase tracking-wide text-muted-foreground">
                             Topics attempted
                         </div>
-                        <div className="mt-2 text-3xl font-bold text-white">{attemptedTopics}</div>
-                    </div>
+                        <div className="mt-2 text-3xl font-bold">{attemptedTopics}</div>
+                    </CardContent>
+                </Card>
 
-                    <div className="rounded-3xl border border-white/10 bg-white/10 p-5 shadow-xl">
-                        <div className="text-sm uppercase tracking-wide text-slate-400">
+                <Card>
+                    <CardContent className="p-5">
+                        <div className="text-sm uppercase tracking-wide text-muted-foreground">
                             Priority topic
                         </div>
-                        <div className="mt-2 text-xl font-bold text-white">
+                        <div className="mt-2 text-xl font-bold">
                             {weakestTopic?.topicName ?? 'No data yet'}
                         </div>
-                        <div className="mt-1 text-sm text-slate-300">
+                        <div className="mt-1 text-sm text-muted-foreground">
                             {weakestTopic?.strandName ??
                                 'Complete some practice to generate insights'}
                         </div>
-                    </div>
+                    </CardContent>
+                </Card>
 
-                    <div className="rounded-3xl border border-white/10 bg-white/10 p-5 shadow-xl">
-                        <div className="text-sm uppercase tracking-wide text-slate-400">
+                <Card>
+                    <CardContent className="p-5">
+                        <div className="text-sm uppercase tracking-wide text-muted-foreground">
                             Average accuracy
                         </div>
-                        <div className="mt-2 text-3xl font-bold text-white">
+                        <div className="mt-2 text-3xl font-bold">
                             {averageAccuracy == null ? '—' : `${averageAccuracy}%`}
                         </div>
-                    </div>
-                </section>
+                    </CardContent>
+                </Card>
+            </section>
 
-                <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-                    <div className="space-y-6">
-                        <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-xl">
-                            <h2 className="text-xl font-semibold text-white">Priority review topics</h2>
-                            <p className="mt-2 text-sm leading-6 text-slate-300">
+            <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg">Priority review topics</CardTitle>
+                            <p className="text-sm leading-6 text-muted-foreground">
                                 These topics have enough attempts to be trusted and are currently
                                 classified as weak.
                             </p>
-
+                        </CardHeader>
+                        <CardContent>
                             {weakestSubtopics.length === 0 ? (
-                                <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/50 p-6">
-                                    <div className="text-lg font-semibold text-white">
+                                <div className="rounded-lg border border-border bg-muted/50 p-6">
+                                    <div className="text-lg font-semibold">
                                         No confirmed weak topics yet
                                     </div>
-                                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
                                         A topic moves into this section once you have enough attempts
                                         and the accuracy remains low.
                                     </p>
                                 </div>
                             ) : (
-                                <div className="mt-5 space-y-4">
+                                <div className="space-y-4">
                                     {weakestSubtopics.map((item) => (
                                         <TopicCard key={item.topicCode} item={item} />
                                     ))}
                                 </div>
                             )}
-                        </div>
+                        </CardContent>
+                    </Card>
 
-                        <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-xl">
-                            <h2 className="text-xl font-semibold text-white">Early signal topics</h2>
-                            <p className="mt-2 text-sm leading-6 text-slate-300">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg">Early signal topics</CardTitle>
+                            <p className="text-sm leading-6 text-muted-foreground">
                                 These topics have only a small number of attempts so far. Treat them
                                 as low-confidence signals, not final judgements.
                             </p>
-
+                        </CardHeader>
+                        <CardContent>
                             {earlySignalTopics.length === 0 ? (
-                                <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/50 p-6 text-sm text-slate-300">
+                                <div className="rounded-lg border border-border bg-muted/50 p-6 text-sm text-muted-foreground">
                                     No early-signal topics right now.
                                 </div>
                             ) : (
-                                <div className="mt-5 space-y-4">
+                                <div className="space-y-4">
                                     {earlySignalTopics.map((item) => (
                                         <TopicCard
                                             key={`${item.topicCode}-early`}
@@ -306,82 +328,98 @@ export default async function WeakAreaPage() {
                                     ))}
                                 </div>
                             )}
-                        </div>
+                        </CardContent>
+                    </Card>
 
-                        {data.recentMistakes && data.recentMistakes.length > 0 && (
-                            <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-xl">
-                                <h2 className="text-xl font-semibold text-white">Recent mistakes</h2>
-                                <div className="mt-5 space-y-3">
+                    {data.recentMistakes && data.recentMistakes.length > 0 && (
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-lg">Recent mistakes</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-3">
                                     {data.recentMistakes.slice(0, 5).map((row) => (
                                         <div
                                             key={row.id}
-                                            className="rounded-2xl border border-white/10 bg-slate-950/50 p-4"
+                                            className="rounded-lg border border-border bg-muted/50 p-4"
                                         >
-                                            <div className="text-sm font-semibold text-white">
+                                            <div className="text-sm font-semibold">
                                                 {row.question?.questionText || 'Question'}
                                             </div>
-                                            <div className="mt-2 text-sm text-slate-300">
+                                            <div className="mt-2 text-sm text-muted-foreground">
                                                 Submitted answer:{' '}
-                                                <span className="text-white">
+                                                <span className="text-foreground">
                                                     {row.submittedAnswer || '—'}
                                                 </span>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                            </div>
-                        )}
-                    </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
 
-                    <div className="space-y-6">
-                        <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-xl">
-                            <h2 className="text-xl font-semibold text-white">How Weak Area works</h2>
-                            <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg">How Weak Area works</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ul className="space-y-3 text-sm leading-6 text-muted-foreground">
                                 <li>• Topics with lower accuracy rank higher.</li>
                                 <li>• Fewer than 3 attempts are treated as early signals.</li>
                                 <li>• More attempts make the signal more trustworthy.</li>
                                 <li>• Practise weak topics first to lift overall mastery.</li>
                             </ul>
-                        </div>
+                        </CardContent>
+                    </Card>
 
-                        <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-xl">
-                            <h2 className="text-xl font-semibold text-white">Reading the dashboard</h2>
-                            <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg">Reading the dashboard</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-3 text-sm leading-6 text-muted-foreground">
                                 <p>
-                                    <span className="font-semibold text-white">Weak</span> means the
+                                    <span className="font-semibold text-foreground">Weak</span> means the
                                     topic has enough attempts and currently low accuracy.
                                 </p>
                                 <p>
-                                    <span className="font-semibold text-white">Early signal</span>{' '}
+                                    <span className="font-semibold text-foreground">Early signal</span>{' '}
                                     means there is not enough data yet to judge confidently.
                                 </p>
                                 <p>
-                                    <span className="font-semibold text-white">Monitor</span> means
+                                    <span className="font-semibold text-foreground">Monitor</span> means
                                     partial understanding.
                                 </p>
                                 <p>
-                                    <span className="font-semibold text-white">Strong</span> means
+                                    <span className="font-semibold text-foreground">Strong</span> means
                                     the topic is currently performing well.
                                 </p>
                             </div>
-                        </div>
+                        </CardContent>
+                    </Card>
 
-                        {data.recommendedRecoveryPath &&
-                            data.recommendedRecoveryPath.length > 0 && (
-                                <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-xl">
-                                    <h2 className="text-xl font-semibold text-white">
+                    {data.recommendedRecoveryPath &&
+                        data.recommendedRecoveryPath.length > 0 && (
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-lg">
                                         Recommended recovery path
-                                    </h2>
-                                    <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <ul className="space-y-3 text-sm leading-6 text-muted-foreground">
                                         {data.recommendedRecoveryPath.map((step, index) => (
                                             <li key={`${step}-${index}`}>• {step}</li>
                                         ))}
                                     </ul>
-                                </div>
-                            )}
-                    </div>
-                </section>
-            </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                </div>
+            </section>
         </div>
     );
 }
