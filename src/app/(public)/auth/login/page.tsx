@@ -7,6 +7,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { signIn, useSession } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from '@/components/dashboard/ui/sonner'
+import { homeForRole, normalizeRole } from '@/lib/roleRouting'
 
 function LoginPageContent() {
   const [showPassword, setShowPassword] = useState(false)
@@ -22,21 +23,14 @@ function LoginPageContent() {
   const router = useRouter()
   const { status, data: session } = useSession()
 
-  const roleHomeMap: Record<string, string> = {
-    student: '/student',
-    teacher: '/teacher/review',
-    admin: '/admin',
-    contributor: '/contributor',
-  }
-
   // Once signed in, the user shouldn't see the login form again. Middleware can't handle
   // this page: next-auth withAuth early-returns for pages.signIn (/auth/login) to
   // avoid a redirect loop, so we must redirect on the client. Skip while we're in the
   // sign-in flow on this page (isRedirecting) so we don't race handleSubmit's router.push.
   useEffect(() => {
     if (status !== 'authenticated' || isRedirecting) return
-    const role = (session?.user as any)?.role as string | undefined
-    router.replace(roleHomeMap[role ?? ''] ?? '/student')
+    const role = normalizeRole((session?.user as any)?.role)
+    router.replace(homeForRole(role))
     // roleHomeMap is a stable literal; deps tracked are the dynamic values.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session, isRedirecting, router])
@@ -92,9 +86,9 @@ function LoginPageContent() {
       // Fetch session to get role for redirect
       const sessionRes = await fetch('/api/auth/session')
       const session = await sessionRes.json()
-      const role = session?.user?.role
+      const role = normalizeRole(session?.user?.role)
 
-      const roleHome = roleHomeMap[role] || '/student'
+      const roleHome = homeForRole(role)
       const redirectTo =
         callbackUrl && isCallbackForOwnRole(callbackUrl, role)
           ? callbackUrl

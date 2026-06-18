@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import { normalizeRole } from "@/lib/roleRouting";
 
 const SESSION_MAX_AGE = Number(process.env.SESSION_MAX_AGE_SECONDS) || 3600; // 1 hour
 const SESSION_REMEMBER_ME_MAX_AGE =
@@ -96,7 +97,7 @@ export const authOptions: NextAuthOptions = {
                     id: String(data.userId),
                     email: data.email,
                     name: data.email?.split("@")[0] || data.email,
-                    role: data.role,
+                    role: normalizeRole(data.role),
                     accessToken: data.access_token,
                     refreshToken: data.refresh_token,
                     // Read the real value from backend so the complete-profile flow
@@ -134,7 +135,7 @@ export const authOptions: NextAuthOptions = {
                     const data = await res.json();
 
                     (user as any).id = String(data.userId);
-                    (user as any).role = data.role;
+                    (user as any).role = normalizeRole(data.role);
                     (user as any).accessToken = data.access_token;
                     (user as any).refreshToken = data.refresh_token;
                     (user as any).profileCompleted = data.profileCompleted;
@@ -152,7 +153,7 @@ export const authOptions: NextAuthOptions = {
             // Initial sign-in: seed the token from the authorize/signIn result.
             if (user) {
                 token.id = (user as any).id;
-                token.role = (user as any).role;
+                token.role = normalizeRole((user as any).role);
                 token.accessToken = (user as any).accessToken;
                 token.refreshToken = (user as any).refreshToken;
                 token.accessTokenExpires = getAccessTokenExpiry((user as any).accessToken);
@@ -177,7 +178,7 @@ export const authOptions: NextAuthOptions = {
 
         async session({ session, token }) {
             (session.user as any).id = token.id;
-            (session.user as any).role = token.role;
+            (session.user as any).role = normalizeRole(token.role);
             (session.user as any).accessToken = token.accessToken;
             (session.user as any).profileCompleted = token.profileCompleted;
             // Surface refresh failure so the client can force a re-login.

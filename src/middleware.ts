@@ -1,13 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-
-const roleHomeMap: Record<string, string> = {
-  admin: "/admin",
-  contributor: "/contributor",
-  student: "/student",
-  teacher: "/teacher/review",
-  parent: "/parent",
-};
+import { homeForRole, normalizeRole } from "@/lib/roleRouting";
 
 const routeAccessMap: Record<string, string[]> = {
   admin: ["admin"],
@@ -21,7 +14,7 @@ export default withAuth(
   function middleware(req) {
     const { pathname } = req.nextUrl;
     const token = req.nextauth.token;
-    const role = token?.role as string | undefined;
+    const role = normalizeRole(token?.role);
     const profileCompleted = token?.profileCompleted as boolean | undefined;
 
     const isAuthPage = pathname.startsWith("/auth");
@@ -35,7 +28,7 @@ export default withAuth(
     if (isCompleteProfile) {
       if (!token) return NextResponse.redirect(new URL("/auth/login", req.url));
       if (!isProfileIncomplete) {
-        return NextResponse.redirect(new URL(roleHomeMap[role ?? ""] ?? "/student", req.url));
+        return NextResponse.redirect(new URL(homeForRole(role), req.url));
       }
       return NextResponse.next();
     }
@@ -45,7 +38,7 @@ export default withAuth(
     }
 
     if (token && isAuthPage) {
-      return NextResponse.redirect(new URL(roleHomeMap[role ?? ""] ?? "/student", req.url));
+      return NextResponse.redirect(new URL(homeForRole(role), req.url));
     }
 
     for (const [routeRole, allowedRoles] of Object.entries(routeAccessMap)) {
@@ -54,7 +47,7 @@ export default withAuth(
         !allowedRoles.includes(String(role))
       ) {
         return NextResponse.redirect(
-          new URL(roleHomeMap[role ?? ""] ?? "/auth/login", req.url)
+          new URL(homeForRole(role, "/auth/login"), req.url)
         );
       }
     }
