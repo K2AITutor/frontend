@@ -154,12 +154,14 @@ function QaVisibilityBadges({
     reviewStatus = question.reviewStatus,
     trainingReadiness = question.trainingReadiness,
     compact = false,
+    showContentStatus = false,
 }: {
     question: DatasetQaQuestion;
     checklist?: DatasetQaChecklist;
     reviewStatus?: DatasetQaStatus;
     trainingReadiness?: DatasetTrainingReadiness;
     compact?: boolean;
+    showContentStatus?: boolean;
 }) {
     const marker = markerVisibilityLabel(question, checklist, reviewStatus);
     const content = contentVisibilityLabel({ ...question, reviewStatus });
@@ -172,9 +174,11 @@ function QaVisibilityBadges({
             <Badge variant="outline" className={TRAINING_READINESS_STYLES[trainingReadiness]}>
                 {TRAINING_READINESS_LABELS[trainingReadiness]}
             </Badge>
-            <Badge variant="outline" className={content.className} title={content.detail}>
-                {content.label}
-            </Badge>
+            {showContentStatus ? (
+                <Badge variant="outline" className={content.className} title={content.detail}>
+                    {content.label}
+                </Badge>
+            ) : null}
         </div>
     );
 }
@@ -880,8 +884,7 @@ function DatasetQaEditor({
                                     trainingReadiness={trainingReadiness}
                                 />
                                 <p className="mt-2 text-sm text-muted-foreground">
-                                    Auto-check safe records can be machine-scored. Manual review records need human judgement.
-                                    Training ready records are suitable for model training; practice-only records should stay out of training data.
+                                    Check whether this answer can be auto-marked, then choose whether it is only safe for practice or also ready for future model training.
                                 </p>
                             </div>
                             <Field label="Training readiness">
@@ -1262,9 +1265,9 @@ function FinalReviewPanel({
                                     </div>
                                     <div className="text-right text-xs text-muted-foreground">
                                         <div>{row.reviewerName || "Reviewer unknown"}</div>
-                                        <Badge variant="outline" className="mt-1">
-                                            {TRAINING_READINESS_LABELS[row.trainingReadiness]}
-                                        </Badge>
+                                        <div className="mt-1 flex justify-end">
+                                            <QaVisibilityBadges question={row} compact showContentStatus />
+                                        </div>
                                     </div>
                                 </label>
                             ))
