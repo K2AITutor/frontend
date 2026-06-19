@@ -55,6 +55,13 @@ type AttemptRecord = {
   ts: number;
 };
 
+type AnswerShortcut = {
+  label: string;
+  value: string;
+  ariaLabel: string;
+  cursorOffset?: number;
+};
+
 function plainAnswerForClipboard(value: string | null | undefined) {
   return String(value ?? "")
     .replace(/\\{1,2}\(|\\{1,2}\)|\\{1,2}\[|\\{1,2}\]/g, "")
@@ -196,29 +203,40 @@ export default function ExamSessionClient(props: {
     hasTypedAnswer &&
     (needsWorkingInput || interpretedAnswer.canMarkSafely);
 
-  const answerShortcuts = useMemo(() => {
+  const answerShortcuts = useMemo<AnswerShortcut[]>(() => {
+    const core: AnswerShortcut[] = [
+      { label: "x", value: "x", ariaLabel: "Insert x" },
+      { label: "*", value: "*", ariaLabel: "Insert multiplication symbol" },
+      { label: "a/b", value: "()/()", ariaLabel: "Insert fraction template", cursorOffset: 1 },
+      { label: "x^2", value: "^2", ariaLabel: "Insert square" },
+      { label: "^n", value: "^()", ariaLabel: "Insert power template", cursorOffset: 2 },
+      { label: "(", value: "(", ariaLabel: "Insert opening bracket" },
+      { label: ")", value: ")", ariaLabel: "Insert closing bracket" },
+      { label: ",", value: ",", ariaLabel: "Insert comma" },
+      { label: "[,]", value: "[,]", ariaLabel: "Insert interval bracket template", cursorOffset: 1 },
+      { label: "(,)", value: "(,)", ariaLabel: "Insert open interval template", cursorOffset: 1 },
+    ];
+
     if (needsWorkingInput) {
       return [
-        { label: "sqrt", value: "sqrt()" },
-        { label: "^", value: "^" },
-        { label: "pi", value: "pi" },
-        { label: "frac", value: "/" },
+        ...core,
+        { label: "sqrt", value: "sqrt()", ariaLabel: "Insert square root", cursorOffset: 5 },
+        { label: "pi", value: "pi", ariaLabel: "Insert pi" },
       ];
     }
 
     return [
-      { label: "sqrt", value: "sqrt()" },
-      { label: "^", value: "^" },
-      { label: "pi", value: "pi" },
-      { label: "sin", value: "sin()" },
-      { label: "cos", value: "cos()" },
-      { label: "tan", value: "tan()" },
-      { label: "(", value: "(" },
-      { label: ")", value: ")" },
+      ...core,
+      { label: "sqrt", value: "sqrt()", ariaLabel: "Insert square root", cursorOffset: 5 },
+      { label: "pi", value: "pi", ariaLabel: "Insert pi" },
+      { label: "sin", value: "sin()", ariaLabel: "Insert sine function", cursorOffset: 4 },
+      { label: "cos", value: "cos()", ariaLabel: "Insert cosine function", cursorOffset: 4 },
+      { label: "tan", value: "tan()", ariaLabel: "Insert tangent function", cursorOffset: 4 },
     ];
   }, [needsWorkingInput]);
 
-  const insertAnswerToken = (token: string) => {
+  const insertAnswerToken = (shortcut: AnswerShortcut) => {
+    const token = shortcut.value;
     const el = answerInputRef.current;
     if (!el) {
       setAnswer((value) => `${value}${token}`);
@@ -228,7 +246,7 @@ export default function ExamSessionClient(props: {
     const start = el.selectionStart ?? answer.length;
     const end = el.selectionEnd ?? answer.length;
     const nextAnswer = `${answer.slice(0, start)}${token}${answer.slice(end)}`;
-    const cursorOffset = token.endsWith("()") ? token.length - 1 : token.length;
+    const cursorOffset = shortcut.cursorOffset ?? (token.endsWith("()") ? token.length - 1 : token.length);
 
     setAnswer(nextAnswer);
     window.requestAnimationFrame(() => {
@@ -508,7 +526,9 @@ export default function ExamSessionClient(props: {
                     <button
                       key={`${shortcut.label}-${shortcut.value}`}
                       type="button"
-                      onClick={() => insertAnswerToken(shortcut.value)}
+                      onClick={() => insertAnswerToken(shortcut)}
+                      aria-label={shortcut.ariaLabel}
+                      title={shortcut.ariaLabel}
                       className="px-3 py-1.5 rounded-md border border-border bg-muted hover:bg-accent text-xs font-medium text-foreground"
                     >
                       {shortcut.label}
@@ -519,7 +539,8 @@ export default function ExamSessionClient(props: {
                 <p className="text-xs text-muted-foreground">
                   Accepted format: normal calculator-style typing, such as <span className="font-mono">3/2</span>,{" "}
                   <span className="font-mono">sqrt(2)</span>, or{" "}
-                  <span className="font-mono">2*x*cos(x)-x^2*sin(x)</span>.
+                  <span className="font-mono">2*x*cos(x)-x^2*sin(x)</span>. Use the keypad for exact symbols,
+                  fractions, powers, and intervals.
                 </p>
 
                 {hasTypedAnswer && !needsWorkingInput && (
