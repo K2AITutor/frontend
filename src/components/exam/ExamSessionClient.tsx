@@ -391,10 +391,17 @@ export default function ExamSessionClient(props: {
     [interpretedAnswer.displayAnswer]
   );
   const hasTypedAnswer = answer.trim().length > 0;
+  const blockingInputWarning = interpretedAnswer.warnings.find(
+    (warning) => warning.severity === "blocking"
+  );
+  const submitValidationMessage =
+    hasTypedAnswer && !needsWorkingInput && blockingInputWarning
+      ? `${blockingInputWarning.message}${blockingInputWarning.suggestion ? ` ${blockingInputWarning.suggestion}` : ""}`
+      : null;
   const canSubmitAnswer =
     !isSubmitting &&
     hasTypedAnswer &&
-    (needsWorkingInput || interpretedAnswer.canMarkSafely);
+    (needsWorkingInput || !submitValidationMessage);
 
   const answerShortcuts = useMemo<AnswerShortcut[]>(() => {
     const core: AnswerShortcut[] = [
@@ -484,8 +491,8 @@ export default function ExamSessionClient(props: {
       setSubmitError("Enter an answer before submitting.");
       return;
     }
-    if (!needsWorkingInput && !interpretedAnswer.canMarkSafely) {
-      setSubmitError("Fix the answer format warning before submitting.");
+    if (submitValidationMessage) {
+      setSubmitError(submitValidationMessage);
       return;
     }
 
@@ -810,9 +817,16 @@ export default function ExamSessionClient(props: {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                {submitValidationMessage && (
+                  <div className="w-full rounded-lg border border-amber-600/70 bg-amber-950/30 px-3 py-2 text-sm text-amber-100">
+                    {submitValidationMessage}
+                  </div>
+                )}
+
                 <Button
                   data-testid="exam-submit-answer"
                   disabled={!canSubmitAnswer}
+                  title={submitValidationMessage ?? undefined}
                   onClick={handleSubmit}
                 >
                   {isSubmitting ? "Checking..." : "Submit Answer"}
