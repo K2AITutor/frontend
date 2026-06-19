@@ -33,8 +33,47 @@ type MarkingResult = {
     sourceRef?: string | null;
   } | null;
   diagnostics?: any;
+  criterionOutcomes?: CriterionOutcomeLike[] | null;
+  markingArtifact?: { criterionOutcomes?: CriterionOutcomeLike[] | null } | null;
   input?: NormalizedAnswerInput;
   needsClarification?: boolean;
+};
+
+type RubricLine = { marks?: number | null; criterion?: string | null };
+
+type CriterionOutcomeLike = {
+  id?: string | number | null;
+  key?: string | number | null;
+  componentId?: string | number | null;
+  label?: string | null;
+  criterion?: string | null;
+  description?: string | null;
+  note?: string | null;
+  passed?: boolean | null;
+  met?: boolean | null;
+  status?: string | null;
+  scoreAwarded?: number | null;
+  marksAwarded?: number | null;
+  score?: number | null;
+  marks?: number | null;
+  maxScore?: number | null;
+  maxMarks?: number | null;
+  availableMarks?: number | null;
+  feedback?: string | null;
+  reason?: string | null;
+  errorTags?: string[] | null;
+  criteria?: CriterionOutcomeLike[] | null;
+};
+
+type CriterionFeedback = {
+  id: string;
+  label: string;
+  criterion: string;
+  state: "passed" | "failed" | "partial" | "not_assessed";
+  score: number | null;
+  maxScore: number | null;
+  feedback?: string | null;
+  errorTags?: string[];
 };
 
 type ExamQuestionLike = {
@@ -137,6 +176,110 @@ function calculatorTextToLatex(value: string) {
     .replace(/\b(sin|cos|tan|log|ln)\(/g, "\\$1(");
 }
 
+function finiteNumber(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function criterionLabel(item: CriterionOutcomeLike, index: number) {
+  return String(item.label ?? item.key ?? item.id ?? item.componentId ?? `Criterion ${index + 1}`);
+}
+
+function criterionText(item: CriterionOutcomeLike) {
+  return String(item.criterion ?? item.description ?? item.note ?? item.label ?? "Criterion outcome");
+}
+
+function criterionScore(item: CriterionOutcomeLike) {
+  return finiteNumber(item.marksAwarded ?? item.scoreAwarded ?? item.score ?? item.marks);
+}
+
+function criterionMaxScore(item: CriterionOutcomeLike) {
+  return finiteNumber(item.maxMarks ?? item.availableMarks ?? item.maxScore ?? item.marks);
+}
+
+function criterionState(item: CriterionOutcomeLike, score: number | null, maxScore: number | null): CriterionFeedback["state"] {
+  if (item.passed === true || item.met === true) return "passed";
+  if (item.passed === false || item.met === false) return score && score > 0 ? "partial" : "failed";
+
+  const status = String(item.status ?? "").trim().toLowerCase();
+  if (["passed", "pass", "met", "correct", "awarded"].includes(status)) return "passed";
+  if (["partial", "partially_met"].includes(status)) return "partial";
+  if (["failed", "fail", "missed", "not_met", "incorrect"].includes(status)) return "failed";
+
+  if (score != null && maxScore != null && maxScore > 0) {
+    if (score >= maxScore) return "passed";
+    if (score > 0) return "partial";
+    return "failed";
+  }
+
+  return "not_assessed";
+}
+
+function normalizeCriterionFeedback(result: MarkingResult | null, rubric: RubricLine[]): CriterionFeedback[] {
+  const sources = [
+    result?.criterionOutcomes,
+    result?.diagnostics?.criterionOutcomes,
+    result?.diagnostics?.criteria,
+    result?.markingArtifact?.criterionOutcomes,
+  ];
+
+  const raw = sources.find((source) => Array.isArray(source) && source.length > 0) as
+    | CriterionOutcomeLike[]
+    | undefined;
+
+  if (raw?.length) {
+    const flattened = raw.flatMap((item, index) => {
+      const nested = Array.isArray(item.criteria) ? item.criteria : [];
+      if (!nested.length) return [{ item, parent: null, index }];
+      return nested.map((child, childIndex) => ({
+        item: child,
+        parent: item,
+        index: Number(`${index}${childIndex}`),
+      }));
+    });
+
+    return flattened.map(({ item, parent, index }, visibleIndex) => {
+      const score = criterionScore(item);
+      const maxScore = criterionMaxScore(item) ?? criterionMaxScore(parent ?? {});
+      return {
+        id: String(item.id ?? item.key ?? item.componentId ?? `${visibleIndex}`),
+        label: criterionLabel(item, visibleIndex),
+        criterion: criterionText(item),
+        state: criterionState(item, score, maxScore),
+        score,
+        maxScore,
+        feedback: item.feedback ?? item.reason ?? null,
+        errorTags: Array.isArray(item.errorTags) ? item.errorTags : [],
+      };
+    });
+  }
+
+  return rubric.map((item, index) => ({
+    id: `rubric-${index}`,
+    label: `Criterion ${index + 1}`,
+    criterion: String(item.criterion ?? "Criterion"),
+    state: "not_assessed",
+    score: null,
+    maxScore: finiteNumber(item.marks),
+    feedback: null,
+    errorTags: [],
+  }));
+}
+
+function criterionStateClasses(state: CriterionFeedback["state"]) {
+  if (state === "passed") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  if (state === "partial") return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  if (state === "failed") return "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300";
+  return "border-border bg-muted text-muted-foreground";
+}
+
+function criterionStateLabel(state: CriterionFeedback["state"]) {
+  if (state === "passed") return "Passed";
+  if (state === "partial") return "Partial";
+  if (state === "failed") return "Needs work";
+  return "Not assessed";
+}
+
 export default function ExamSessionClient(props: {
   initialQuestions: ExamQuestionLike[];
   subject: string;
@@ -215,6 +358,14 @@ export default function ExamSessionClient(props: {
     const rubric = result?.examinerFeedback?.markingRubric ?? result?.markingRubric ?? [];
     return Array.isArray(rubric) ? rubric.filter((item) => item?.criterion) : [];
   }, [result]);
+
+  const criterionFeedback = useMemo(
+    () => normalizeCriterionFeedback(result, displayedRubric),
+    [result, displayedRubric]
+  );
+
+  const shouldShowCriterionFeedback =
+    criterionFeedback.length > 0 && Number(displayedMaxScore ?? maxMarks) > 1;
 
   const qLabel = useMemo(() => {
     if (!question) return "";
@@ -725,7 +876,8 @@ export default function ExamSessionClient(props: {
                     result.workedSolution ||
                     result.explanation ||
                     result.examinerFeedback ||
-                    displayedRubric.length > 0) && (
+                    displayedRubric.length > 0 ||
+                    criterionFeedback.length > 0) && (
                     <div className="mb-4 space-y-4 text-sm text-foreground">
                       {result.examinerFeedback?.summary && (
                         <div>
@@ -743,6 +895,64 @@ export default function ExamSessionClient(props: {
                             title="Copying this answer uses plain calculator-style text."
                           >
                             <MathpixMarkdown value={result.correctAnswer} />
+                          </div>
+                        </div>
+                      )}
+
+                      {shouldShowCriterionFeedback && (
+                        <div>
+                          <div className="text-muted-foreground">Criterion feedback</div>
+                          <div className="mt-2 space-y-2">
+                            {criterionFeedback.map((item) => (
+                              <div
+                                key={item.id}
+                                className="rounded-lg border border-border bg-muted/20 p-3 text-sm"
+                              >
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span
+                                        className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${criterionStateClasses(
+                                          item.state
+                                        )}`}
+                                      >
+                                        {criterionStateLabel(item.state)}
+                                      </span>
+                                      <span className="text-xs font-medium text-muted-foreground">
+                                        {item.label}
+                                      </span>
+                                    </div>
+                                    <p className="mt-2 text-foreground">{item.criterion}</p>
+                                  </div>
+
+                                  {item.maxScore != null && (
+                                    <div className="rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground">
+                                      <span className="font-semibold text-foreground">
+                                        {item.score ?? "-"}
+                                      </span>{" "}
+                                      / {item.maxScore} mark{item.maxScore === 1 ? "" : "s"}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {item.feedback && (
+                                  <p className="mt-2 text-xs text-muted-foreground">{item.feedback}</p>
+                                )}
+
+                                {item.errorTags && item.errorTags.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1">
+                                    {item.errorTags.map((tag) => (
+                                      <span
+                                        key={tag}
+                                        className="rounded bg-red-500/10 px-2 py-0.5 text-xs text-red-700 dark:text-red-300"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
