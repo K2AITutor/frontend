@@ -112,6 +112,8 @@ type AnswerInputCopy = {
   examples: string[];
 };
 
+type SessionMode = "practice" | "exam";
+
 const ANSWER_INPUT_COPY: Record<AnswerInputKind, AnswerInputCopy> = {
   numeric: {
     placeholder: "Example: 3/2, sqrt(2), pi/4",
@@ -284,6 +286,7 @@ export default function ExamSessionClient(props: {
   initialQuestions: ExamQuestionLike[];
   subject: string;
   examKey: string;
+  sessionMode?: SessionMode;
 
   examTitle?: string;
   // examPdfSrc is optional now; meta.json is preferred
@@ -302,6 +305,7 @@ export default function ExamSessionClient(props: {
   const {
     initialQuestions,
     examKey,
+    sessionMode = "practice",
     examTitle = "Exam Session",
     examPdfSrc = null,
     readingMins = 15,
@@ -310,6 +314,8 @@ export default function ExamSessionClient(props: {
     exactRequired = true,
     workingRequired = true,
   } = props;
+
+  const isExamMode = sessionMode === "exam";
 
   const [questions] = useState<ExamQuestionLike[]>(initialQuestions ?? []);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -575,6 +581,24 @@ export default function ExamSessionClient(props: {
     router.push(`/student/practice/math-methods/exam-1/review?examKey=${encodeURIComponent(examKey)}`);
   };
 
+  const answerPanelCopy = isExamMode
+    ? {
+        title: "Your answer",
+        markable: "Submit your answer to check it against the dataset.",
+        manual: "This part is saved for manual review.",
+        submit: "Submit Answer",
+        submitting: "Checking...",
+        finish: "Finish & Review",
+      }
+    : {
+        title: "Practice answer",
+        markable: "Try the question, then check your answer and review the worked solution.",
+        manual: "Write your working for review. This part is not auto-marked yet.",
+        submit: "Check Answer",
+        submitting: "Checking...",
+        finish: "End Practice",
+      };
+
   const copyPlainExpectedAnswer = (event: React.ClipboardEvent<HTMLElement>) => {
     if (!result?.correctAnswer) return;
 
@@ -601,9 +625,15 @@ export default function ExamSessionClient(props: {
 
   return (
     <div className="space-y-4" data-testid="exam-session">
-      <div className="px-4 py-2 rounded-lg border border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300 text-sm">
-        <strong>Exam Mode</strong> — AI assistance is disabled during the examination.
-      </div>
+      {isExamMode ? (
+        <div className="px-4 py-2 rounded-lg border border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300 text-sm">
+          <strong>Exam Mode</strong> — timed conditions are on. Hints and assistance are disabled during the attempt.
+        </div>
+      ) : (
+        <div className="px-4 py-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-sm">
+          <strong>Practice Mode</strong> — check answers as you go and use feedback to improve before trying a full exam attempt.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         <div className="xl:col-span-7">
@@ -613,7 +643,7 @@ export default function ExamSessionClient(props: {
                 <div>
                   <h1 className="text-xl font-semibold">{qLabel}</h1>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {examTitle} • {currentIndex + 1} of {questions.length}
+                    {examTitle} • {isExamMode ? "Exam attempt" : "Practice"} • {currentIndex + 1} of {questions.length}
                     {isFlagged ? " • Flagged" : ""}
                   </p>
                 </div>
@@ -675,9 +705,15 @@ export default function ExamSessionClient(props: {
                     <span className="px-2 py-1 rounded border border-border bg-muted">
                       Working: {workingRequired ? "Required" : "Not required"}
                     </span>
-                    <span className="px-2 py-1 rounded border border-border bg-muted">
-                      Progress: {answeredCount}/{questions.length} • Correct: {correctCount}
-                    </span>
+                    {isExamMode ? (
+                      <span className="px-2 py-1 rounded border border-border bg-muted">
+                        Attempted: {answeredCount}/{questions.length}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 rounded border border-border bg-muted">
+                        Practice progress: {answeredCount}/{questions.length} • Correct: {correctCount}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -686,9 +722,11 @@ export default function ExamSessionClient(props: {
             <div className="glass p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="font-semibold">PDF reference</h2>
+                  <h2 className="font-semibold">{isExamMode ? "PDF reference" : "Source reference"}</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Open the original exam PDF only when you need to check the source.
+                    {isExamMode
+                      ? "Open the original exam PDF only when you need to check the source."
+                      : "Use the original exam PDF to compare wording, diagrams, and source context while practising."}
                   </p>
                 </div>
 
@@ -708,11 +746,11 @@ export default function ExamSessionClient(props: {
 
             <div className="glass p-5 space-y-4">
               <div>
-                <h2 className="font-semibold">Your answer</h2>
+                <h2 className="font-semibold">{answerPanelCopy.title}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {question.isMarkable === false
-                    ? "This part is saved for manual review."
-                    : "Submit your answer to check it against the dataset."}
+                    ? answerPanelCopy.manual
+                    : answerPanelCopy.markable}
                 </p>
               </div>
 
@@ -829,7 +867,7 @@ export default function ExamSessionClient(props: {
                   title={submitValidationMessage ?? undefined}
                   onClick={handleSubmit}
                 >
-                  {isSubmitting ? "Checking..." : "Submit Answer"}
+                  {isSubmitting ? answerPanelCopy.submitting : answerPanelCopy.submit}
                 </Button>
 
                 <Button
@@ -838,7 +876,7 @@ export default function ExamSessionClient(props: {
                   size="lg"
                   onClick={finishAndReview}
                 >
-                  Finish & Review
+                  {answerPanelCopy.finish}
                 </Button>
               </div>
 
