@@ -7,7 +7,12 @@ import QuestionCard from "@/components/practice/QuestionCard";
 import MathpixMarkdown from "@/components/practice/MathpixMarkdown";
 import { Button } from "@/components/dashboard/ui/button";
 import { submitExamAnswer } from "@/lib/apiClient";
-import { normalizeAnswerInput, type NormalizedAnswerInput } from "@/lib/mathAnswerInput";
+import {
+  classifyAnswerInputKind,
+  normalizeAnswerInput,
+  type AnswerInputKind,
+  type NormalizedAnswerInput,
+} from "@/lib/mathAnswerInput";
 
 type MarkingResult = {
   correct?: boolean;
@@ -60,6 +65,45 @@ type AnswerShortcut = {
   value: string;
   ariaLabel: string;
   cursorOffset?: number;
+};
+
+type AnswerInputCopy = {
+  placeholder: string;
+  helper: string;
+  examples: string[];
+};
+
+const ANSWER_INPUT_COPY: Record<AnswerInputKind, AnswerInputCopy> = {
+  numeric: {
+    placeholder: "Example: 3/2, sqrt(2), pi/4",
+    helper: "Enter one exact number. Do not include variables unless the question asks for an expression.",
+    examples: ["3/2", "sqrt(2)", "pi/4"],
+  },
+  expression: {
+    placeholder: "Example: 2*x*cos(x)-x^2*sin(x)",
+    helper: "Enter a calculator-style expression. Use * for multiplication and ^ for powers.",
+    examples: ["2*x*cos(x)-x^2*sin(x)", "(x+1)*(x-1)"],
+  },
+  interval: {
+    placeholder: "Example: [0,1), x<=2",
+    helper: "Use clear endpoint brackets or inequality notation.",
+    examples: ["[0,1)", "(1,infinity)", "x<=2"],
+  },
+  coordinate: {
+    placeholder: "Example: (2,3)",
+    helper: "Enter one ordered pair in the format (x,y).",
+    examples: ["(2,3)", "(-1,4)"],
+  },
+  set_list: {
+    placeholder: "Example: -1,2,5 or {-1,2,5}",
+    helper: "Separate multiple answers with commas. Use braces if the answer is a set.",
+    examples: ["-1,2,5", "{-1,2,5}"],
+  },
+  working: {
+    placeholder: "Enter your working or explanation",
+    helper: "Write the reasoning or explanation required for manual review.",
+    examples: ["State the rule used and show the key working steps."],
+  },
 };
 
 function plainAnswerForClipboard(value: string | null | undefined) {
@@ -180,15 +224,13 @@ export default function ExamSessionClient(props: {
 
   const isFlagged = Boolean(question && flagged[String(question.id)]);
   const answerType = String(question?.answerType ?? "").toUpperCase();
+  const answerKind = classifyAnswerInputKind(answerType);
   const needsWorkingInput =
     question?.isMarkable === false ||
-    ["WORKING", "PROOF", "GRAPH", "EXPLANATION", "TEXT"].some((type) => answerType.includes(type));
+    answerKind === "working";
   const compactAnswerInput = !needsWorkingInput;
-  const answerPlaceholder = needsWorkingInput
-    ? "Enter your working or explanation"
-    : answerType.includes("NUMERIC")
-      ? "Example: 1, 3/2, sqrt(2), pi/4"
-      : "Example: 2*x*cos(x)-x^2*sin(x)";
+  const answerInputCopy = ANSWER_INPUT_COPY[answerKind];
+  const answerPlaceholder = answerInputCopy.placeholder;
   const interpretedAnswer = useMemo(
     () => normalizeAnswerInput(answer, answerType),
     [answer, answerType]
@@ -217,6 +259,26 @@ export default function ExamSessionClient(props: {
       { label: "(,)", value: "(,)", ariaLabel: "Insert open interval template", cursorOffset: 1 },
     ];
 
+    const intervalShortcuts: AnswerShortcut[] = answerKind === "interval"
+      ? [
+          { label: "<=", value: "<=", ariaLabel: "Insert less than or equal" },
+          { label: ">=", value: ">=", ariaLabel: "Insert greater than or equal" },
+          { label: "inf", value: "infinity", ariaLabel: "Insert infinity" },
+        ]
+      : [];
+
+    const coordinateShortcuts: AnswerShortcut[] = answerKind === "coordinate"
+      ? [
+          { label: "(x,y)", value: "(,)", ariaLabel: "Insert coordinate pair template", cursorOffset: 1 },
+        ]
+      : [];
+
+    const setListShortcuts: AnswerShortcut[] = answerKind === "set_list"
+      ? [
+          { label: "{,}", value: "{,}", ariaLabel: "Insert set template", cursorOffset: 1 },
+        ]
+      : [];
+
     if (needsWorkingInput) {
       return [
         ...core,
@@ -232,8 +294,11 @@ export default function ExamSessionClient(props: {
       { label: "sin", value: "sin()", ariaLabel: "Insert sine function", cursorOffset: 4 },
       { label: "cos", value: "cos()", ariaLabel: "Insert cosine function", cursorOffset: 4 },
       { label: "tan", value: "tan()", ariaLabel: "Insert tangent function", cursorOffset: 4 },
+      ...intervalShortcuts,
+      ...coordinateShortcuts,
+      ...setListShortcuts,
     ];
-  }, [needsWorkingInput]);
+  }, [answerKind, needsWorkingInput]);
 
   const insertAnswerToken = (shortcut: AnswerShortcut) => {
     const token = shortcut.value;
@@ -536,12 +601,18 @@ export default function ExamSessionClient(props: {
                   ))}
                 </div>
 
-                <p className="text-xs text-muted-foreground">
-                  Accepted format: normal calculator-style typing, such as <span className="font-mono">3/2</span>,{" "}
-                  <span className="font-mono">sqrt(2)</span>, or{" "}
-                  <span className="font-mono">2*x*cos(x)-x^2*sin(x)</span>. Use the keypad for exact symbols,
-                  fractions, powers, and intervals.
-                </p>
+                <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  <p>{answerInputCopy.helper}</p>
+                  <p className="mt-1">
+                    Examples:{" "}
+                    {answerInputCopy.examples.map((example, index) => (
+                      <span key={example}>
+                        {index > 0 ? ", " : ""}
+                        <span className="font-mono text-foreground">{example}</span>
+                      </span>
+                    ))}
+                  </p>
+                </div>
 
                 {hasTypedAnswer && !needsWorkingInput && (
                   <div

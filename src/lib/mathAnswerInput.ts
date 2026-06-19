@@ -19,8 +19,23 @@ export type NormalizedAnswerInput = {
   normalizerVersion: string;
 };
 
+export type AnswerInputKind = "numeric" | "expression" | "interval" | "coordinate" | "set_list" | "working";
+
 const FUNCTION_NAMES = ["sin", "cos", "tan", "log", "ln", "sqrt"];
 const NAMED_CONSTANTS = ["pi", "e"];
+const KNOWN_WORDS = [...FUNCTION_NAMES, ...NAMED_CONSTANTS, "infinity", "inf"];
+
+export function classifyAnswerInputKind(answerType?: string | null): AnswerInputKind {
+  const upperAnswerType = String(answerType ?? "").toUpperCase();
+  if (["WORKING", "PROOF", "GRAPH", "EXPLANATION", "TEXT"].some((type) => upperAnswerType.includes(type))) {
+    return "working";
+  }
+  if (upperAnswerType.includes("INTERVAL") || upperAnswerType.includes("INEQUALITY")) return "interval";
+  if (upperAnswerType.includes("COORDINATE") || upperAnswerType.includes("POINT")) return "coordinate";
+  if (upperAnswerType.includes("SET") || upperAnswerType.includes("LIST")) return "set_list";
+  if (upperAnswerType.includes("NUMERIC") || upperAnswerType.includes("NUMBER")) return "numeric";
+  return "expression";
+}
 
 function hasBalancedDelimiters(value: string) {
   const stack: string[] = [];
@@ -66,6 +81,19 @@ function isKnownConstantAt(value: string, index: number) {
   return NAMED_CONSTANTS.some((constant) => value.slice(index, index + constant.length) === constant);
 }
 
+function alphaRunAround(value: string, index: number) {
+  let start = index;
+  let end = index;
+  while (start > 0 && /[a-z]/.test(value[start - 1])) start -= 1;
+  while (end < value.length - 1 && /[a-z]/.test(value[end + 1])) end += 1;
+  return value.slice(start, end + 1);
+}
+
+function isKnownAlphaRun(value: string, index: number) {
+  const run = alphaRunAround(value, index);
+  return KNOWN_WORDS.includes(run);
+}
+
 function findImplicitMultiplicationWarnings(normalizedAnswer: string): AnswerInputWarning[] {
   const warnings: AnswerInputWarning[] = [];
 
@@ -104,6 +132,7 @@ function findImplicitMultiplicationWarnings(normalizedAnswer: string): AnswerInp
     }
 
     if (/[a-z]/.test(current) && /[a-z]/.test(next)) {
+      if (isKnownAlphaRun(normalizedAnswer, index)) continue;
       if (isKnownFunctionAt(normalizedAnswer, index) || isKnownFunctionAt(normalizedAnswer, index + 1)) {
         continue;
       }
@@ -132,6 +161,59 @@ function hasAmbiguousIntervalShape(normalizedAnswer: string) {
   return normalizedAnswer.includes(",") || /[<>]/.test(normalizedAnswer);
 }
 
+function hasOnlyNumericSymbols(normalizedAnswer: string) {
+  const withoutKnownWords = KNOWN_WORDS.reduce(
+    (value, word) => value.replace(new RegExp(`\\b${word}\\b`, "g"), ""),
+    normalizedAnswer
+  );
+  return !/[a-z]/i.test(withoutKnownWords);
+}
+
+function looksLikeCoordinate(normalizedAnswer: string) {
+  return /^\([^,]+,[^)]+\)$/.test(normalizedAnswer);
+}
+
+function looksLikeSetOrList(normalizedAnswer: string) {
+  if (/^\{[^{}]+\}$/.test(normalizedAnswer)) return true;
+  if (/^\([^()]+,[^()]+\)$/.test(normalizedAnswer)) return false;
+  return normalizedAnswer.includes(",");
+}
+
+function addAnswerTypeWarnings(
+  warnings: AnswerInputWarning[],
+  normalizedAnswer: string,
+  answerKind: AnswerInputKind
+) {
+  if (!normalizedAnswer) return;
+
+  if (answerKind === "numeric" && !hasOnlyNumericSymbols(normalizedAnswer)) {
+    pushWarningOnce(warnings, {
+      code: "NUMERIC_ANSWER_HAS_VARIABLE",
+      severity: "blocking",
+      message: "This question expects a number, not an expression with variables.",
+      suggestion: "Enter a numeric value such as 3/2, sqrt(2), or pi/4.",
+    });
+  }
+
+  if (answerKind === "coordinate" && !looksLikeCoordinate(normalizedAnswer)) {
+    pushWarningOnce(warnings, {
+      code: "COORDINATE_FORMAT_REQUIRED",
+      severity: "blocking",
+      message: "Coordinate answers need one ordered pair.",
+      suggestion: "Use the format (x,y), for example (2,3).",
+    });
+  }
+
+  if (answerKind === "set_list" && !looksLikeSetOrList(normalizedAnswer)) {
+    pushWarningOnce(warnings, {
+      code: "SET_LIST_FORMAT_REQUIRED",
+      severity: "blocking",
+      message: "This answer expects a set or list of values.",
+      suggestion: "Separate values with commas, for example -1,2,5 or {-1,2,5}.",
+    });
+  }
+}
+
 export function normalizeAnswerInput(
   rawAnswer: string,
   answerType?: string | null
@@ -139,7 +221,7 @@ export function normalizeAnswerInput(
   const raw = String(rawAnswer ?? "");
   const normalizedAnswer = normalizeText(raw);
   const warnings: AnswerInputWarning[] = [];
-  const upperAnswerType = String(answerType ?? "").toUpperCase();
+  const answerKind = classifyAnswerInputKind(answerType);
 
   if (!normalizedAnswer) {
     warnings.push({
@@ -191,7 +273,7 @@ export function normalizeAnswerInput(
     }
   }
 
-  if (upperAnswerType.includes("INTERVAL") && hasAmbiguousIntervalShape(normalizedAnswer)) {
+  if (answerKind === "interval" && hasAmbiguousIntervalShape(normalizedAnswer)) {
     warnings.push({
       code: "INTERVAL_AMBIGUOUS_NOTATION",
       severity: "blocking",
@@ -199,6 +281,8 @@ export function normalizeAnswerInput(
       suggestion: "Use notation like [0,1), (1, infinity), or x<=2.",
     });
   }
+
+  addAnswerTypeWarnings(warnings, normalizedAnswer, answerKind);
 
   const isAmbiguous = warnings.some((warning) => warning.severity === "blocking");
 
