@@ -77,6 +77,10 @@ export interface WorkingStep {
 
 export interface StudentAnswer {
   text?: string;
+  rawAnswer?: string | null;
+  normalizedAnswer?: string | null;
+  interpretedAnswer?: string | null;
+  displayAnswer?: string | null;
   imageUrl?: string;
   ocrText?: string;
   working?: WorkingStep[];
@@ -107,5 +111,13 @@ export interface SubmissionFull {
   studentAnswer: StudentAnswer;
   rubric: Rubric;
   aiMarking: HybridMarkingResult;
+  markingArtifact?: Record<string, any> | null;
+  markingMeta?: Record<string, any> | null;
+  rawAnswer?: string | null;
+  normalizedAnswer?: string | null;
+  interpretedAnswer?: string | null;
+  expectedAnswer?: string | null;
+  expectedSolution?: string | null;
+  workedSolution?: string | null;
   flags: SubmissionFlag[];
 }

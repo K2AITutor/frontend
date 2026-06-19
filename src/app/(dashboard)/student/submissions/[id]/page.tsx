@@ -17,6 +17,7 @@ import { Badge } from "@/components/dashboard/ui/badge";
 import { Button } from "@/components/dashboard/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { RubricChecklist } from "@/components/marking/RubricChecklist";
+import MathpixMarkdown from "@/components/practice/MathpixMarkdown";
 
 // Mirror STATUS_CONFIG from the submissions list so the badge styling is
 // consistent between the list and the detail screen. Use solid, high-contrast
@@ -37,6 +38,33 @@ const SECTION_LABEL = "mb-3 text-xs font-semibold uppercase tracking-wide text-m
 // student never sees internal codes.
 function prettifyTag(code: string): string {
   return code.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function firstText(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function getPath(obj: any, path: string): unknown {
+  return path.split(".").reduce((current, part) => current?.[part], obj);
+}
+
+function answerDisplay(value: string) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/40 p-4">
+      <p className="whitespace-pre-wrap text-base text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function mathDisplay(value: string) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/40 p-4 text-base text-foreground">
+      <MathpixMarkdown value={value.includes("\\(") || value.includes("$$") ? value : `\\(${value}\\)`} />
+    </div>
+  );
 }
 
 export default function StudentSubmissionPage({
@@ -72,6 +100,9 @@ export default function StudentSubmissionPage({
   }
 
   const { submission, question, studentAnswer, rubric, aiMarking, flags, humanReviewPending, feedback } = data;
+  const artifact = (data.markingArtifact ?? data.markingMeta ?? {}) as Record<string, any>;
+  const inputArtifact = (artifact.input ?? artifact.answerInput ?? {}) as Record<string, any>;
+  const diagnostics = (aiMarking as any)?.diagnostics ?? artifact.diagnostics ?? {};
 
   const statusCfg = STATUS_CONFIG[submission.status] ?? {
     label: submission.status,
@@ -91,7 +122,42 @@ export default function StudentSubmissionPage({
   // Student-facing visibility gates: hide teacher/pipeline internals and any
   // section that has no real data to show.
   const hasFeedback = !!feedback && feedback.trim().length > 0;
-  const hasExpected = !!question.expectedAnswer && question.expectedAnswer.trim().length > 0;
+  const rawAnswer = firstText(
+    data.rawAnswer,
+    studentAnswer.rawAnswer,
+    getPath(artifact, "rawAnswer"),
+    getPath(inputArtifact, "rawAnswer"),
+    studentAnswer.text,
+  );
+  const interpretedAnswer = firstText(
+    data.interpretedAnswer,
+    data.normalizedAnswer,
+    studentAnswer.interpretedAnswer,
+    studentAnswer.displayAnswer,
+    studentAnswer.normalizedAnswer,
+    getPath(artifact, "displayAnswer"),
+    getPath(artifact, "normalizedAnswer"),
+    getPath(inputArtifact, "displayAnswer"),
+    getPath(inputArtifact, "normalizedAnswer"),
+    getPath(diagnostics, "normalizedStudent"),
+  );
+  const expectedAnswer = firstText(
+    data.expectedAnswer,
+    question.expectedAnswer,
+    getPath(artifact, "expectedAnswer"),
+    getPath(artifact, "normalizedExpectedAnswer"),
+    getPath(diagnostics, "normalizedCorrect"),
+  );
+  const expectedSolution = firstText(
+    data.expectedSolution,
+    data.workedSolution,
+    getPath(artifact, "workedSolution"),
+    getPath(artifact, "solution"),
+    getPath(artifact, "explanation"),
+    getPath(aiMarking, "sources.0.evidence"),
+  );
+  const hasExpected = !!expectedAnswer;
+  const hasExpectedSolution = !!expectedSolution && expectedSolution !== expectedAnswer;
   const errorTags = aiMarking.errorTags ?? [];
   // The rubric is only meaningful when there is a per-criterion breakdown to
   // display; otherwise it renders as an empty "—" list and looks broken.
@@ -214,14 +280,25 @@ export default function StudentSubmissionPage({
       {/* Student Answer */}
       <Card className="shadow-sm border-border">
         <CardContent className="p-6">
-          <div className={SECTION_LABEL}>Your Answer</div>
+          <div className={SECTION_LABEL}>Answer Submitted</div>
 
-          {studentAnswer.text ? (
-            <div className="rounded-lg border border-border bg-muted/40 p-4">
-              <p className="whitespace-pre-wrap text-base text-foreground">{studentAnswer.text}</p>
+          {rawAnswer ? (
+            <div>
+              <div className="mb-2 text-sm font-medium text-foreground">Raw answer</div>
+              {answerDisplay(rawAnswer)}
             </div>
           ) : (
             <p className="text-sm italic text-muted-foreground">No answer recorded.</p>
+          )}
+
+          {interpretedAnswer && interpretedAnswer !== rawAnswer && (
+            <div className="mt-4">
+              <div className="mb-2 text-sm font-medium text-foreground">Interpreted answer</div>
+              {mathDisplay(interpretedAnswer)}
+              <p className="mt-2 text-xs text-muted-foreground">
+                This is the normalized form the marking engine used for comparison.
+              </p>
+            </div>
           )}
 
           {studentAnswer.working && studentAnswer.working.length > 0 && (
@@ -247,10 +324,25 @@ export default function StudentSubmissionPage({
           <CardContent className="p-6">
             <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-700">
               <BookOpenCheck className="h-4 w-4" />
-              Correct Answer
+              Expected Answer
             </div>
             <div className="rounded-lg border border-emerald-500/20 bg-emerald-50/60 p-4 dark:bg-emerald-900/15">
-              <p className="whitespace-pre-wrap text-base text-foreground">{question.expectedAnswer}</p>
+              <MathpixMarkdown value={expectedAnswer} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Expected Solution */}
+      {hasExpectedSolution && (
+        <Card className="shadow-sm border-emerald-500/30">
+          <CardContent className="p-6">
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+              <BookOpenCheck className="h-4 w-4" />
+              Expected Solution
+            </div>
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-50/60 p-4 dark:bg-emerald-900/15">
+              <MathpixMarkdown value={expectedSolution} />
             </div>
           </CardContent>
         </Card>

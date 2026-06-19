@@ -7,7 +7,12 @@ import QuestionCard from "@/components/practice/QuestionCard";
 import MathpixMarkdown from "@/components/practice/MathpixMarkdown";
 import { Button } from "@/components/dashboard/ui/button";
 import { submitExamAnswer } from "@/lib/apiClient";
-import { normalizeAnswerInput, type NormalizedAnswerInput } from "@/lib/mathAnswerInput";
+import {
+  classifyAnswerInputKind,
+  normalizeAnswerInput,
+  type AnswerInputKind,
+  type NormalizedAnswerInput,
+} from "@/lib/mathAnswerInput";
 
 type MarkingResult = {
   correct?: boolean;
@@ -28,8 +33,47 @@ type MarkingResult = {
     sourceRef?: string | null;
   } | null;
   diagnostics?: any;
+  criterionOutcomes?: CriterionOutcomeLike[] | null;
+  markingArtifact?: { criterionOutcomes?: CriterionOutcomeLike[] | null } | null;
   input?: NormalizedAnswerInput;
   needsClarification?: boolean;
+};
+
+type RubricLine = { marks?: number | null; criterion?: string | null };
+
+type CriterionOutcomeLike = {
+  id?: string | number | null;
+  key?: string | number | null;
+  componentId?: string | number | null;
+  label?: string | null;
+  criterion?: string | null;
+  description?: string | null;
+  note?: string | null;
+  passed?: boolean | null;
+  met?: boolean | null;
+  status?: string | null;
+  scoreAwarded?: number | null;
+  marksAwarded?: number | null;
+  score?: number | null;
+  marks?: number | null;
+  maxScore?: number | null;
+  maxMarks?: number | null;
+  availableMarks?: number | null;
+  feedback?: string | null;
+  reason?: string | null;
+  errorTags?: string[] | null;
+  criteria?: CriterionOutcomeLike[] | null;
+};
+
+type CriterionFeedback = {
+  id: string;
+  label: string;
+  criterion: string;
+  state: "passed" | "failed" | "partial" | "not_assessed";
+  score: number | null;
+  maxScore: number | null;
+  feedback?: string | null;
+  errorTags?: string[];
 };
 
 type ExamQuestionLike = {
@@ -55,6 +99,52 @@ type AttemptRecord = {
   ts: number;
 };
 
+type AnswerShortcut = {
+  label: string;
+  value: string;
+  ariaLabel: string;
+  cursorOffset?: number;
+};
+
+type AnswerInputCopy = {
+  placeholder: string;
+  helper: string;
+  examples: string[];
+};
+
+const ANSWER_INPUT_COPY: Record<AnswerInputKind, AnswerInputCopy> = {
+  numeric: {
+    placeholder: "Example: 3/2, sqrt(2), pi/4",
+    helper: "Enter one exact number. Do not include variables unless the question asks for an expression.",
+    examples: ["3/2", "sqrt(2)", "pi/4"],
+  },
+  expression: {
+    placeholder: "Example: 2*x*cos(x)-x^2*sin(x)",
+    helper: "Enter a calculator-style expression. Use * for multiplication and ^ for powers.",
+    examples: ["2*x*cos(x)-x^2*sin(x)", "(x+1)*(x-1)"],
+  },
+  interval: {
+    placeholder: "Example: [0,1), x<=2",
+    helper: "Use clear endpoint brackets or inequality notation.",
+    examples: ["[0,1)", "(1,infinity)", "x<=2"],
+  },
+  coordinate: {
+    placeholder: "Example: (2,3)",
+    helper: "Enter one ordered pair in the format (x,y).",
+    examples: ["(2,3)", "(-1,4)"],
+  },
+  set_list: {
+    placeholder: "Example: -1,2,5 or {-1,2,5}",
+    helper: "Separate multiple answers with commas. Use braces if the answer is a set.",
+    examples: ["-1,2,5", "{-1,2,5}"],
+  },
+  working: {
+    placeholder: "Enter your working or explanation",
+    helper: "Write the reasoning or explanation required for manual review.",
+    examples: ["State the rule used and show the key working steps."],
+  },
+};
+
 function plainAnswerForClipboard(value: string | null | undefined) {
   return String(value ?? "")
     .replace(/\\{1,2}\(|\\{1,2}\)|\\{1,2}\[|\\{1,2}\]/g, "")
@@ -71,6 +161,123 @@ function plainAnswerForClipboard(value: string | null | undefined) {
     .replace(/[{}]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function calculatorTextToLatex(value: string) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return "";
+
+  return normalized
+    .replace(/\s+/g, "")
+    .replace(/\*/g, "\\cdot ")
+    .replace(/\^(\d+|[a-zA-Z]+)/g, "^{$1}")
+    .replace(/\bpi\b/g, "\\pi")
+    .replace(/\bsqrt\(([^()]+)\)/g, "\\sqrt{$1}")
+    .replace(/\b(sin|cos|tan|log|ln)\(/g, "\\$1(");
+}
+
+function finiteNumber(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function criterionLabel(item: CriterionOutcomeLike, index: number) {
+  return String(item.label ?? item.key ?? item.id ?? item.componentId ?? `Criterion ${index + 1}`);
+}
+
+function criterionText(item: CriterionOutcomeLike) {
+  return String(item.criterion ?? item.description ?? item.note ?? item.label ?? "Criterion outcome");
+}
+
+function criterionScore(item: CriterionOutcomeLike) {
+  return finiteNumber(item.marksAwarded ?? item.scoreAwarded ?? item.score ?? item.marks);
+}
+
+function criterionMaxScore(item: CriterionOutcomeLike) {
+  return finiteNumber(item.maxMarks ?? item.availableMarks ?? item.maxScore ?? item.marks);
+}
+
+function criterionState(item: CriterionOutcomeLike, score: number | null, maxScore: number | null): CriterionFeedback["state"] {
+  if (item.passed === true || item.met === true) return "passed";
+  if (item.passed === false || item.met === false) return score && score > 0 ? "partial" : "failed";
+
+  const status = String(item.status ?? "").trim().toLowerCase();
+  if (["passed", "pass", "met", "correct", "awarded"].includes(status)) return "passed";
+  if (["partial", "partially_met"].includes(status)) return "partial";
+  if (["failed", "fail", "missed", "not_met", "incorrect"].includes(status)) return "failed";
+
+  if (score != null && maxScore != null && maxScore > 0) {
+    if (score >= maxScore) return "passed";
+    if (score > 0) return "partial";
+    return "failed";
+  }
+
+  return "not_assessed";
+}
+
+function normalizeCriterionFeedback(result: MarkingResult | null, rubric: RubricLine[]): CriterionFeedback[] {
+  const sources = [
+    result?.criterionOutcomes,
+    result?.diagnostics?.criterionOutcomes,
+    result?.diagnostics?.criteria,
+    result?.markingArtifact?.criterionOutcomes,
+  ];
+
+  const raw = sources.find((source) => Array.isArray(source) && source.length > 0) as
+    | CriterionOutcomeLike[]
+    | undefined;
+
+  if (raw?.length) {
+    const flattened = raw.flatMap((item, index) => {
+      const nested = Array.isArray(item.criteria) ? item.criteria : [];
+      if (!nested.length) return [{ item, parent: null, index }];
+      return nested.map((child, childIndex) => ({
+        item: child,
+        parent: item,
+        index: Number(`${index}${childIndex}`),
+      }));
+    });
+
+    return flattened.map(({ item, parent, index }, visibleIndex) => {
+      const score = criterionScore(item);
+      const maxScore = criterionMaxScore(item) ?? criterionMaxScore(parent ?? {});
+      return {
+        id: String(item.id ?? item.key ?? item.componentId ?? `${visibleIndex}`),
+        label: criterionLabel(item, visibleIndex),
+        criterion: criterionText(item),
+        state: criterionState(item, score, maxScore),
+        score,
+        maxScore,
+        feedback: item.feedback ?? item.reason ?? null,
+        errorTags: Array.isArray(item.errorTags) ? item.errorTags : [],
+      };
+    });
+  }
+
+  return rubric.map((item, index) => ({
+    id: `rubric-${index}`,
+    label: `Criterion ${index + 1}`,
+    criterion: String(item.criterion ?? "Criterion"),
+    state: "not_assessed",
+    score: null,
+    maxScore: finiteNumber(item.marks),
+    feedback: null,
+    errorTags: [],
+  }));
+}
+
+function criterionStateClasses(state: CriterionFeedback["state"]) {
+  if (state === "passed") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  if (state === "partial") return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  if (state === "failed") return "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300";
+  return "border-border bg-muted text-muted-foreground";
+}
+
+function criterionStateLabel(state: CriterionFeedback["state"]) {
+  if (state === "passed") return "Passed";
+  if (state === "partial") return "Partial";
+  if (state === "failed") return "Needs work";
+  return "Not assessed";
 }
 
 export default function ExamSessionClient(props: {
@@ -152,6 +359,14 @@ export default function ExamSessionClient(props: {
     return Array.isArray(rubric) ? rubric.filter((item) => item?.criterion) : [];
   }, [result]);
 
+  const criterionFeedback = useMemo(
+    () => normalizeCriterionFeedback(result, displayedRubric),
+    [result, displayedRubric]
+  );
+
+  const shouldShowCriterionFeedback =
+    criterionFeedback.length > 0 && Number(displayedMaxScore ?? maxMarks) > 1;
+
   const qLabel = useMemo(() => {
     if (!question) return "";
     const qn = question.questionNumber?.trim();
@@ -160,18 +375,20 @@ export default function ExamSessionClient(props: {
 
   const isFlagged = Boolean(question && flagged[String(question.id)]);
   const answerType = String(question?.answerType ?? "").toUpperCase();
+  const answerKind = classifyAnswerInputKind(answerType);
   const needsWorkingInput =
     question?.isMarkable === false ||
-    ["WORKING", "PROOF", "GRAPH", "EXPLANATION", "TEXT"].some((type) => answerType.includes(type));
+    answerKind === "working";
   const compactAnswerInput = !needsWorkingInput;
-  const answerPlaceholder = needsWorkingInput
-    ? "Enter your working or explanation"
-    : answerType.includes("NUMERIC")
-      ? "Example: 1, 3/2, sqrt(2), pi/4"
-      : "Example: 2*x*cos(x)-x^2*sin(x)";
+  const answerInputCopy = ANSWER_INPUT_COPY[answerKind];
+  const answerPlaceholder = answerInputCopy.placeholder;
   const interpretedAnswer = useMemo(
     () => normalizeAnswerInput(answer, answerType),
     [answer, answerType]
+  );
+  const renderedInterpretedAnswer = useMemo(
+    () => calculatorTextToLatex(interpretedAnswer.displayAnswer),
+    [interpretedAnswer.displayAnswer]
   );
   const hasTypedAnswer = answer.trim().length > 0;
   const canSubmitAnswer =
@@ -179,29 +396,63 @@ export default function ExamSessionClient(props: {
     hasTypedAnswer &&
     (needsWorkingInput || interpretedAnswer.canMarkSafely);
 
-  const answerShortcuts = useMemo(() => {
+  const answerShortcuts = useMemo<AnswerShortcut[]>(() => {
+    const core: AnswerShortcut[] = [
+      { label: "x", value: "x", ariaLabel: "Insert x" },
+      { label: "*", value: "*", ariaLabel: "Insert multiplication symbol" },
+      { label: "a/b", value: "()/()", ariaLabel: "Insert fraction template", cursorOffset: 1 },
+      { label: "x^2", value: "^2", ariaLabel: "Insert square" },
+      { label: "^n", value: "^()", ariaLabel: "Insert power template", cursorOffset: 2 },
+      { label: "(", value: "(", ariaLabel: "Insert opening bracket" },
+      { label: ")", value: ")", ariaLabel: "Insert closing bracket" },
+      { label: ",", value: ",", ariaLabel: "Insert comma" },
+      { label: "[,]", value: "[,]", ariaLabel: "Insert interval bracket template", cursorOffset: 1 },
+      { label: "(,)", value: "(,)", ariaLabel: "Insert open interval template", cursorOffset: 1 },
+    ];
+
+    const intervalShortcuts: AnswerShortcut[] = answerKind === "interval"
+      ? [
+          { label: "<=", value: "<=", ariaLabel: "Insert less than or equal" },
+          { label: ">=", value: ">=", ariaLabel: "Insert greater than or equal" },
+          { label: "inf", value: "infinity", ariaLabel: "Insert infinity" },
+        ]
+      : [];
+
+    const coordinateShortcuts: AnswerShortcut[] = answerKind === "coordinate"
+      ? [
+          { label: "(x,y)", value: "(,)", ariaLabel: "Insert coordinate pair template", cursorOffset: 1 },
+        ]
+      : [];
+
+    const setListShortcuts: AnswerShortcut[] = answerKind === "set_list"
+      ? [
+          { label: "{,}", value: "{,}", ariaLabel: "Insert set template", cursorOffset: 1 },
+        ]
+      : [];
+
     if (needsWorkingInput) {
       return [
-        { label: "sqrt", value: "sqrt()" },
-        { label: "^", value: "^" },
-        { label: "pi", value: "pi" },
-        { label: "frac", value: "/" },
+        ...core,
+        { label: "sqrt", value: "sqrt()", ariaLabel: "Insert square root", cursorOffset: 5 },
+        { label: "pi", value: "pi", ariaLabel: "Insert pi" },
       ];
     }
 
     return [
-      { label: "sqrt", value: "sqrt()" },
-      { label: "^", value: "^" },
-      { label: "pi", value: "pi" },
-      { label: "sin", value: "sin()" },
-      { label: "cos", value: "cos()" },
-      { label: "tan", value: "tan()" },
-      { label: "(", value: "(" },
-      { label: ")", value: ")" },
+      ...core,
+      { label: "sqrt", value: "sqrt()", ariaLabel: "Insert square root", cursorOffset: 5 },
+      { label: "pi", value: "pi", ariaLabel: "Insert pi" },
+      { label: "sin", value: "sin()", ariaLabel: "Insert sine function", cursorOffset: 4 },
+      { label: "cos", value: "cos()", ariaLabel: "Insert cosine function", cursorOffset: 4 },
+      { label: "tan", value: "tan()", ariaLabel: "Insert tangent function", cursorOffset: 4 },
+      ...intervalShortcuts,
+      ...coordinateShortcuts,
+      ...setListShortcuts,
     ];
-  }, [needsWorkingInput]);
+  }, [answerKind, needsWorkingInput]);
 
-  const insertAnswerToken = (token: string) => {
+  const insertAnswerToken = (shortcut: AnswerShortcut) => {
+    const token = shortcut.value;
     const el = answerInputRef.current;
     if (!el) {
       setAnswer((value) => `${value}${token}`);
@@ -211,7 +462,7 @@ export default function ExamSessionClient(props: {
     const start = el.selectionStart ?? answer.length;
     const end = el.selectionEnd ?? answer.length;
     const nextAnswer = `${answer.slice(0, start)}${token}${answer.slice(end)}`;
-    const cursorOffset = token.endsWith("()") ? token.length - 1 : token.length;
+    const cursorOffset = shortcut.cursorOffset ?? (token.endsWith("()") ? token.length - 1 : token.length);
 
     setAnswer(nextAnswer);
     window.requestAnimationFrame(() => {
@@ -491,7 +742,9 @@ export default function ExamSessionClient(props: {
                     <button
                       key={`${shortcut.label}-${shortcut.value}`}
                       type="button"
-                      onClick={() => insertAnswerToken(shortcut.value)}
+                      onClick={() => insertAnswerToken(shortcut)}
+                      aria-label={shortcut.ariaLabel}
+                      title={shortcut.ariaLabel}
                       className="px-3 py-1.5 rounded-md border border-border bg-muted hover:bg-accent text-xs font-medium text-foreground"
                     >
                       {shortcut.label}
@@ -499,29 +752,51 @@ export default function ExamSessionClient(props: {
                   ))}
                 </div>
 
-                <p className="text-xs text-muted-foreground">
-                  Accepted format: normal calculator-style typing, such as <span className="font-mono">3/2</span>,{" "}
-                  <span className="font-mono">sqrt(2)</span>, or{" "}
-                  <span className="font-mono">2*x*cos(x)-x^2*sin(x)</span>.
-                </p>
+                <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  <p>{answerInputCopy.helper}</p>
+                  <p className="mt-1">
+                    Examples:{" "}
+                    {answerInputCopy.examples.map((example, index) => (
+                      <span key={example}>
+                        {index > 0 ? ", " : ""}
+                        <span className="font-mono text-foreground">{example}</span>
+                      </span>
+                    ))}
+                  </p>
+                </div>
 
                 {hasTypedAnswer && !needsWorkingInput && (
                   <div
-                    className={`rounded-lg border p-3 text-xs ${
+                    className={`rounded-lg border p-4 ${
                       interpretedAnswer.canMarkSafely
                         ? "border-slate-700 bg-slate-900/40 text-slate-300"
                         : "border-amber-600/70 bg-amber-950/30 text-amber-100"
                     }`}
                   >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-slate-400">Interpreted as</span>
-                      <code className="rounded bg-slate-950/60 px-2 py-1 text-slate-100">
-                        {interpretedAnswer.displayAnswer || "empty"}
-                      </code>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Your input means
+                        </div>
+                        <div className="mt-2 rounded-lg border border-slate-700/80 bg-slate-950/50 px-4 py-3 text-slate-100">
+                          {renderedInterpretedAnswer ? (
+                            <MathpixMarkdown value={`\\(${renderedInterpretedAnswer}\\)`} />
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No interpretable answer yet.</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="text-slate-400">Normalized text</span>
+                        <code className="rounded bg-slate-950/60 px-2 py-1 text-slate-100">
+                          {interpretedAnswer.displayAnswer || "empty"}
+                        </code>
+                      </div>
                     </div>
 
                     {interpretedAnswer.warnings.length > 0 && (
-                      <div className="mt-2 space-y-1">
+                      <div className="mt-3 space-y-1 text-xs">
                         {interpretedAnswer.warnings.map((warning) => (
                           <p key={`${warning.code}-${warning.message}`}>
                             <span className="font-semibold">{warning.message}</span>
@@ -601,7 +876,8 @@ export default function ExamSessionClient(props: {
                     result.workedSolution ||
                     result.explanation ||
                     result.examinerFeedback ||
-                    displayedRubric.length > 0) && (
+                    displayedRubric.length > 0 ||
+                    criterionFeedback.length > 0) && (
                     <div className="mb-4 space-y-4 text-sm text-foreground">
                       {result.examinerFeedback?.summary && (
                         <div>
@@ -619,6 +895,64 @@ export default function ExamSessionClient(props: {
                             title="Copying this answer uses plain calculator-style text."
                           >
                             <MathpixMarkdown value={result.correctAnswer} />
+                          </div>
+                        </div>
+                      )}
+
+                      {shouldShowCriterionFeedback && (
+                        <div>
+                          <div className="text-muted-foreground">Criterion feedback</div>
+                          <div className="mt-2 space-y-2">
+                            {criterionFeedback.map((item) => (
+                              <div
+                                key={item.id}
+                                className="rounded-lg border border-border bg-muted/20 p-3 text-sm"
+                              >
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span
+                                        className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${criterionStateClasses(
+                                          item.state
+                                        )}`}
+                                      >
+                                        {criterionStateLabel(item.state)}
+                                      </span>
+                                      <span className="text-xs font-medium text-muted-foreground">
+                                        {item.label}
+                                      </span>
+                                    </div>
+                                    <p className="mt-2 text-foreground">{item.criterion}</p>
+                                  </div>
+
+                                  {item.maxScore != null && (
+                                    <div className="rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground">
+                                      <span className="font-semibold text-foreground">
+                                        {item.score ?? "-"}
+                                      </span>{" "}
+                                      / {item.maxScore} mark{item.maxScore === 1 ? "" : "s"}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {item.feedback && (
+                                  <p className="mt-2 text-xs text-muted-foreground">{item.feedback}</p>
+                                )}
+
+                                {item.errorTags && item.errorTags.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1">
+                                    {item.errorTags.map((tag) => (
+                                      <span
+                                        key={tag}
+                                        className="rounded bg-red-500/10 px-2 py-0.5 text-xs text-red-700 dark:text-red-300"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
