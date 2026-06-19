@@ -86,6 +86,99 @@ const TRAINING_READINESS_LABELS: Record<DatasetTrainingReadiness, string> = {
     EXPERT_REVIEW: "Expert review",
 };
 
+const TRAINING_READINESS_STYLES: Record<DatasetTrainingReadiness, string> = {
+    PRACTICE_ONLY: "border-slate-500/40 bg-slate-500/10 text-slate-200",
+    TRAINING_READY: "border-emerald-500/40 bg-emerald-500/15 text-emerald-100",
+    EXPERT_REVIEW: "border-sky-500/40 bg-sky-500/15 text-sky-100",
+};
+
+function isManualReviewQuestion(question: DatasetQaQuestion, reviewStatus = question.reviewStatus) {
+    return !question.isMarkable || reviewStatus === "MANUAL_REVIEW";
+}
+
+function isAutoCheckSafe(question: DatasetQaQuestion, checklist = question.qaChecklist, reviewStatus = question.reviewStatus) {
+    return !isManualReviewQuestion(question, reviewStatus) && Boolean(checklist.markerTestPassed);
+}
+
+function markerVisibilityLabel(question: DatasetQaQuestion, checklist = question.qaChecklist, reviewStatus = question.reviewStatus) {
+    if (isManualReviewQuestion(question, reviewStatus)) {
+        return {
+            label: "Manual review",
+            detail: "Student answers need human review before scoring.",
+            className: "border-purple-500/40 bg-purple-500/15 text-purple-100",
+        };
+    }
+
+    if (isAutoCheckSafe(question, checklist, reviewStatus)) {
+        return {
+            label: "Auto-check safe",
+            detail: "Expected answer passes the marker test and can be auto-scored.",
+            className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-100",
+        };
+    }
+
+    return {
+        label: "Auto-check pending",
+        detail: "Run the marker test with the expected answer before approval.",
+        className: "border-amber-500/40 bg-amber-500/15 text-amber-100",
+    };
+}
+
+function contentVisibilityLabel(question: DatasetQaQuestion) {
+    if (question.contentStatus === "ACTIVE") {
+        return {
+            label: "Live in practice",
+            detail: "Students can see this record.",
+            className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-100",
+        };
+    }
+
+    if (question.reviewStatus === "APPROVED") {
+        return {
+            label: "Waiting publish",
+            detail: "Approved by contributor; owner/admin must publish before students see it.",
+            className: "border-blue-500/40 bg-blue-500/15 text-blue-100",
+        };
+    }
+
+    return {
+        label: "Not live",
+        detail: "Still in QA and hidden from student practice.",
+        className: "border-slate-500/40 bg-slate-500/10 text-slate-200",
+    };
+}
+
+function QaVisibilityBadges({
+    question,
+    checklist = question.qaChecklist,
+    reviewStatus = question.reviewStatus,
+    trainingReadiness = question.trainingReadiness,
+    compact = false,
+}: {
+    question: DatasetQaQuestion;
+    checklist?: DatasetQaChecklist;
+    reviewStatus?: DatasetQaStatus;
+    trainingReadiness?: DatasetTrainingReadiness;
+    compact?: boolean;
+}) {
+    const marker = markerVisibilityLabel(question, checklist, reviewStatus);
+    const content = contentVisibilityLabel({ ...question, reviewStatus });
+
+    return (
+        <div className={`flex flex-wrap gap-2 ${compact ? "text-[11px]" : "text-xs"}`}>
+            <Badge variant="outline" className={marker.className} title={marker.detail}>
+                {marker.label}
+            </Badge>
+            <Badge variant="outline" className={TRAINING_READINESS_STYLES[trainingReadiness]}>
+                {TRAINING_READINESS_LABELS[trainingReadiness]}
+            </Badge>
+            <Badge variant="outline" className={content.className} title={content.detail}>
+                {content.label}
+            </Badge>
+        </div>
+    );
+}
+
 const CHECKLIST_ITEMS: Array<{ key: keyof DatasetQaChecklist; label: string }> = [
     { key: "sourceMatched", label: "Source matched" },
     { key: "topicChecked", label: "Topic checked" },
@@ -478,8 +571,9 @@ export default function ContributorDatasetQaPage() {
                                     <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                                         <span>{row.marks} mark{row.marks === 1 ? "" : "s"}</span>
                                         <span>{row.answerType}</span>
-                                        <span>{row.isMarkable ? "Auto-check" : "Manual"}</span>
-                                        {row.contentStatus === "ACTIVE" ? <span>Live</span> : null}
+                                    </div>
+                                    <div className="mt-3">
+                                        <QaVisibilityBadges question={row} compact />
                                     </div>
                                 </button>
                             ))}
@@ -631,6 +725,14 @@ function DatasetQaEditor({
                                 {readableCode(question.topicCode, TOPIC_LABELS)} /{" "}
                                 {readableCode(question.subtopicCode, SUBTOPIC_LABELS)}
                             </p>
+                            <div className="mt-3">
+                                <QaVisibilityBadges
+                                    question={question}
+                                    checklist={qaChecklist}
+                                    reviewStatus={reviewStatus}
+                                    trainingReadiness={trainingReadiness}
+                                />
+                            </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <Badge variant="outline">{question.answerType}</Badge>
@@ -702,6 +804,18 @@ function DatasetQaEditor({
                             <CardTitle className="text-lg">Training quality gate</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            <div className="rounded-md border bg-muted/20 p-3">
+                                <QaVisibilityBadges
+                                    question={question}
+                                    checklist={qaChecklist}
+                                    reviewStatus={reviewStatus}
+                                    trainingReadiness={trainingReadiness}
+                                />
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    Auto-check safe records can be machine-scored. Manual review records need human judgement.
+                                    Training ready records are suitable for model training; practice-only records should stay out of training data.
+                                </p>
+                            </div>
                             <Field label="Training readiness">
                                 <Select
                                     value={trainingReadiness}
