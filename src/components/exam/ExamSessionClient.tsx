@@ -776,7 +776,7 @@ export default function ExamSessionClient(props: {
                     <div className="space-y-3">
                       <div>
                         <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Your input means
+                          We will mark this as
                         </div>
                         <div className="mt-2 rounded-lg border border-slate-700/80 bg-slate-950/50 px-4 py-3 text-slate-100">
                           {renderedInterpretedAnswer ? (
@@ -788,7 +788,7 @@ export default function ExamSessionClient(props: {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="text-slate-400">Normalized text</span>
+                        <span className="text-slate-400">Typed form used for checking</span>
                         <code className="rounded bg-slate-950/60 px-2 py-1 text-slate-100">
                           {interpretedAnswer.displayAnswer || "empty"}
                         </code>
