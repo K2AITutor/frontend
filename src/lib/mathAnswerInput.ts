@@ -64,6 +64,25 @@ function normalizeText(value: string) {
     .toLowerCase();
 }
 
+function insertSafeImplicitMultiplication(value: string) {
+  return value
+    .replace(/(\d)([a-z])(?=(sqrt|log|ln|sin|cos|tan)\()/gi, "$1*$2*")
+    .replace(/(^|[+\-*/(])([a-z])(?=(sqrt|log|ln|sin|cos|tan)\()/gi, "$1$2*")
+    .replace(/(\d|\))(?=(pi|e|sqrt|log|ln|sin|cos|tan)\()/gi, "$1*")
+    .replace(/(\d|\))(?=[a-z](?![a-z]))/gi, "$1*")
+    .replace(/([a-z])\^([0-9]+)(?=(sqrt|log|ln|sin|cos|tan)\()/gi, "$1^$2*")
+    .replace(/([a-z]|\d|\))(?=\()/gi, "$1*")
+    .replace(/(pi|e)(?=\d|[a-z]|\()/gi, "$1*")
+    .replace(/\)(?=\d|[a-z])/gi, ")*")
+    .replace(/\bs\*i\*n\*/g, "sin")
+    .replace(/\bc\*o\*s\*/g, "cos")
+    .replace(/\bt\*a\*n\*/g, "tan")
+    .replace(/\bl\*o\*g\*/g, "log")
+    .replace(/\bl\*n\*/g, "ln")
+    .replace(/\bs\*q\*r\*t\*/g, "sqrt")
+    .replace(/\b(sqrt|log|ln|sin|cos|tan)\*\(/g, "$1(");
+}
+
 function pushWarningOnce(warnings: AnswerInputWarning[], warning: AnswerInputWarning) {
   if (warnings.some((item) => item.code === warning.code)) return;
   warnings.push(warning);
@@ -237,11 +256,12 @@ export function normalizeAnswerInput(
   answerType?: string | null
 ): NormalizedAnswerInput {
   const raw = String(rawAnswer ?? "");
-  const normalizedAnswer = normalizeText(raw);
+  const typedAnswer = normalizeText(raw);
+  const normalizedAnswer = insertSafeImplicitMultiplication(typedAnswer);
   const warnings: AnswerInputWarning[] = [];
   const answerKind = classifyAnswerInputKind(answerType);
 
-  if (!normalizedAnswer) {
+  if (!typedAnswer) {
     warnings.push({
       code: "EMPTY_NORMALIZED_ANSWER",
       severity: "blocking",
@@ -249,7 +269,7 @@ export function normalizeAnswerInput(
     });
   }
 
-  if (!hasBalancedDelimiters(normalizedAnswer)) {
+  if (!hasBalancedDelimiters(typedAnswer)) {
     warnings.push({
       code: "UNBALANCED_BRACKETS",
       severity: "blocking",
@@ -258,7 +278,7 @@ export function normalizeAnswerInput(
     });
   }
 
-  if (/\b[a-z]\d+\b/i.test(normalizedAnswer)) {
+  if (/\b[a-z]\d+\b/i.test(typedAnswer)) {
     warnings.push({
       code: "AMBIGUOUS_IMPLICIT_POWER",
       severity: "blocking",
@@ -269,7 +289,7 @@ export function normalizeAnswerInput(
 
   warnings.push(...findImplicitMultiplicationWarnings(normalizedAnswer));
 
-  if (/\d+\/\d+(?:[a-z]|\()/i.test(normalizedAnswer)) {
+  if (/\d+\/\d+(?:[a-z]|\()/i.test(typedAnswer)) {
     warnings.push({
       code: "AMBIGUOUS_FRACTION_MULTIPLICATION",
       severity: "blocking",
@@ -280,7 +300,7 @@ export function normalizeAnswerInput(
 
   for (const fn of FUNCTION_NAMES) {
     const missingBrackets = new RegExp(`\\b${fn}[a-z0-9]`, "i");
-    if (missingBrackets.test(normalizedAnswer) && !new RegExp(`\\b${fn}\\(`, "i").test(normalizedAnswer)) {
+    if (missingBrackets.test(typedAnswer) && !new RegExp(`\\b${fn}\\(`, "i").test(typedAnswer)) {
       warnings.push({
         code: "FUNCTION_ARGUMENT_NEEDS_BRACKETS",
         severity: "blocking",
