@@ -67,6 +67,40 @@ function mathDisplay(value: string) {
   );
 }
 
+function compactJson(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function firstArray(...values: unknown[]): any[] {
+  for (const value of values) {
+    if (Array.isArray(value)) return value;
+  }
+  return [];
+}
+
+function formatArtifactValue(value: unknown): string | null {
+  if (value == null || value === "") return null;
+  if (typeof value === "number") return Number.isInteger(value) ? String(value) : value.toFixed(3);
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "string") return value;
+  return compactJson(value);
+}
+
+function ArtifactRow({ label, value }: { label: string; value: unknown }) {
+  const displayValue = formatArtifactValue(value);
+  if (!displayValue) return null;
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className="mt-1 break-words text-sm text-foreground">{displayValue}</dd>
+    </div>
+  );
+}
+
 export default function StudentSubmissionPage({
   params,
 }: {
@@ -101,8 +135,13 @@ export default function StudentSubmissionPage({
 
   const { submission, question, studentAnswer, rubric, aiMarking, flags, humanReviewPending, feedback } = data;
   const artifact = (data.markingArtifact ?? data.markingMeta ?? {}) as Record<string, any>;
+  const rawArtifact = (data.markingMeta ?? data.markingArtifact ?? {}) as Record<string, any>;
   const inputArtifact = (artifact.input ?? artifact.answerInput ?? {}) as Record<string, any>;
   const diagnostics = (aiMarking as any)?.diagnostics ?? artifact.diagnostics ?? {};
+  const provenance = (artifact.provenance ?? {}) as Record<string, any>;
+  const reviewerProvenance = (provenance.reviewer ?? {}) as Record<string, any>;
+  const ownerProvenance = (provenance.owner ?? {}) as Record<string, any>;
+  const sourceProvenance = (provenance.source ?? {}) as Record<string, any>;
 
   const statusCfg = STATUS_CONFIG[submission.status] ?? {
     label: submission.status,
@@ -159,9 +198,24 @@ export default function StudentSubmissionPage({
   const hasExpected = !!expectedAnswer;
   const hasExpectedSolution = !!expectedSolution && expectedSolution !== expectedAnswer;
   const errorTags = aiMarking.errorTags ?? [];
+  const perCriterion = Array.isArray(aiMarking.perCriterion) ? aiMarking.perCriterion : [];
+  const artifactWarnings = firstArray(
+    inputArtifact.warnings,
+    artifact.warnings,
+    diagnostics.warnings,
+    diagnostics.answerFeedbackIssues,
+  );
+  const artifactCriterionOutcomes = firstArray(artifact.criterionOutcomes, diagnostics.criterionOutcomes);
+  const criterionRows = perCriterion.length > 0 ? perCriterion : artifactCriterionOutcomes.map((outcome, index) => ({
+    criterionId: String(outcome?.criterionId ?? outcome?.id ?? outcome?.key ?? outcome?.criterionCode ?? `criterion-${index + 1}`),
+    score: Number(outcome?.score ?? outcome?.awarded ?? outcome?.marksAwarded ?? 0),
+    level: Number(outcome?.passed ?? outcome?.isCorrect ?? false) ? 1 : 0,
+    justification: firstText(outcome?.justification, outcome?.feedback, outcome?.reason, outcome?.label, outcome?.description) ?? "",
+  }));
+  const hasArtifact = Object.keys(rawArtifact).length > 0 || Object.keys(artifact).length > 0;
   // The rubric is only meaningful when there is a per-criterion breakdown to
   // display; otherwise it renders as an empty "—" list and looks broken.
-  const hasRubric = !!rubric && rubric.criteria.length > 0 && aiMarking.perCriterion.length > 0;
+  const hasRubric = !!rubric && rubric.criteria.length > 0 && criterionRows.length > 0;
 
   const subjectLabel = question.subjectName || question.subjectCode || null;
   const typeLabel = question.type ? question.type.replace(/_/g, " ") : null;
@@ -361,6 +415,98 @@ export default function StudentSubmissionPage({
         </Card>
       )}
 
+      {/* Marking artifact — readable audit trail plus full raw JSON for debugging */}
+      {hasArtifact && (
+        <Card className="shadow-sm border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              How This Was Marked
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5 pt-0">
+            <div>
+              <div className="mb-2 text-sm font-semibold text-foreground">Input audit</div>
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <ArtifactRow label="Raw answer" value={rawAnswer} />
+                <ArtifactRow label="Interpreted answer" value={interpretedAnswer} />
+                <ArtifactRow label="Normalized answer" value={artifact.normalizedAnswer ?? inputArtifact.normalizedAnswer} />
+                <ArtifactRow label="Expected answer" value={expectedAnswer} />
+                <ArtifactRow label="Normalized expected" value={artifact.normalizedExpectedAnswer ?? diagnostics.normalizedCorrect} />
+                <ArtifactRow label="Answer type" value={artifact.answerType ?? question.type} />
+              </dl>
+            </div>
+
+            <div>
+              <div className="mb-2 text-sm font-semibold text-foreground">Marker metadata</div>
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <ArtifactRow label="Engine version" value={artifact.engineVersion ?? rawArtifact.engineVersion} />
+                <ArtifactRow label="Policy version" value={artifact.policyVersion ?? rawArtifact.policyVersion} />
+                <ArtifactRow label="Rubric key" value={artifact.rubricKey ?? rubric.id} />
+                <ArtifactRow label="Confidence" value={artifact.confidence ?? aiMarking.finalConfidence} />
+                <ArtifactRow label="Score" value={`${aiMarking.finalScore} / ${question.maxScore}`} />
+                <ArtifactRow label="Safe to mark" value={diagnostics.safeToMark ?? inputArtifact.safeToMark} />
+              </dl>
+            </div>
+
+            {artifactWarnings.length > 0 && (
+              <div>
+                <div className="mb-2 text-sm font-semibold text-foreground">Input warnings</div>
+                <div className="flex flex-wrap gap-2">
+                  {artifactWarnings.map((warning, index) => (
+                    <span
+                      key={`${formatArtifactValue(warning) ?? "warning"}-${index}`}
+                      className="inline-flex rounded-full border border-amber-500/30 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/20 dark:text-amber-200"
+                    >
+                      {formatArtifactValue(warning)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {criterionRows.length > 0 && (
+              <div>
+                <div className="mb-2 text-sm font-semibold text-foreground">Criterion outcomes</div>
+                <div className="space-y-2">
+                  {criterionRows.map((criterion, index) => (
+                    <div key={`${criterion.criterionId}-${index}`} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="font-medium text-foreground">{criterion.criterionId}</span>
+                        <span className="tabular-nums text-muted-foreground">{criterion.score} mark{criterion.score === 1 ? "" : "s"}</span>
+                      </div>
+                      {criterion.justification && (
+                        <p className="mt-1 text-sm text-muted-foreground">{criterion.justification}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <div className="mb-2 text-sm font-semibold text-foreground">Review provenance</div>
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <ArtifactRow label="Reviewer" value={reviewerProvenance.reviewerName ?? reviewerProvenance.reviewerUserId} />
+                <ArtifactRow label="Reviewed at" value={reviewerProvenance.reviewedAt} />
+                <ArtifactRow label="Training readiness" value={reviewerProvenance.trainingReadiness} />
+                <ArtifactRow label="Owner approved at" value={ownerProvenance.approvedAt} />
+                <ArtifactRow label="Published at" value={ownerProvenance.publishedAt} />
+                <ArtifactRow label="Source" value={sourceProvenance.sourceQuestionRef ?? sourceProvenance.sourceBook} />
+              </dl>
+            </div>
+
+            <details className="rounded-lg border border-border bg-muted/30 p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                Raw marking artifact JSON
+              </summary>
+              <pre className="mt-3 max-h-96 overflow-auto rounded-md bg-background p-3 text-xs text-muted-foreground">
+                {compactJson(rawArtifact)}
+              </pre>
+            </details>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Detected issues — friendly badges, not the raw teacher picker */}
       {errorTags.length > 0 && (
         <Card className="shadow-sm border-border">
@@ -390,7 +536,7 @@ export default function StudentSubmissionPage({
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <RubricChecklist rubric={rubric} perCriterion={aiMarking.perCriterion} editable={false} />
+            <RubricChecklist rubric={rubric} perCriterion={criterionRows} editable={false} />
           </CardContent>
         </Card>
       )}
