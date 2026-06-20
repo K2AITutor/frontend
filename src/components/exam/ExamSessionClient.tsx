@@ -34,7 +34,12 @@ type MarkingResult = {
   } | null;
   diagnostics?: any;
   criterionOutcomes?: CriterionOutcomeLike[] | null;
-  markingArtifact?: { criterionOutcomes?: CriterionOutcomeLike[] | null } | null;
+  markingArtifact?: {
+    criterionOutcomes?: CriterionOutcomeLike[] | null;
+    criteria?: CriterionOutcomeLike[] | null;
+    criterionResults?: CriterionOutcomeLike[] | null;
+    rubric?: { criteria?: CriterionOutcomeLike[] | null } | null;
+  } | null;
   input?: NormalizedAnswerInput;
   needsClarification?: boolean;
 };
@@ -45,22 +50,30 @@ type CriterionOutcomeLike = {
   id?: string | number | null;
   key?: string | number | null;
   componentId?: string | number | null;
+  criterionId?: string | number | null;
   label?: string | null;
   criterion?: string | null;
   description?: string | null;
   note?: string | null;
   passed?: boolean | null;
   met?: boolean | null;
+  isCorrect?: boolean | null;
   status?: string | null;
+  outcome?: string | null;
   scoreAwarded?: number | null;
   marksAwarded?: number | null;
+  awardedMarks?: number | null;
   score?: number | null;
   marks?: number | null;
   maxScore?: number | null;
   maxMarks?: number | null;
+  maxMark?: number | null;
+  totalMarks?: number | null;
   availableMarks?: number | null;
   feedback?: string | null;
   reason?: string | null;
+  message?: string | null;
+  details?: string | null;
   errorTags?: string[] | null;
   criteria?: CriterionOutcomeLike[] | null;
 };
@@ -184,26 +197,26 @@ function finiteNumber(value: unknown): number | null {
 }
 
 function criterionLabel(item: CriterionOutcomeLike, index: number) {
-  return String(item.label ?? item.key ?? item.id ?? item.componentId ?? `Criterion ${index + 1}`);
+  return String(item.label ?? item.key ?? item.criterionId ?? item.id ?? item.componentId ?? `Criterion ${index + 1}`);
 }
 
 function criterionText(item: CriterionOutcomeLike) {
-  return String(item.criterion ?? item.description ?? item.note ?? item.label ?? "Criterion outcome");
+  return String(item.criterion ?? item.description ?? item.note ?? item.details ?? item.label ?? "Criterion outcome");
 }
 
 function criterionScore(item: CriterionOutcomeLike) {
-  return finiteNumber(item.marksAwarded ?? item.scoreAwarded ?? item.score ?? item.marks);
+  return finiteNumber(item.awardedMarks ?? item.marksAwarded ?? item.scoreAwarded ?? item.score ?? item.marks);
 }
 
 function criterionMaxScore(item: CriterionOutcomeLike) {
-  return finiteNumber(item.maxMarks ?? item.availableMarks ?? item.maxScore ?? item.marks);
+  return finiteNumber(item.maxMarks ?? item.maxMark ?? item.totalMarks ?? item.availableMarks ?? item.maxScore ?? item.marks);
 }
 
 function criterionState(item: CriterionOutcomeLike, score: number | null, maxScore: number | null): CriterionFeedback["state"] {
-  if (item.passed === true || item.met === true) return "passed";
-  if (item.passed === false || item.met === false) return score && score > 0 ? "partial" : "failed";
+  if (item.passed === true || item.met === true || item.isCorrect === true) return "passed";
+  if (item.passed === false || item.met === false || item.isCorrect === false) return score && score > 0 ? "partial" : "failed";
 
-  const status = String(item.status ?? "").trim().toLowerCase();
+  const status = String(item.status ?? item.outcome ?? "").trim().toLowerCase();
   if (["passed", "pass", "met", "correct", "awarded"].includes(status)) return "passed";
   if (["partial", "partially_met"].includes(status)) return "partial";
   if (["failed", "fail", "missed", "not_met", "incorrect"].includes(status)) return "failed";
@@ -222,7 +235,13 @@ function normalizeCriterionFeedback(result: MarkingResult | null, rubric: Rubric
     result?.criterionOutcomes,
     result?.diagnostics?.criterionOutcomes,
     result?.diagnostics?.criteria,
+    result?.diagnostics?.criterionResults,
+    result?.diagnostics?.perCriterion,
     result?.markingArtifact?.criterionOutcomes,
+    result?.markingArtifact?.criteria,
+    result?.markingArtifact?.criterionResults,
+    result?.markingArtifact?.rubric?.criteria,
+    (result as any)?.perCriterion,
   ];
 
   const raw = sources.find((source) => Array.isArray(source) && source.length > 0) as
@@ -244,13 +263,13 @@ function normalizeCriterionFeedback(result: MarkingResult | null, rubric: Rubric
       const score = criterionScore(item);
       const maxScore = criterionMaxScore(item) ?? criterionMaxScore(parent ?? {});
       return {
-        id: String(item.id ?? item.key ?? item.componentId ?? `${visibleIndex}`),
+        id: String(item.id ?? item.key ?? item.criterionId ?? item.componentId ?? `${visibleIndex}`),
         label: criterionLabel(item, visibleIndex),
         criterion: criterionText(item),
         state: criterionState(item, score, maxScore),
         score,
         maxScore,
-        feedback: item.feedback ?? item.reason ?? null,
+        feedback: item.feedback ?? item.reason ?? item.message ?? null,
         errorTags: Array.isArray(item.errorTags) ? item.errorTags : [],
       };
     });
@@ -268,6 +287,10 @@ function normalizeCriterionFeedback(result: MarkingResult | null, rubric: Rubric
   }));
 }
 
+function hasAssessedCriterionFeedback(items: CriterionFeedback[]) {
+  return items.some((item) => item.state !== "not_assessed" || item.score != null);
+}
+
 function criterionStateClasses(state: CriterionFeedback["state"]) {
   if (state === "passed") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
   if (state === "partial") return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
@@ -276,10 +299,10 @@ function criterionStateClasses(state: CriterionFeedback["state"]) {
 }
 
 function criterionStateLabel(state: CriterionFeedback["state"]) {
-  if (state === "passed") return "Passed";
-  if (state === "partial") return "Partial";
-  if (state === "failed") return "Needs work";
-  return "Not assessed";
+  if (state === "passed") return "Earned";
+  if (state === "partial") return "Partly earned";
+  if (state === "failed") return "Not earned";
+  return "Guide only";
 }
 
 export default function ExamSessionClient(props: {
@@ -370,8 +393,18 @@ export default function ExamSessionClient(props: {
     [result, displayedRubric]
   );
 
+  const hasAssessedCriteria = useMemo(
+    () => hasAssessedCriterionFeedback(criterionFeedback),
+    [criterionFeedback]
+  );
+
   const shouldShowCriterionFeedback =
-    criterionFeedback.length > 0 && Number(displayedMaxScore ?? maxMarks) > 1;
+    criterionFeedback.length > 0 &&
+    hasAssessedCriteria &&
+    Number(displayedMaxScore ?? maxMarks) > 1;
+
+  const shouldShowRubricGuide =
+    displayedRubric.length > 0 && !shouldShowCriterionFeedback;
 
   const qLabel = useMemo(() => {
     if (!question) return "";
@@ -953,7 +986,22 @@ export default function ExamSessionClient(props: {
 
                       {shouldShowCriterionFeedback && (
                         <div>
-                          <div className="text-muted-foreground">Criterion feedback</div>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <div className="text-muted-foreground">Mark breakdown</div>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Your score is split across the marking criteria for this part.
+                              </p>
+                            </div>
+                            <div className="rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground">
+                              Total{" "}
+                              <span className="font-semibold text-foreground">
+                                {displayedScore ?? "-"}
+                              </span>{" "}
+                              / {displayedMaxScore ?? maxMarks} mark
+                              {Number(displayedMaxScore ?? maxMarks) === 1 ? "" : "s"}
+                            </div>
+                          </div>
                           <div className="mt-2 space-y-2">
                             {criterionFeedback.map((item) => (
                               <div
@@ -1009,7 +1057,15 @@ export default function ExamSessionClient(props: {
                         </div>
                       )}
 
-                      {displayedRubric.length > 0 && (
+                      {Number(displayedMaxScore ?? maxMarks) > 1 &&
+                        !shouldShowCriterionFeedback &&
+                        displayedRubric.length > 0 && (
+                          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">
+                            Criterion-level marking was not returned for this attempt yet. Use the marking guide below to review how marks are allocated.
+                          </div>
+                        )}
+
+                      {shouldShowRubricGuide && (
                         <div>
                           <div className="text-muted-foreground">Marking guide</div>
                           <div className="mt-2 overflow-hidden rounded-lg border border-border">
