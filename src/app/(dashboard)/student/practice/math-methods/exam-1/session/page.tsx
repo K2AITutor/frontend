@@ -14,6 +14,7 @@ import {
 export default function Exam1SessionPage() {
   const searchParams = useSearchParams();
   const examKey = searchParams.get("examKey") || "VCE_MM_EXAM1_2025";
+  const sessionMode = searchParams.get("mode") === "exam" ? "exam" : "practice";
   const { data: session, status } = useSession();
 
   const [exam, setExam] = useState<ExamDTO | null>(null);
@@ -91,6 +92,7 @@ export default function Exam1SessionPage() {
         initialQuestions={questions as any}
         subject="math-methods"
         examKey={examKey}
+        sessionMode={sessionMode}
         examTitle={exam.title ?? "VCE Mathematical Methods — Exam 1"}
         examPdfSrc={pdfSrc}
         questionImageBase={`/exams/${examKey}/questions`} // ✅ NEW: PNG base path

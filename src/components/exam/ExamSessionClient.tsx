@@ -34,7 +34,12 @@ type MarkingResult = {
   } | null;
   diagnostics?: any;
   criterionOutcomes?: CriterionOutcomeLike[] | null;
-  markingArtifact?: { criterionOutcomes?: CriterionOutcomeLike[] | null } | null;
+  markingArtifact?: {
+    criterionOutcomes?: CriterionOutcomeLike[] | null;
+    criteria?: CriterionOutcomeLike[] | null;
+    criterionResults?: CriterionOutcomeLike[] | null;
+    rubric?: { criteria?: CriterionOutcomeLike[] | null } | null;
+  } | null;
   input?: NormalizedAnswerInput;
   needsClarification?: boolean;
 };
@@ -45,22 +50,30 @@ type CriterionOutcomeLike = {
   id?: string | number | null;
   key?: string | number | null;
   componentId?: string | number | null;
+  criterionId?: string | number | null;
   label?: string | null;
   criterion?: string | null;
   description?: string | null;
   note?: string | null;
   passed?: boolean | null;
   met?: boolean | null;
+  isCorrect?: boolean | null;
   status?: string | null;
+  outcome?: string | null;
   scoreAwarded?: number | null;
   marksAwarded?: number | null;
+  awardedMarks?: number | null;
   score?: number | null;
   marks?: number | null;
   maxScore?: number | null;
   maxMarks?: number | null;
+  maxMark?: number | null;
+  totalMarks?: number | null;
   availableMarks?: number | null;
   feedback?: string | null;
   reason?: string | null;
+  message?: string | null;
+  details?: string | null;
   errorTags?: string[] | null;
   criteria?: CriterionOutcomeLike[] | null;
 };
@@ -111,6 +124,8 @@ type AnswerInputCopy = {
   helper: string;
   examples: string[];
 };
+
+type SessionMode = "practice" | "exam";
 
 const ANSWER_INPUT_COPY: Record<AnswerInputKind, AnswerInputCopy> = {
   numeric: {
@@ -182,26 +197,26 @@ function finiteNumber(value: unknown): number | null {
 }
 
 function criterionLabel(item: CriterionOutcomeLike, index: number) {
-  return String(item.label ?? item.key ?? item.id ?? item.componentId ?? `Criterion ${index + 1}`);
+  return String(item.label ?? item.key ?? item.criterionId ?? item.id ?? item.componentId ?? `Criterion ${index + 1}`);
 }
 
 function criterionText(item: CriterionOutcomeLike) {
-  return String(item.criterion ?? item.description ?? item.note ?? item.label ?? "Criterion outcome");
+  return String(item.criterion ?? item.description ?? item.note ?? item.details ?? item.label ?? "Criterion outcome");
 }
 
 function criterionScore(item: CriterionOutcomeLike) {
-  return finiteNumber(item.marksAwarded ?? item.scoreAwarded ?? item.score ?? item.marks);
+  return finiteNumber(item.awardedMarks ?? item.marksAwarded ?? item.scoreAwarded ?? item.score ?? item.marks);
 }
 
 function criterionMaxScore(item: CriterionOutcomeLike) {
-  return finiteNumber(item.maxMarks ?? item.availableMarks ?? item.maxScore ?? item.marks);
+  return finiteNumber(item.maxMarks ?? item.maxMark ?? item.totalMarks ?? item.availableMarks ?? item.maxScore ?? item.marks);
 }
 
 function criterionState(item: CriterionOutcomeLike, score: number | null, maxScore: number | null): CriterionFeedback["state"] {
-  if (item.passed === true || item.met === true) return "passed";
-  if (item.passed === false || item.met === false) return score && score > 0 ? "partial" : "failed";
+  if (item.passed === true || item.met === true || item.isCorrect === true) return "passed";
+  if (item.passed === false || item.met === false || item.isCorrect === false) return score && score > 0 ? "partial" : "failed";
 
-  const status = String(item.status ?? "").trim().toLowerCase();
+  const status = String(item.status ?? item.outcome ?? "").trim().toLowerCase();
   if (["passed", "pass", "met", "correct", "awarded"].includes(status)) return "passed";
   if (["partial", "partially_met"].includes(status)) return "partial";
   if (["failed", "fail", "missed", "not_met", "incorrect"].includes(status)) return "failed";
@@ -220,7 +235,13 @@ function normalizeCriterionFeedback(result: MarkingResult | null, rubric: Rubric
     result?.criterionOutcomes,
     result?.diagnostics?.criterionOutcomes,
     result?.diagnostics?.criteria,
+    result?.diagnostics?.criterionResults,
+    result?.diagnostics?.perCriterion,
     result?.markingArtifact?.criterionOutcomes,
+    result?.markingArtifact?.criteria,
+    result?.markingArtifact?.criterionResults,
+    result?.markingArtifact?.rubric?.criteria,
+    (result as any)?.perCriterion,
   ];
 
   const raw = sources.find((source) => Array.isArray(source) && source.length > 0) as
@@ -242,13 +263,13 @@ function normalizeCriterionFeedback(result: MarkingResult | null, rubric: Rubric
       const score = criterionScore(item);
       const maxScore = criterionMaxScore(item) ?? criterionMaxScore(parent ?? {});
       return {
-        id: String(item.id ?? item.key ?? item.componentId ?? `${visibleIndex}`),
+        id: String(item.id ?? item.key ?? item.criterionId ?? item.componentId ?? `${visibleIndex}`),
         label: criterionLabel(item, visibleIndex),
         criterion: criterionText(item),
         state: criterionState(item, score, maxScore),
         score,
         maxScore,
-        feedback: item.feedback ?? item.reason ?? null,
+        feedback: item.feedback ?? item.reason ?? item.message ?? null,
         errorTags: Array.isArray(item.errorTags) ? item.errorTags : [],
       };
     });
@@ -266,6 +287,10 @@ function normalizeCriterionFeedback(result: MarkingResult | null, rubric: Rubric
   }));
 }
 
+function hasAssessedCriterionFeedback(items: CriterionFeedback[]) {
+  return items.some((item) => item.state !== "not_assessed" || item.score != null);
+}
+
 function criterionStateClasses(state: CriterionFeedback["state"]) {
   if (state === "passed") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
   if (state === "partial") return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
@@ -274,16 +299,17 @@ function criterionStateClasses(state: CriterionFeedback["state"]) {
 }
 
 function criterionStateLabel(state: CriterionFeedback["state"]) {
-  if (state === "passed") return "Passed";
-  if (state === "partial") return "Partial";
-  if (state === "failed") return "Needs work";
-  return "Not assessed";
+  if (state === "passed") return "Earned";
+  if (state === "partial") return "Partly earned";
+  if (state === "failed") return "Not earned";
+  return "Guide only";
 }
 
 export default function ExamSessionClient(props: {
   initialQuestions: ExamQuestionLike[];
   subject: string;
   examKey: string;
+  sessionMode?: SessionMode;
 
   examTitle?: string;
   // examPdfSrc is optional now; meta.json is preferred
@@ -302,6 +328,7 @@ export default function ExamSessionClient(props: {
   const {
     initialQuestions,
     examKey,
+    sessionMode = "practice",
     examTitle = "Exam Session",
     examPdfSrc = null,
     readingMins = 15,
@@ -310,6 +337,8 @@ export default function ExamSessionClient(props: {
     exactRequired = true,
     workingRequired = true,
   } = props;
+
+  const isExamMode = sessionMode === "exam";
 
   const [questions] = useState<ExamQuestionLike[]>(initialQuestions ?? []);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -364,8 +393,18 @@ export default function ExamSessionClient(props: {
     [result, displayedRubric]
   );
 
+  const hasAssessedCriteria = useMemo(
+    () => hasAssessedCriterionFeedback(criterionFeedback),
+    [criterionFeedback]
+  );
+
   const shouldShowCriterionFeedback =
-    criterionFeedback.length > 0 && Number(displayedMaxScore ?? maxMarks) > 1;
+    criterionFeedback.length > 0 &&
+    hasAssessedCriteria &&
+    Number(displayedMaxScore ?? maxMarks) > 1;
+
+  const shouldShowRubricGuide =
+    displayedRubric.length > 0 && !shouldShowCriterionFeedback;
 
   const qLabel = useMemo(() => {
     if (!question) return "";
@@ -391,10 +430,17 @@ export default function ExamSessionClient(props: {
     [interpretedAnswer.displayAnswer]
   );
   const hasTypedAnswer = answer.trim().length > 0;
+  const blockingInputWarning = interpretedAnswer.warnings.find(
+    (warning) => warning.severity === "blocking"
+  );
+  const submitValidationMessage =
+    hasTypedAnswer && !needsWorkingInput && blockingInputWarning
+      ? `${blockingInputWarning.message}${blockingInputWarning.suggestion ? ` ${blockingInputWarning.suggestion}` : ""}`
+      : null;
   const canSubmitAnswer =
     !isSubmitting &&
     hasTypedAnswer &&
-    (needsWorkingInput || interpretedAnswer.canMarkSafely);
+    (needsWorkingInput || !submitValidationMessage);
 
   const answerShortcuts = useMemo<AnswerShortcut[]>(() => {
     const core: AnswerShortcut[] = [
@@ -484,8 +530,8 @@ export default function ExamSessionClient(props: {
       setSubmitError("Enter an answer before submitting.");
       return;
     }
-    if (!needsWorkingInput && !interpretedAnswer.canMarkSafely) {
-      setSubmitError("Fix the answer format warning before submitting.");
+    if (submitValidationMessage) {
+      setSubmitError(submitValidationMessage);
       return;
     }
 
@@ -568,6 +614,24 @@ export default function ExamSessionClient(props: {
     router.push(`/student/practice/math-methods/exam-1/review?examKey=${encodeURIComponent(examKey)}`);
   };
 
+  const answerPanelCopy = isExamMode
+    ? {
+        title: "Your answer",
+        markable: "Submit your answer to check it against the dataset.",
+        manual: "This part is saved for manual review.",
+        submit: "Submit Answer",
+        submitting: "Checking...",
+        finish: "Finish & Review",
+      }
+    : {
+        title: "Practice answer",
+        markable: "Try the question, then check your answer and review the worked solution.",
+        manual: "Write your working for review. This part is not auto-marked yet.",
+        submit: "Check Answer",
+        submitting: "Checking...",
+        finish: "End Practice",
+      };
+
   const copyPlainExpectedAnswer = (event: React.ClipboardEvent<HTMLElement>) => {
     if (!result?.correctAnswer) return;
 
@@ -594,9 +658,15 @@ export default function ExamSessionClient(props: {
 
   return (
     <div className="space-y-4" data-testid="exam-session">
-      <div className="px-4 py-2 rounded-lg border border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300 text-sm">
-        <strong>Exam Mode</strong> — AI assistance is disabled during the examination.
-      </div>
+      {isExamMode ? (
+        <div className="px-4 py-2 rounded-lg border border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300 text-sm">
+          <strong>Exam Mode</strong> — timed conditions are on. Hints and assistance are disabled during the attempt.
+        </div>
+      ) : (
+        <div className="px-4 py-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-sm">
+          <strong>Practice Mode</strong> — check answers as you go and use feedback to improve before trying a full exam attempt.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         <div className="xl:col-span-7">
@@ -606,7 +676,7 @@ export default function ExamSessionClient(props: {
                 <div>
                   <h1 className="text-xl font-semibold">{qLabel}</h1>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {examTitle} • {currentIndex + 1} of {questions.length}
+                    {examTitle} • {isExamMode ? "Exam attempt" : "Practice"} • {currentIndex + 1} of {questions.length}
                     {isFlagged ? " • Flagged" : ""}
                   </p>
                 </div>
@@ -668,9 +738,15 @@ export default function ExamSessionClient(props: {
                     <span className="px-2 py-1 rounded border border-border bg-muted">
                       Working: {workingRequired ? "Required" : "Not required"}
                     </span>
-                    <span className="px-2 py-1 rounded border border-border bg-muted">
-                      Progress: {answeredCount}/{questions.length} • Correct: {correctCount}
-                    </span>
+                    {isExamMode ? (
+                      <span className="px-2 py-1 rounded border border-border bg-muted">
+                        Attempted: {answeredCount}/{questions.length}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 rounded border border-border bg-muted">
+                        Practice progress: {answeredCount}/{questions.length} • Correct: {correctCount}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -679,9 +755,11 @@ export default function ExamSessionClient(props: {
             <div className="glass p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="font-semibold">PDF reference</h2>
+                  <h2 className="font-semibold">{isExamMode ? "PDF reference" : "Source reference"}</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Open the original exam PDF only when you need to check the source.
+                    {isExamMode
+                      ? "Open the original exam PDF only when you need to check the source."
+                      : "Use the original exam PDF to compare wording, diagrams, and source context while practising."}
                   </p>
                 </div>
 
@@ -701,11 +779,11 @@ export default function ExamSessionClient(props: {
 
             <div className="glass p-5 space-y-4">
               <div>
-                <h2 className="font-semibold">Your answer</h2>
+                <h2 className="font-semibold">{answerPanelCopy.title}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {question.isMarkable === false
-                    ? "This part is saved for manual review."
-                    : "Submit your answer to check it against the dataset."}
+                    ? answerPanelCopy.manual
+                    : answerPanelCopy.markable}
                 </p>
               </div>
 
@@ -810,12 +888,19 @@ export default function ExamSessionClient(props: {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                {submitValidationMessage && (
+                  <div className="w-full rounded-lg border border-amber-600/70 bg-amber-950/30 px-3 py-2 text-sm text-amber-100">
+                    {submitValidationMessage}
+                  </div>
+                )}
+
                 <Button
                   data-testid="exam-submit-answer"
                   disabled={!canSubmitAnswer}
+                  title={submitValidationMessage ?? undefined}
                   onClick={handleSubmit}
                 >
-                  {isSubmitting ? "Checking..." : "Submit Answer"}
+                  {isSubmitting ? answerPanelCopy.submitting : answerPanelCopy.submit}
                 </Button>
 
                 <Button
@@ -824,7 +909,7 @@ export default function ExamSessionClient(props: {
                   size="lg"
                   onClick={finishAndReview}
                 >
-                  Finish & Review
+                  {answerPanelCopy.finish}
                 </Button>
               </div>
 
@@ -901,7 +986,22 @@ export default function ExamSessionClient(props: {
 
                       {shouldShowCriterionFeedback && (
                         <div>
-                          <div className="text-muted-foreground">Criterion feedback</div>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <div className="text-muted-foreground">Mark breakdown</div>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Your score is split across the marking criteria for this part.
+                              </p>
+                            </div>
+                            <div className="rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground">
+                              Total{" "}
+                              <span className="font-semibold text-foreground">
+                                {displayedScore ?? "-"}
+                              </span>{" "}
+                              / {displayedMaxScore ?? maxMarks} mark
+                              {Number(displayedMaxScore ?? maxMarks) === 1 ? "" : "s"}
+                            </div>
+                          </div>
                           <div className="mt-2 space-y-2">
                             {criterionFeedback.map((item) => (
                               <div
@@ -957,7 +1057,15 @@ export default function ExamSessionClient(props: {
                         </div>
                       )}
 
-                      {displayedRubric.length > 0 && (
+                      {Number(displayedMaxScore ?? maxMarks) > 1 &&
+                        !shouldShowCriterionFeedback &&
+                        displayedRubric.length > 0 && (
+                          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">
+                            Criterion-level marking was not returned for this attempt yet. Use the marking guide below to review how marks are allocated.
+                          </div>
+                        )}
+
+                      {shouldShowRubricGuide && (
                         <div>
                           <div className="text-muted-foreground">Marking guide</div>
                           <div className="mt-2 overflow-hidden rounded-lg border border-border">

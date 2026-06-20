@@ -161,6 +161,15 @@ function hasAmbiguousIntervalShape(normalizedAnswer: string) {
   return normalizedAnswer.includes(",") || /[<>]/.test(normalizedAnswer);
 }
 
+function looksLikeInterval(normalizedAnswer: string) {
+  if (!normalizedAnswer) return false;
+  if (/^[\[\(].*[\]\)]$/.test(normalizedAnswer)) return true;
+  if (/^[a-z][<>]=?-?[\w.]+$/i.test(normalizedAnswer)) return true;
+  if (/^-?[\w.]+[<>]=?[a-z]$/i.test(normalizedAnswer)) return true;
+  if (/^-?[\w.]+[<>]=?[a-z][<>]=?-?[\w.]+$/i.test(normalizedAnswer)) return true;
+  return false;
+}
+
 function hasOnlyNumericSymbols(normalizedAnswer: string) {
   const withoutKnownWords = KNOWN_WORDS.reduce(
     (value, word) => value.replace(new RegExp(`\\b${word}\\b`, "g"), ""),
@@ -192,6 +201,15 @@ function addAnswerTypeWarnings(
       severity: "blocking",
       message: "This question expects a number, not an expression with variables.",
       suggestion: "Enter a numeric value such as 3/2, sqrt(2), or pi/4.",
+    });
+  }
+
+  if (answerKind === "interval" && !looksLikeInterval(normalizedAnswer)) {
+    pushWarningOnce(warnings, {
+      code: "INTERVAL_FORMAT_REQUIRED",
+      severity: "blocking",
+      message: "This question expects an interval or inequality.",
+      suggestion: "Use notation like [0,1), (1, infinity), or x<=2.",
     });
   }
 
