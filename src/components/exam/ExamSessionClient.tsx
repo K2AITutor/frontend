@@ -117,6 +117,7 @@ type AnswerShortcut = {
   value: string;
   ariaLabel: string;
   cursorOffset?: number;
+  buildValue?: (selectedText: string) => { value: string; cursorOffset: number };
 };
 
 type AnswerInputCopy = {
@@ -443,72 +444,137 @@ export default function ExamSessionClient(props: {
     (needsWorkingInput || !submitValidationMessage);
 
   const answerShortcuts = useMemo<AnswerShortcut[]>(() => {
-    const core: AnswerShortcut[] = [
+    const fractionShortcut: AnswerShortcut = {
+      label: "a/b",
+      value: "()/()",
+      ariaLabel: "Insert fraction template",
+      cursorOffset: 1,
+      buildValue: (selected) => selected
+        ? { value: `(${selected})/()`, cursorOffset: selected.length + 4 }
+        : { value: "()/()", cursorOffset: 1 },
+    };
+
+    const bracketShortcut = (label: string, open: string, close: string, ariaLabel: string): AnswerShortcut => ({
+      label,
+      value: `${open}${close}`,
+      ariaLabel,
+      cursorOffset: 1,
+      buildValue: (selected) => selected
+        ? { value: `${open}${selected}${close}`, cursorOffset: selected.length + 2 }
+        : { value: `${open}${close}`, cursorOffset: 1 },
+    });
+
+    const functionShortcut = (name: string, label = name): AnswerShortcut => ({
+      label,
+      value: `${name}()`,
+      ariaLabel: `Insert ${name} template`,
+      cursorOffset: name.length + 1,
+      buildValue: (selected) => selected
+        ? { value: `${name}(${selected})`, cursorOffset: name.length + selected.length + 2 }
+        : { value: `${name}()`, cursorOffset: name.length + 1 },
+    });
+
+    const squareShortcut: AnswerShortcut = {
+      label: "x^2",
+      value: "x^2",
+      ariaLabel: "Insert square template",
+      cursorOffset: 3,
+      buildValue: (selected) => selected
+        ? { value: needsWorkingInput ? `${selected}^2` : `(${selected})^2`, cursorOffset: (needsWorkingInput ? selected.length : selected.length + 2) + 2 }
+        : { value: "x^2", cursorOffset: 3 },
+    };
+
+    const powerShortcut: AnswerShortcut = {
+      label: "x^n",
+      value: "x^()",
+      ariaLabel: "Insert power template",
+      cursorOffset: 3,
+      buildValue: (selected) => selected
+        ? { value: `${selected}^()`, cursorOffset: selected.length + 2 }
+        : { value: "x^()", cursorOffset: 3 },
+    };
+
+    const expressionShortcuts: AnswerShortcut[] = [
       { label: "x", value: "x", ariaLabel: "Insert x" },
       { label: "*", value: "*", ariaLabel: "Insert multiplication symbol" },
-      { label: "a/b", value: "()/()", ariaLabel: "Insert fraction template", cursorOffset: 1 },
-      { label: "x^2", value: "^2", ariaLabel: "Insert square" },
-      { label: "^n", value: "^()", ariaLabel: "Insert power template", cursorOffset: 2 },
-      { label: "(", value: "(", ariaLabel: "Insert opening bracket" },
-      { label: ")", value: ")", ariaLabel: "Insert closing bracket" },
+      fractionShortcut,
+      squareShortcut,
+      powerShortcut,
+      bracketShortcut("( )", "(", ")", "Insert bracket template"),
       { label: ",", value: ",", ariaLabel: "Insert comma" },
-      { label: "[,]", value: "[,]", ariaLabel: "Insert interval bracket template", cursorOffset: 1 },
-      { label: "(,)", value: "(,)", ariaLabel: "Insert open interval template", cursorOffset: 1 },
+      functionShortcut("sqrt"),
+      { label: "pi", value: "pi", ariaLabel: "Insert pi" },
+      functionShortcut("sin"),
+      functionShortcut("cos"),
+      functionShortcut("tan"),
     ];
 
-    const intervalShortcuts: AnswerShortcut[] = answerKind === "interval"
-      ? [
-          { label: "<=", value: "<=", ariaLabel: "Insert less than or equal" },
-          { label: ">=", value: ">=", ariaLabel: "Insert greater than or equal" },
-          { label: "inf", value: "infinity", ariaLabel: "Insert infinity" },
-        ]
-      : [];
-
-    const coordinateShortcuts: AnswerShortcut[] = answerKind === "coordinate"
-      ? [
-          { label: "(x,y)", value: "(,)", ariaLabel: "Insert coordinate pair template", cursorOffset: 1 },
-        ]
-      : [];
-
-    const setListShortcuts: AnswerShortcut[] = answerKind === "set_list"
-      ? [
-          { label: "{,}", value: "{,}", ariaLabel: "Insert set template", cursorOffset: 1 },
-        ]
-      : [];
-
     if (needsWorkingInput) {
+      return expressionShortcuts;
+    }
+
+    if (answerKind === "numeric") {
       return [
-        ...core,
-        { label: "sqrt", value: "sqrt()", ariaLabel: "Insert square root", cursorOffset: 5 },
+        fractionShortcut,
+        functionShortcut("sqrt"),
+        { label: "pi", value: "pi", ariaLabel: "Insert pi" },
+        bracketShortcut("( )", "(", ")", "Insert bracket template"),
+      ];
+    }
+
+    if (answerKind === "interval") {
+      return [
+        { label: "x", value: "x", ariaLabel: "Insert x" },
+        { label: "<=", value: "<=", ariaLabel: "Insert less than or equal" },
+        { label: ">=", value: ">=", ariaLabel: "Insert greater than or equal" },
+        { label: "<", value: "<", ariaLabel: "Insert less than" },
+        { label: ">", value: ">", ariaLabel: "Insert greater than" },
+        { label: "inf", value: "infinity", ariaLabel: "Insert infinity" },
+        { label: "[,]", value: "[,]", ariaLabel: "Insert closed interval template", cursorOffset: 1 },
+        { label: "(,)", value: "(,)", ariaLabel: "Insert open interval template", cursorOffset: 1 },
+        { label: "[,)", value: "[,)", ariaLabel: "Insert left closed interval template", cursorOffset: 1 },
+        { label: "(,]", value: "(,]", ariaLabel: "Insert right closed interval template", cursorOffset: 1 },
+      ];
+    }
+
+    if (answerKind === "coordinate") {
+      return [
+        { label: "(x,y)", value: "(,)", ariaLabel: "Insert coordinate pair template", cursorOffset: 1 },
+        fractionShortcut,
+        functionShortcut("sqrt"),
+        { label: "pi", value: "pi", ariaLabel: "Insert pi" },
+        { label: ",", value: ",", ariaLabel: "Insert comma" },
+      ];
+    }
+
+    if (answerKind === "set_list") {
+      return [
+        { label: "{,}", value: "{,}", ariaLabel: "Insert set template", cursorOffset: 1 },
+        { label: ",", value: ",", ariaLabel: "Insert comma" },
+        fractionShortcut,
+        functionShortcut("sqrt"),
         { label: "pi", value: "pi", ariaLabel: "Insert pi" },
       ];
     }
 
-    return [
-      ...core,
-      { label: "sqrt", value: "sqrt()", ariaLabel: "Insert square root", cursorOffset: 5 },
-      { label: "pi", value: "pi", ariaLabel: "Insert pi" },
-      { label: "sin", value: "sin()", ariaLabel: "Insert sine function", cursorOffset: 4 },
-      { label: "cos", value: "cos()", ariaLabel: "Insert cosine function", cursorOffset: 4 },
-      { label: "tan", value: "tan()", ariaLabel: "Insert tangent function", cursorOffset: 4 },
-      ...intervalShortcuts,
-      ...coordinateShortcuts,
-      ...setListShortcuts,
-    ];
+    return expressionShortcuts;
   }, [answerKind, needsWorkingInput]);
 
   const insertAnswerToken = (shortcut: AnswerShortcut) => {
-    const token = shortcut.value;
     const el = answerInputRef.current;
+    const start = el?.selectionStart ?? answer.length;
+    const end = el?.selectionEnd ?? answer.length;
+    const selectedText = answer.slice(start, end);
+    const built = shortcut.buildValue?.(selectedText);
+    const token = built?.value ?? shortcut.value;
+
     if (!el) {
       setAnswer((value) => `${value}${token}`);
       return;
     }
 
-    const start = el.selectionStart ?? answer.length;
-    const end = el.selectionEnd ?? answer.length;
     const nextAnswer = `${answer.slice(0, start)}${token}${answer.slice(end)}`;
-    const cursorOffset = shortcut.cursorOffset ?? (token.endsWith("()") ? token.length - 1 : token.length);
+    const cursorOffset = built?.cursorOffset ?? shortcut.cursorOffset ?? (token.endsWith("()") ? token.length - 1 : token.length);
 
     setAnswer(nextAnswer);
     window.requestAnimationFrame(() => {
