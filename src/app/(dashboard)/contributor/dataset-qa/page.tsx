@@ -86,6 +86,103 @@ const TRAINING_READINESS_LABELS: Record<DatasetTrainingReadiness, string> = {
     EXPERT_REVIEW: "Expert review",
 };
 
+const TRAINING_READINESS_STYLES: Record<DatasetTrainingReadiness, string> = {
+    PRACTICE_ONLY: "border-slate-500/40 bg-slate-500/10 text-slate-200",
+    TRAINING_READY: "border-emerald-500/40 bg-emerald-500/15 text-emerald-100",
+    EXPERT_REVIEW: "border-sky-500/40 bg-sky-500/15 text-sky-100",
+};
+
+function isManualReviewQuestion(question: DatasetQaQuestion, reviewStatus = question.reviewStatus) {
+    return !question.isMarkable || reviewStatus === "MANUAL_REVIEW";
+}
+
+function isAutoCheckSafe(question: DatasetQaQuestion, checklist = question.qaChecklist, reviewStatus = question.reviewStatus) {
+    return !isManualReviewQuestion(question, reviewStatus) && Boolean(checklist.markerTestPassed);
+}
+
+function markerVisibilityLabel(question: DatasetQaQuestion, checklist = question.qaChecklist, reviewStatus = question.reviewStatus) {
+    if (isManualReviewQuestion(question, reviewStatus)) {
+        return {
+            label: "Manual review",
+            detail: "Do not publish for auto-scored practice until a person reviews the answer path.",
+            className: "border-purple-500/40 bg-purple-500/15 text-purple-100",
+        };
+    }
+
+    if (isAutoCheckSafe(question, checklist, reviewStatus)) {
+        return {
+            label: "Auto-check safe",
+            detail: "The expected answer passes the marker test and can be auto-scored.",
+            className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-100",
+        };
+    }
+
+    return {
+        label: "Needs marker test",
+        detail: "Run the marker test with the expected answer before approval.",
+        className: "border-amber-500/40 bg-amber-500/15 text-amber-100",
+    };
+}
+
+function contentVisibilityLabel(question: DatasetQaQuestion) {
+    if (question.contentStatus === "ACTIVE") {
+        return {
+            label: "Live in practice",
+            detail: "Students can see this record.",
+            className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-100",
+        };
+    }
+
+    if (question.reviewStatus === "APPROVED") {
+        return {
+            label: "Waiting publish",
+            detail: "Approved by contributor; owner/admin must publish before students see it.",
+            className: "border-blue-500/40 bg-blue-500/15 text-blue-100",
+        };
+    }
+
+    return {
+        label: "Not live",
+        detail: "Still in QA and hidden from student practice.",
+        className: "border-slate-500/40 bg-slate-500/10 text-slate-200",
+    };
+}
+
+function QaVisibilityBadges({
+    question,
+    checklist = question.qaChecklist,
+    reviewStatus = question.reviewStatus,
+    trainingReadiness = question.trainingReadiness,
+    compact = false,
+    showContentStatus = false,
+}: {
+    question: DatasetQaQuestion;
+    checklist?: DatasetQaChecklist;
+    reviewStatus?: DatasetQaStatus;
+    trainingReadiness?: DatasetTrainingReadiness;
+    compact?: boolean;
+    showContentStatus?: boolean;
+}) {
+    const marker = markerVisibilityLabel(question, checklist, reviewStatus);
+    const content = contentVisibilityLabel({ ...question, reviewStatus });
+
+    return (
+        <div className={`flex flex-wrap gap-2 ${compact ? "text-[11px]" : "text-xs"}`}>
+            <Badge variant="outline" className={marker.className} title={marker.detail}>
+                {marker.label}
+            </Badge>
+            <Badge variant="outline" className={TRAINING_READINESS_STYLES[trainingReadiness]}>
+                {TRAINING_READINESS_LABELS[trainingReadiness]}
+            </Badge>
+            {showContentStatus ? (
+                <Badge variant="outline" className={content.className} title={content.detail}>
+                    {content.label}
+                </Badge>
+            ) : null}
+        </div>
+    );
+}
+
 const CHECKLIST_ITEMS: Array<{ key: keyof DatasetQaChecklist; label: string }> = [
     { key: "sourceMatched", label: "Source matched" },
     { key: "topicChecked", label: "Topic checked" },
@@ -190,15 +287,24 @@ function approvedUnpublishedRows(rows: DatasetQaQuestion[]) {
     return rows.filter((row) => row.reviewStatus === "APPROVED" && row.contentStatus !== "ACTIVE");
 }
 
-function finalReviewSummary(rows: DatasetQaQuestion[]) {
+function datasetYear(row: DatasetQaQuestion) {
+    const fromKey = row.examKey.match(/_(20\d{2})$/)?.[1] ?? row.examKey.match(/(20\d{2})/)?.[1];
+    return fromKey ?? "Practice";
+}
+
+function finalReviewSummary(allRows: DatasetQaQuestion[], publishRows: DatasetQaQuestion[]) {
     const byReviewer = Object.values(
-        rows.reduce(
+        allRows.reduce(
             (acc, row) => {
                 const key = row.reviewerName?.trim() || `User ${row.reviewerUserId ?? "unknown"}`;
                 if (!acc[key]) {
                     acc[key] = {
                         reviewer: key,
                         count: 0,
+                        approved: 0,
+                        needsFix: 0,
+                        manualReview: 0,
+                        rejected: 0,
                         trainingReady: 0,
                         practiceOnly: 0,
                         expertReview: 0,
@@ -206,6 +312,10 @@ function finalReviewSummary(rows: DatasetQaQuestion[]) {
                     };
                 }
                 acc[key].count += 1;
+                if (row.reviewStatus === "APPROVED") acc[key].approved += 1;
+                if (row.reviewStatus === "NEEDS_FIX") acc[key].needsFix += 1;
+                if (row.reviewStatus === "MANUAL_REVIEW") acc[key].manualReview += 1;
+                if (row.reviewStatus === "REJECTED") acc[key].rejected += 1;
                 if (row.trainingReadiness === "TRAINING_READY") acc[key].trainingReady += 1;
                 if (row.trainingReadiness === "PRACTICE_ONLY") acc[key].practiceOnly += 1;
                 if (row.trainingReadiness === "EXPERT_REVIEW") acc[key].expertReview += 1;
@@ -219,6 +329,10 @@ function finalReviewSummary(rows: DatasetQaQuestion[]) {
                 {
                     reviewer: string;
                     count: number;
+                    approved: number;
+                    needsFix: number;
+                    manualReview: number;
+                    rejected: number;
                     trainingReady: number;
                     practiceOnly: number;
                     expertReview: number;
@@ -229,7 +343,7 @@ function finalReviewSummary(rows: DatasetQaQuestion[]) {
     ).sort((a, b) => b.count - a.count || a.reviewer.localeCompare(b.reviewer));
 
     const byTopic = Object.values(
-        rows.reduce(
+        allRows.reduce(
             (acc, row) => {
                 const key = row.topicCode || "UNMAPPED";
                 if (!acc[key]) {
@@ -237,24 +351,75 @@ function finalReviewSummary(rows: DatasetQaQuestion[]) {
                         topicCode: key,
                         count: 0,
                         marks: 0,
+                        approved: 0,
+                        publishReady: 0,
                         reviewers: new Set<string>(),
                     };
                 }
                 acc[key].count += 1;
                 acc[key].marks += Number(row.marks || 0);
+                if (row.reviewStatus === "APPROVED") acc[key].approved += 1;
+                if (row.reviewStatus === "APPROVED" && row.contentStatus !== "ACTIVE") acc[key].publishReady += 1;
                 acc[key].reviewers.add(row.reviewerName?.trim() || `User ${row.reviewerUserId ?? "unknown"}`);
                 return acc;
             },
-            {} as Record<string, { topicCode: string; count: number; marks: number; reviewers: Set<string> }>
+            {} as Record<
+                string,
+                {
+                    topicCode: string;
+                    count: number;
+                    marks: number;
+                    approved: number;
+                    publishReady: number;
+                    reviewers: Set<string>;
+                }
+            >
         )
     ).sort((a, b) => b.count - a.count || a.topicCode.localeCompare(b.topicCode));
+
+    const byYear = Object.values(
+        allRows.reduce(
+            (acc, row) => {
+                const key = datasetYear(row);
+                if (!acc[key]) {
+                    acc[key] = { year: key, count: 0, approved: 0, live: 0, waitingPublish: 0, marks: 0 };
+                }
+                acc[key].count += 1;
+                acc[key].marks += Number(row.marks || 0);
+                if (row.reviewStatus === "APPROVED") acc[key].approved += 1;
+                if (row.contentStatus === "ACTIVE") acc[key].live += 1;
+                if (row.reviewStatus === "APPROVED" && row.contentStatus !== "ACTIVE") acc[key].waitingPublish += 1;
+                return acc;
+            },
+            {} as Record<
+                string,
+                { year: string; count: number; approved: number; live: number; waitingPublish: number; marks: number }
+            >
+        )
+    ).sort((a, b) => b.year.localeCompare(a.year));
+
+    const byStatus = (Object.keys(STATUS_LABELS) as DatasetQaStatus[]).map((status) => ({
+        status,
+        label: STATUS_LABELS[status],
+        count: allRows.filter((row) => row.reviewStatus === status).length,
+        marks: allRows
+            .filter((row) => row.reviewStatus === status)
+            .reduce((sum, row) => sum + Number(row.marks || 0), 0),
+    }));
 
     return {
         byReviewer,
         byTopic,
-        trainingReady: rows.filter((row) => row.trainingReadiness === "TRAINING_READY").length,
-        practiceOnly: rows.filter((row) => row.trainingReadiness === "PRACTICE_ONLY").length,
-        expertReview: rows.filter((row) => row.trainingReadiness === "EXPERT_REVIEW").length,
+        byYear,
+        byStatus,
+        total: allRows.length,
+        waitingPublish: publishRows.length,
+        live: allRows.filter((row) => row.contentStatus === "ACTIVE").length,
+        autoCheckSafe: allRows.filter((row) => isAutoCheckSafe(row)).length,
+        manualReview: allRows.filter((row) => isManualReviewQuestion(row)).length,
+        trainingReady: allRows.filter((row) => row.trainingReadiness === "TRAINING_READY").length,
+        practiceOnly: allRows.filter((row) => row.trainingReadiness === "PRACTICE_ONLY").length,
+        expertReview: allRows.filter((row) => row.trainingReadiness === "EXPERT_REVIEW").length,
     };
 }
 
@@ -322,7 +487,7 @@ export default function ContributorDatasetQaPage() {
 
     const counts = statusCounts(data);
     const approvedForFinalReview = useMemo(() => approvedUnpublishedRows(data), [data]);
-    const publishSummary = useMemo(() => finalReviewSummary(approvedForFinalReview), [approvedForFinalReview]);
+    const publishSummary = useMemo(() => finalReviewSummary(data, approvedForFinalReview), [data, approvedForFinalReview]);
 
     async function handlePublishApproved() {
         if (!canPublish || selectedPublishIds.size === 0) return;
@@ -478,8 +643,9 @@ export default function ContributorDatasetQaPage() {
                                     <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                                         <span>{row.marks} mark{row.marks === 1 ? "" : "s"}</span>
                                         <span>{row.answerType}</span>
-                                        <span>{row.isMarkable ? "Auto-check" : "Manual"}</span>
-                                        {row.contentStatus === "ACTIVE" ? <span>Live</span> : null}
+                                    </div>
+                                    <div className="mt-3">
+                                        <QaVisibilityBadges question={row} compact />
                                     </div>
                                 </button>
                             ))}
@@ -631,6 +797,14 @@ function DatasetQaEditor({
                                 {readableCode(question.topicCode, TOPIC_LABELS)} /{" "}
                                 {readableCode(question.subtopicCode, SUBTOPIC_LABELS)}
                             </p>
+                            <div className="mt-3">
+                                <QaVisibilityBadges
+                                    question={question}
+                                    checklist={qaChecklist}
+                                    reviewStatus={reviewStatus}
+                                    trainingReadiness={trainingReadiness}
+                                />
+                            </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <Badge variant="outline">{question.answerType}</Badge>
@@ -702,6 +876,17 @@ function DatasetQaEditor({
                             <CardTitle className="text-lg">Training quality gate</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            <div className="rounded-md border bg-muted/20 p-3">
+                                <QaVisibilityBadges
+                                    question={question}
+                                    checklist={qaChecklist}
+                                    reviewStatus={reviewStatus}
+                                    trainingReadiness={trainingReadiness}
+                                />
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    Check whether this answer can be auto-marked, then choose whether it is only safe for practice or also ready for future model training.
+                                </p>
+                            </div>
                             <Field label="Training readiness">
                                 <Select
                                     value={trainingReadiness}
@@ -932,22 +1117,64 @@ function FinalReviewPanel({
                     </div>
                 ) : null}
 
-                <div className="grid gap-3 md:grid-cols-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
                     <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Approved waiting publish</p>
-                        <p className="mt-1 text-2xl font-semibold">{rows.length}</p>
+                        <p className="text-xs text-muted-foreground">Total records</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.total}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Waiting publish</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.waitingPublish}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Live practice</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.live}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Auto-check safe</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.autoCheckSafe}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Manual review</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.manualReview}</p>
                     </div>
                     <div className="rounded-md border p-3">
                         <p className="text-xs text-muted-foreground">Training ready</p>
                         <p className="mt-1 text-2xl font-semibold">{summary.trainingReady}</p>
                     </div>
-                    <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Practice only</p>
-                        <p className="mt-1 text-2xl font-semibold">{summary.practiceOnly}</p>
+                </div>
+
+                <div className="grid gap-5 xl:grid-cols-2">
+                    <div className="rounded-md border">
+                        <div className="border-b p-3 font-medium">Records by year</div>
+                        <div className="divide-y">
+                            {summary.byYear.length ? (
+                                summary.byYear.map((row) => (
+                                    <div key={row.year} className="grid grid-cols-[80px_repeat(4,minmax(0,1fr))] gap-3 p-3 text-sm">
+                                        <div className="font-medium">{row.year}</div>
+                                        <div className="text-right">{row.count} q</div>
+                                        <div className="text-right text-emerald-100">{row.approved} approved</div>
+                                        <div className="text-right text-blue-100">{row.waitingPublish} waiting</div>
+                                        <div className="text-right text-muted-foreground">{row.live} live</div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-3 text-sm text-muted-foreground">No year summary yet.</div>
+                            )}
+                        </div>
                     </div>
-                    <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Expert review</p>
-                        <p className="mt-1 text-2xl font-semibold">{summary.expertReview}</p>
+
+                    <div className="rounded-md border">
+                        <div className="border-b p-3 font-medium">Records by status</div>
+                        <div className="divide-y">
+                            {summary.byStatus.map((row) => (
+                                <div key={row.status} className="grid grid-cols-[1fr_72px_72px] gap-3 p-3 text-sm">
+                                    <div className="font-medium">{row.label}</div>
+                                    <div className="text-right">{row.count} q</div>
+                                    <div className="text-right text-muted-foreground">{row.marks} marks</div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -957,21 +1184,21 @@ function FinalReviewPanel({
                         <div className="divide-y">
                             {summary.byReviewer.length ? (
                                 summary.byReviewer.map((row) => (
-                                    <div key={row.reviewer} className="grid grid-cols-[1fr_70px_96px] gap-3 p-3 text-sm">
+                                    <div key={row.reviewer} className="grid grid-cols-[1fr_96px_120px] gap-3 p-3 text-sm">
                                         <div>
                                             <div className="font-medium">{row.reviewer}</div>
                                             <div className="text-xs text-muted-foreground">
                                                 Latest review {formatReviewDate(row.latestReviewedAt)}
                                             </div>
                                         </div>
-                                        <div className="text-right font-semibold">{row.count}</div>
+                                        <div className="text-right font-semibold">{row.count} q</div>
                                         <div className="text-right text-xs text-muted-foreground">
-                                            {row.trainingReady} train
+                                            {row.approved} approved / {row.needsFix} fix
                                         </div>
                                     </div>
                                 ))
                             ) : (
-                                <div className="p-3 text-sm text-muted-foreground">No approved unpublished records.</div>
+                                <div className="p-3 text-sm text-muted-foreground">No reviewed records yet.</div>
                             )}
                         </div>
                     </div>
@@ -987,7 +1214,9 @@ function FinalReviewPanel({
                                             <div className="text-xs text-muted-foreground">{row.topicCode}</div>
                                         </div>
                                         <div className="text-right">{row.count} q</div>
-                                        <div className="text-right">{row.marks} marks</div>
+                                        <div className="text-right text-xs text-muted-foreground">
+                                            {row.approved} approved / {row.publishReady} waiting
+                                        </div>
                                     </div>
                                 ))
                             ) : (
@@ -996,6 +1225,8 @@ function FinalReviewPanel({
                         </div>
                     </div>
                 </div>
+
+                <Exam2PipelineGate summary={summary} />
 
                 <div className="rounded-md border">
                     <div className="flex flex-col gap-3 border-b p-3 md:flex-row md:items-center md:justify-between">
@@ -1034,9 +1265,9 @@ function FinalReviewPanel({
                                     </div>
                                     <div className="text-right text-xs text-muted-foreground">
                                         <div>{row.reviewerName || "Reviewer unknown"}</div>
-                                        <Badge variant="outline" className="mt-1">
-                                            {TRAINING_READINESS_LABELS[row.trainingReadiness]}
-                                        </Badge>
+                                        <div className="mt-1 flex justify-end">
+                                            <QaVisibilityBadges question={row} compact showContentStatus />
+                                        </div>
                                     </div>
                                 </label>
                             ))
@@ -1049,6 +1280,95 @@ function FinalReviewPanel({
                 </div>
             </CardContent>
         </Card>
+    );
+}
+
+function Exam2PipelineGate({ summary }: { summary: ReturnType<typeof finalReviewSummary> }) {
+    const reviewedCount = summary.byStatus
+        .filter((row) => row.status !== "READY_FOR_QA")
+        .reduce((total, row) => total + row.count, 0);
+    const publishedFlowExists = summary.live > 0;
+    const publishQueueClear = summary.waitingPublish === 0;
+    const noOpenFailures =
+        (summary.byStatus.find((row) => row.status === "NEEDS_FIX")?.count ?? 0) === 0 &&
+        (summary.byStatus.find((row) => row.status === "REJECTED")?.count ?? 0) === 0;
+
+    const steps = [
+        {
+            label: "Exam 1 imported",
+            done: summary.total > 0,
+            detail: `${summary.total} records loaded in the selected source.`,
+        },
+        {
+            label: "Contributor review started",
+            done: reviewedCount > 0,
+            detail: `${reviewedCount} records have a review decision.`,
+        },
+        {
+            label: "Owner publish tested",
+            done: publishedFlowExists,
+            detail: `${summary.live} records are live in student practice.`,
+        },
+        {
+            label: "Publish queue clear",
+            done: publishQueueClear,
+            detail: `${summary.waitingPublish} approved records are still waiting for owner publish.`,
+        },
+        {
+            label: "No unresolved review failures",
+            done: noOpenFailures,
+            detail: "Needs-fix and rejected records should be triaged before using the same flow for Exam 2.",
+        },
+        {
+            label: "Student practice and history checked",
+            done: false,
+            detail: "Manual check: submit a student answer and confirm the submission history detail is correct.",
+            manual: true,
+        },
+    ];
+    const automaticStepsDone = steps.filter((step) => !step.manual).every((step) => step.done);
+
+    return (
+        <div className="rounded-md border">
+            <div className="border-b p-3">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p className="font-medium">Exam 2 dataset pipeline gate</p>
+                        <p className="text-sm text-muted-foreground">
+                            Start Exam 2 only after the Exam 1 import, review, publish, practice, and history loop is stable.
+                        </p>
+                    </div>
+                    <Badge
+                        variant="outline"
+                        className={
+                            automaticStepsDone
+                                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-100"
+                                : "border-amber-500/40 bg-amber-500/15 text-amber-100"
+                        }
+                    >
+                        {automaticStepsDone ? "Almost ready for Exam 2" : "Keep Exam 2 paused"}
+                    </Badge>
+                </div>
+            </div>
+            <div className="grid gap-2 p-3 md:grid-cols-2 xl:grid-cols-3">
+                {steps.map((step) => {
+                    const done = step.done;
+                    return (
+                        <div key={step.label} className="rounded-md border bg-muted/20 p-3 text-sm">
+                            <div className="flex items-center gap-2">
+                                {done ? (
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                ) : (
+                                    <XCircle className="h-4 w-4 text-amber-500" />
+                                )}
+                                <span className="font-medium">{step.label}</span>
+                            </div>
+                            <p className="mt-2 text-xs text-muted-foreground">{step.detail}</p>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
     );
 }
 

@@ -217,6 +217,10 @@ export type SubmitAnswerResponse = {
   errorTags?: string[];
   skillGaps?: string[];
   diagnostics?: Record<string, any>;
+  criterionOutcomes?: Array<Record<string, any>> | null;
+  markingArtifact?: {
+    criterionOutcomes?: Array<Record<string, any>> | null;
+  } | null;
   topicProgress?: {
     subjectCode?: string | null;
     topicCode: string;

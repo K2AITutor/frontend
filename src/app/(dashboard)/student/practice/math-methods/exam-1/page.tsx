@@ -176,7 +176,8 @@ export default function Exam1BriefingPage() {
 
     const tableRows = useMemo(() => topicSummary(questions), [questions]);
     const canStart = !loading && !error && questions.length > 0;
-    const startHref = `/student/practice/math-methods/exam-1/session?examKey=${encodeURIComponent(selectedExam.examKey)}`;
+    const startHref = `/student/practice/math-methods/exam-1/session?examKey=${encodeURIComponent(selectedExam.examKey)}&mode=practice`;
+    const examModeHref = `/student/practice/math-methods/exam-1/session?examKey=${encodeURIComponent(selectedExam.examKey)}&mode=exam`;
 
     return (
         <div className="space-y-6 p-6">
@@ -314,12 +315,19 @@ export default function Exam1BriefingPage() {
                             {canStart ? (
                                 <Button asChild variant="destructive" className="w-full">
                                     <Link href={startHref}>
-                                        Start {selectedExam.year} test
+                                        Start {selectedExam.year} practice
                                     </Link>
                                 </Button>
                             ) : (
                                 <Button type="button" disabled variant="destructive" className="w-full">
-                                    Start {selectedExam.year} test
+                                    Start {selectedExam.year} practice
+                                </Button>
+                            )}
+                            {canStart && (
+                                <Button asChild variant="outline" className="w-full">
+                                    <Link href={examModeHref}>
+                                        Try {selectedExam.year} exam mode
+                                    </Link>
                                 </Button>
                             )}
                         </CardContent>
@@ -339,7 +347,7 @@ export default function Exam1BriefingPage() {
                         {canStart && (
                             <Button asChild variant="destructive" size="sm">
                                 <Link href={startHref}>
-                                    Start {selectedExam.year} test
+                                    Start {selectedExam.year} practice
                                 </Link>
                             </Button>
                         )}
