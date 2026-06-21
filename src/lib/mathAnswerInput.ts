@@ -27,7 +27,7 @@ const KNOWN_WORDS = [...FUNCTION_NAMES, ...NAMED_CONSTANTS, "infinity", "inf"];
 
 export function classifyAnswerInputKind(answerType?: string | null): AnswerInputKind {
   const upperAnswerType = String(answerType ?? "").toUpperCase();
-  if (["WORKING", "PROOF", "GRAPH", "EXPLANATION", "TEXT"].some((type) => upperAnswerType.includes(type))) {
+  if (["WORKING", "PROOF", "GRAPH", "EXPLANATION", "TEXT", "MANUAL"].some((type) => upperAnswerType.includes(type))) {
     return "working";
   }
   if (upperAnswerType.includes("INTERVAL") || upperAnswerType.includes("INEQUALITY")) return "interval";
@@ -51,6 +51,12 @@ function hasBalancedDelimiters(value: string) {
   return stack.length === 0;
 }
 
+function hasBalancedDelimitersForAnswerKind(value: string, answerKind: AnswerInputKind) {
+  if (answerKind !== "interval") return hasBalancedDelimiters(value);
+  const innerValue = /^[\[\(].*[\]\)]$/.test(value) ? value.slice(1, -1) : value;
+  return hasBalancedDelimiters(innerValue);
+}
+
 function normalizeText(value: string) {
   return value
     .trim()
@@ -65,22 +71,76 @@ function normalizeText(value: string) {
 }
 
 function insertSafeImplicitMultiplication(value: string) {
-  return value
-    .replace(/(\d)([a-z])(?=(sqrt|log|ln|sin|cos|tan)\()/gi, "$1*$2*")
-    .replace(/(^|[+\-*/(])([a-z])(?=(sqrt|log|ln|sin|cos|tan)\()/gi, "$1$2*")
-    .replace(/(\d|\))(?=(pi|e|sqrt|log|ln|sin|cos|tan)\()/gi, "$1*")
-    .replace(/(\d|\))(?=[a-z](?![a-z]))/gi, "$1*")
-    .replace(/([a-z])\^([0-9]+)(?=(sqrt|log|ln|sin|cos|tan)\()/gi, "$1^$2*")
-    .replace(/([a-z]|\d|\))(?=\()/gi, "$1*")
-    .replace(/(pi|e)(?=\d|[a-z]|\()/gi, "$1*")
-    .replace(/\)(?=\d|[a-z])/gi, ")*")
-    .replace(/\bs\*i\*n\*/g, "sin")
-    .replace(/\bc\*o\*s\*/g, "cos")
-    .replace(/\bt\*a\*n\*/g, "tan")
-    .replace(/\bl\*o\*g\*/g, "log")
-    .replace(/\bl\*n\*/g, "ln")
-    .replace(/\bs\*q\*r\*t\*/g, "sqrt")
-    .replace(/\b(sqrt|log|ln|sin|cos|tan)\*\(/g, "$1(");
+  const tokens: Array<{
+    text: string;
+    kind: "number" | "variable" | "constant" | "function" | "operator" | "left" | "right" | "comma";
+  }> = [];
+  const functionNames = [...FUNCTION_NAMES].sort((a, b) => b.length - a.length);
+  let index = 0;
+
+  while (index < value.length) {
+    const char = value[index];
+
+    if (/\d|\./.test(char)) {
+      let end = index + 1;
+      while (end < value.length && /[\d.]/.test(value[end])) end += 1;
+      tokens.push({ text: value.slice(index, end), kind: "number" });
+      index = end;
+      continue;
+    }
+
+    const fn = functionNames.find((name) => value.startsWith(name, index) && value[index + name.length] === "(");
+    if (fn) {
+      tokens.push({ text: fn, kind: "function" });
+      index += fn.length;
+      continue;
+    }
+
+    if (value.startsWith("pi", index)) {
+      tokens.push({ text: "pi", kind: "constant" });
+      index += 2;
+      continue;
+    }
+
+    if (value.startsWith("infinity", index)) {
+      tokens.push({ text: "infinity", kind: "constant" });
+      index += "infinity".length;
+      continue;
+    }
+
+    if (value.startsWith("inf", index)) {
+      tokens.push({ text: "inf", kind: "constant" });
+      index += 3;
+      continue;
+    }
+
+    if (char === "e") {
+      tokens.push({ text: char, kind: "constant" });
+      index += 1;
+      continue;
+    }
+
+    if (/[a-z]/i.test(char)) {
+      tokens.push({ text: char, kind: "variable" });
+      index += 1;
+      continue;
+    }
+
+    if (char === "(" || char === "[") tokens.push({ text: char, kind: "left" });
+    else if (char === ")" || char === "]") tokens.push({ text: char, kind: "right" });
+    else if (char === ",") tokens.push({ text: char, kind: "comma" });
+    else tokens.push({ text: char, kind: "operator" });
+    index += 1;
+  }
+
+  return tokens.reduce((result, token, tokenIndex) => {
+    const previous = tokens[tokenIndex - 1];
+    const previousCanEndFactor =
+      previous && ["number", "variable", "constant", "right"].includes(previous.kind);
+    const currentCanStartFactor = ["variable", "constant", "function", "left"].includes(token.kind);
+
+    return `${result}${previousCanEndFactor && currentCanStartFactor ? "*" : ""}${token.text}`;
+  }, "");
 }
 
 function pushWarningOnce(warnings: AnswerInputWarning[], warning: AnswerInputWarning) {
@@ -197,8 +257,24 @@ function hasOnlyNumericSymbols(normalizedAnswer: string) {
   return !/[a-z]/i.test(withoutKnownWords);
 }
 
+function hasNumericWrapperShape(normalizedAnswer: string) {
+  return /^[\[{].*[\]}]$/.test(normalizedAnswer) || /^-?[^,]+,-?[^,]+$/.test(normalizedAnswer);
+}
+
 function looksLikeCoordinate(normalizedAnswer: string) {
-  return /^\([^,]+,[^)]+\)$/.test(normalizedAnswer);
+  if (!/^\(.*\)$/.test(normalizedAnswer)) return false;
+  const inner = normalizedAnswer.slice(1, -1);
+  let depth = 0;
+  let topLevelCommas = 0;
+
+  for (const char of inner) {
+    if (char === "(" || char === "[" || char === "{") depth += 1;
+    else if (char === ")" || char === "]" || char === "}") depth -= 1;
+    else if (char === "," && depth === 0) topLevelCommas += 1;
+    if (depth < 0) return false;
+  }
+
+  return depth === 0 && topLevelCommas === 1;
 }
 
 function looksLikeSetOrList(normalizedAnswer: string) {
@@ -214,12 +290,23 @@ function addAnswerTypeWarnings(
 ) {
   if (!normalizedAnswer) return;
 
+  if (answerKind === "working") return;
+
   if (answerKind === "numeric" && !hasOnlyNumericSymbols(normalizedAnswer)) {
     pushWarningOnce(warnings, {
       code: "NUMERIC_ANSWER_HAS_VARIABLE",
       severity: "blocking",
       message: "This question expects a number, not an expression with variables.",
       suggestion: "Enter a numeric value such as 3/2, sqrt(2), or pi/4.",
+    });
+  }
+
+  if (answerKind === "numeric" && hasNumericWrapperShape(normalizedAnswer)) {
+    pushWarningOnce(warnings, {
+      code: "NUMERIC_ANSWER_EXPECTS_SINGLE_VALUE",
+      severity: "blocking",
+      message: "This question expects one number, not a coordinate, set, or interval.",
+      suggestion: "Enter a single value such as 3/2, sqrt(2), or pi/4.",
     });
   }
 
@@ -256,10 +343,11 @@ export function normalizeAnswerInput(
   answerType?: string | null
 ): NormalizedAnswerInput {
   const raw = String(rawAnswer ?? "");
-  const typedAnswer = normalizeText(raw);
-  const normalizedAnswer = insertSafeImplicitMultiplication(typedAnswer);
   const warnings: AnswerInputWarning[] = [];
   const answerKind = classifyAnswerInputKind(answerType);
+  const typedAnswer = answerKind === "working" ? raw.trim() : normalizeText(raw);
+  const normalizedAnswer =
+    answerKind === "working" ? typedAnswer : insertSafeImplicitMultiplication(typedAnswer);
 
   if (!typedAnswer) {
     warnings.push({
@@ -269,7 +357,7 @@ export function normalizeAnswerInput(
     });
   }
 
-  if (!hasBalancedDelimiters(typedAnswer)) {
+  if (answerKind !== "working" && !hasBalancedDelimitersForAnswerKind(typedAnswer, answerKind)) {
     warnings.push({
       code: "UNBALANCED_BRACKETS",
       severity: "blocking",
@@ -278,7 +366,7 @@ export function normalizeAnswerInput(
     });
   }
 
-  if (/\b[a-z]\d+\b/i.test(typedAnswer)) {
+  if (answerKind !== "working" && /\b[a-z]\d+\b/i.test(typedAnswer)) {
     warnings.push({
       code: "AMBIGUOUS_IMPLICIT_POWER",
       severity: "blocking",
@@ -287,9 +375,20 @@ export function normalizeAnswerInput(
     });
   }
 
-  warnings.push(...findImplicitMultiplicationWarnings(normalizedAnswer));
+  if (answerKind !== "working" && typedAnswer && normalizedAnswer !== typedAnswer) {
+    warnings.push({
+      code: "SAFE_IMPLICIT_MULTIPLICATION_NORMALIZED",
+      severity: "info",
+      message: "Multiplication signs were added before marking.",
+      suggestion: `Your typed answer will be checked as ${normalizedAnswer}. You can also type * yourself, such as 2*x*cos(x).`,
+    });
+  }
 
-  if (/\d+\/\d+(?:[a-z]|\()/i.test(typedAnswer)) {
+  if (answerKind !== "working") {
+    warnings.push(...findImplicitMultiplicationWarnings(normalizedAnswer));
+  }
+
+  if (answerKind !== "working" && /\d+\/\d+(?:[a-z]|\()/i.test(typedAnswer)) {
     warnings.push({
       code: "AMBIGUOUS_FRACTION_MULTIPLICATION",
       severity: "blocking",
@@ -298,16 +397,18 @@ export function normalizeAnswerInput(
     });
   }
 
-  for (const fn of FUNCTION_NAMES) {
-    const missingBrackets = new RegExp(`\\b${fn}[a-z0-9]`, "i");
-    if (missingBrackets.test(typedAnswer) && !new RegExp(`\\b${fn}\\(`, "i").test(typedAnswer)) {
-      warnings.push({
-        code: "FUNCTION_ARGUMENT_NEEDS_BRACKETS",
-        severity: "blocking",
-        message: `${fn} needs brackets around its input.`,
-        suggestion: `Use ${fn}(x), not ${fn}x.`,
-      });
-      break;
+  if (answerKind !== "working") {
+    for (const fn of FUNCTION_NAMES) {
+      const missingBrackets = new RegExp(`\\b${fn}[a-z0-9]`, "i");
+      if (missingBrackets.test(typedAnswer) && !new RegExp(`\\b${fn}\\(`, "i").test(typedAnswer)) {
+        warnings.push({
+          code: "FUNCTION_ARGUMENT_NEEDS_BRACKETS",
+          severity: "blocking",
+          message: `${fn} needs brackets around its input.`,
+          suggestion: `Use ${fn}(x), not ${fn}x.`,
+        });
+        break;
+      }
     }
   }
 

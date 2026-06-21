@@ -90,6 +90,23 @@ function formatArtifactValue(value: unknown): string | null {
   return compactJson(value);
 }
 
+function formatWarning(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const warning = value as Record<string, unknown>;
+    const message = typeof warning.message === "string" ? warning.message : null;
+    const suggestion = typeof warning.suggestion === "string" ? warning.suggestion : null;
+    const code = typeof warning.code === "string" ? warning.code : null;
+    return [message ?? prettifyTag(code ?? "warning"), suggestion].filter(Boolean).join(" ");
+  }
+  return formatArtifactValue(value) ?? "Warning";
+}
+
+function formatInputMode(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  return prettifyTag(value);
+}
+
 function ArtifactRow({ label, value }: { label: string; value: unknown }) {
   const displayValue = formatArtifactValue(value);
   if (!displayValue) return null;
@@ -205,7 +222,13 @@ export default function StudentSubmissionPage({
     diagnostics.warnings,
     diagnostics.answerFeedbackIssues,
   );
-  const artifactCriterionOutcomes = firstArray(artifact.criterionOutcomes, diagnostics.criterionOutcomes);
+  const artifactCriterionOutcomes = firstArray(
+    artifact.criteria,
+    artifact.criterionOutcomes,
+    diagnostics.criterionOutcomes,
+    rawArtifact.criteria,
+    rawArtifact.criterionOutcomes,
+  );
   const criterionRows = perCriterion.length > 0 ? perCriterion : artifactCriterionOutcomes.map((outcome, index) => ({
     criterionId: String(outcome?.criterionId ?? outcome?.id ?? outcome?.key ?? outcome?.criterionCode ?? `criterion-${index + 1}`),
     score: Number(outcome?.score ?? outcome?.awarded ?? outcome?.marksAwarded ?? 0),
@@ -433,6 +456,7 @@ export default function StudentSubmissionPage({
                 <ArtifactRow label="Expected answer" value={expectedAnswer} />
                 <ArtifactRow label="Normalized expected" value={artifact.normalizedExpectedAnswer ?? diagnostics.normalizedCorrect} />
                 <ArtifactRow label="Answer type" value={artifact.answerType ?? question.type} />
+                <ArtifactRow label="Input mode" value={formatInputMode(artifact.inputMode ?? inputArtifact.inputMode ?? rawArtifact.inputMode)} />
               </dl>
             </div>
 
@@ -454,10 +478,10 @@ export default function StudentSubmissionPage({
                 <div className="flex flex-wrap gap-2">
                   {artifactWarnings.map((warning, index) => (
                     <span
-                      key={`${formatArtifactValue(warning) ?? "warning"}-${index}`}
+                      key={`${formatWarning(warning)}-${index}`}
                       className="inline-flex rounded-full border border-amber-500/30 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/20 dark:text-amber-200"
                     >
-                      {formatArtifactValue(warning)}
+                      {formatWarning(warning)}
                     </span>
                   ))}
                 </div>

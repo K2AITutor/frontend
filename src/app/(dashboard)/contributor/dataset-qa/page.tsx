@@ -104,7 +104,7 @@ function markerVisibilityLabel(question: DatasetQaQuestion, checklist = question
     if (isManualReviewQuestion(question, reviewStatus)) {
         return {
             label: "Manual review",
-            detail: "Student answers need human review before scoring.",
+            detail: "Do not publish for auto-scored practice until a person reviews the answer path.",
             className: "border-purple-500/40 bg-purple-500/15 text-purple-100",
         };
     }
@@ -112,13 +112,13 @@ function markerVisibilityLabel(question: DatasetQaQuestion, checklist = question
     if (isAutoCheckSafe(question, checklist, reviewStatus)) {
         return {
             label: "Auto-check safe",
-            detail: "Expected answer passes the marker test and can be auto-scored.",
+            detail: "The expected answer passes the marker test and can be auto-scored.",
             className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-100",
         };
     }
 
     return {
-        label: "Auto-check pending",
+        label: "Needs marker test",
         detail: "Run the marker test with the expected answer before approval.",
         className: "border-amber-500/40 bg-amber-500/15 text-amber-100",
     };
