@@ -39,7 +39,7 @@ export default function AnswerFeedback({
         <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           <Clock className="h-4 w-4 shrink-0" />
           <span>
-            <strong>Đang chờ giáo viên xem xét.</strong> Điểm có thể thay đổi sau khi giáo viên kiểm tra.
+            <strong>Awaiting teacher review.</strong> Your score may change after the teacher reviews it.
           </span>
         </div>
       )}

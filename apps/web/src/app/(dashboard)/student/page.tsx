@@ -3,14 +3,13 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { Button } from "@/components/dashboard/ui/button";
+import { Badge } from "@/components/dashboard/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
 import { Progress } from "@/components/dashboard/ui/progress";
-import { ScrollArea } from "@/components/dashboard/ui/scroll-area";
 import { Separator } from "@/components/dashboard/ui/separator";
 import { Skeleton } from "@/components/dashboard/ui/skeleton";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { CourseCard } from "@/components/dashboard/CourseCard";
-import { AssignmentItem } from "@/components/dashboard/AssignmentItem";
 import { ActivityItem } from "@/components/dashboard/ActivityItem";
 import { useStudentDashboardData } from "@/lib/api/dashboard";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -22,66 +21,25 @@ import {
   Flame,
   GraduationCap,
   ArrowRight,
-  CalendarDays,
+  Lightbulb,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 
-type AssignmentStatus = "pending" | "in_progress" | "completed";
-type Priority = "high" | "medium" | "low";
-type ActivityType = "quiz_completed" | "lesson_completed" | "achievement" | "practice";
-
-interface StudentProfile {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string;
-  grade: string;
-  enrollmentDate: string;
-  overallProgress: number;
-  streak: number;
+// Builds up to two uppercase initials from a display name for the avatar fallback.
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-interface Course {
-  id: string;
-  name: string;
-  progress: number;
-  grade: string;
-  nextLesson: string;
-  icon: string;
-}
-
-interface Assignment {
-  id: string;
-  title: string;
-  course: string;
-  dueDate: string;
-  status: AssignmentStatus;
-  priority: Priority;
-}
-
-interface Activity {
-  id: string;
-  type: ActivityType;
-  title: string;
-  description: string;
-  timestamp: string;
-}
-
-interface Stats {
-  totalHoursLearned: number;
-  questionsAnswered: number;
-  averageScore: number;
-  coursesEnrolled: number;
-  assignmentsCompleted: number;
-  assignmentsPending: number;
-}
-
-interface DashboardData {
-  profile: StudentProfile;
-  courses: Course[];
-  assignments: Assignment[];
-  recentActivities: Activity[];
-  stats: Stats;
+// Solid-fill badge variant for a weak-area status (white text, no faint tint).
+function weakAreaStatusVariant(status: string): "destructive" | "default" | "secondary" {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("weak")) return "destructive";
+  if (normalized.includes("early")) return "default";
+  return "secondary";
 }
 
 export default function StudentDashboardPage() {
@@ -100,16 +58,21 @@ export default function StudentDashboardPage() {
     );
   }
 
-  const { profile, courses, assignments, recentActivities, stats } = data as DashboardData;
-  const pendingAssignments = assignments.filter((a) => a.status !== "completed");
+  const { profile, courses, recentActivities, recommendedNext, weakAreas, stats } = data;
 
   return (
     <div className="space-y-6 p-6">
       {/* Welcome Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={profile.avatar || undefined} alt={profile.name} />
+            <AvatarFallback className="text-lg font-semibold">
+              {getInitials(profile.name)}
+            </AvatarFallback>
+          </Avatar>
           <div>
-            <h1 className="text-2xl font-bold">Welcome back, {profile.name.split(" ")[0]}!</h1>
+            <h1 className="text-2xl font-bold">Welcome back, {profile.name}!</h1>
             <p className="text-muted-foreground">{profile.grade} • {profile.email}</p>
           </div>
         </div>
@@ -151,9 +114,93 @@ export default function StudentDashboardPage() {
         <StatsCard
           title="Courses Enrolled"
           value={stats.coursesEnrolled}
-          subtitle={`${stats.assignmentsPending} pending tasks`}
+          subtitle="Active subjects"
           icon={BookOpen}
         />
+      </div>
+
+      {/* Practice next + Areas to improve */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Practice next */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Lightbulb className="h-5 w-5" />
+              Practice next
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recommendedNext.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No recommendations right now. Keep practicing to unlock tailored
+                suggestions.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {recommendedNext.map((item) => (
+                  <Link
+                    key={item.questionId}
+                    href={item.href}
+                    className="flex items-center justify-between gap-3 rounded-md border border-border p-3 transition-colors hover:bg-muted/50"
+                  >
+                    <span className="min-w-0 flex-1 text-sm font-medium text-foreground truncate">
+                      {item.title}
+                    </span>
+                    {item.difficulty && (
+                      <Badge variant="secondary" className="capitalize shrink-0">
+                        {item.difficulty.toLowerCase()}
+                      </Badge>
+                    )}
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Areas to improve */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Areas to improve
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {weakAreas.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No weak areas detected yet. Great work staying on top of your
+                subjects!
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {weakAreas.map((area) => (
+                  <Link
+                    key={area.topicCode}
+                    href={area.href}
+                    className="flex items-center justify-between gap-3 rounded-md border border-border p-3 transition-colors hover:bg-muted/50"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {area.topicName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {area.masteryPercent}% mastery
+                      </p>
+                    </div>
+                    <Badge
+                      variant={weakAreaStatusVariant(area.status)}
+                      className="shrink-0"
+                    >
+                      {area.status}
+                    </Badge>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Overall Progress */}
@@ -206,7 +253,11 @@ export default function StudentDashboardPage() {
             <CardTitle className="text-lg">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[320px] pr-4">
+            {recentActivities.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No recent activity yet. Start practicing to see your progress here.
+              </p>
+            ) : (
               <div className="space-y-1">
                 {recentActivities.map((activity, index) => (
                   <div key={activity.id}>
@@ -215,6 +266,9 @@ export default function StudentDashboardPage() {
                       title={activity.title}
                       description={activity.description}
                       timestamp={activity.timestamp}
+                      href={activity.href}
+                      subjectName={activity.subjectName}
+                      score={activity.score}
                     />
                     {index < recentActivities.length - 1 && (
                       <Separator className="my-1" />
@@ -222,43 +276,10 @@ export default function StudentDashboardPage() {
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Assignments Section */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CalendarDays className="h-5 w-5" />
-              Upcoming Assignments
-            </CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {pendingAssignments.length > 0 ? (
-              pendingAssignments.map((assignment) => (
-                <AssignmentItem
-                  key={assignment.id}
-                  id={assignment.id}
-                  title={assignment.title}
-                  course={assignment.course}
-                  dueDate={assignment.dueDate}
-                  status={assignment.status}
-                  priority={assignment.priority}
-                />
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground py-8">
-                No pending assignments. Great job!
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -277,6 +298,10 @@ function StudentDashboardSkeleton() {
         {[...Array(4)].map((_, i) => (
           <Skeleton key={i} className="h-32" />
         ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Skeleton className="h-48" />
+        <Skeleton className="h-48" />
       </div>
       <Skeleton className="h-24" />
       <div className="grid gap-6 lg:grid-cols-3">

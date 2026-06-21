@@ -1,83 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2, AlertCircle, Users, Clock, Bell, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Loader2, AlertCircle, Users, Clock, Bell } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
+import { Card, CardContent } from "@/components/dashboard/ui/card";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Button } from "@/components/dashboard/ui/button";
-import { Progress } from "@/components/dashboard/ui/progress";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/dashboard/ui/avatar";
+import { ChildCard } from "@/components/dashboard/ChildCard";
 import { useParentChildren, useParentAlerts } from "@/lib/api/parent";
 import { usePageTitle } from "@/lib/usePageTitle";
-import type { ParentChild } from "@/lib/types/parent";
-
-function TrendIcon({ trend }: { trend: "up" | "down" | "stable" }) {
-  if (trend === "up") return <TrendingUp className="h-4 w-4 text-green-500" />;
-  if (trend === "down") return <TrendingDown className="h-4 w-4 text-red-500" />;
-  return <Minus className="h-4 w-4 text-muted-foreground" />;
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
-}
-
-function ChildCard({ child }: { child: ParentChild }) {
-  const lastActive = new Date(child.lastActiveAt).toLocaleDateString("en-AU", {
-    month: "short",
-    day: "numeric",
-  });
-
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Avatar className="h-9 w-9 shrink-0">
-              {child.avatarUrl && <AvatarImage src={child.avatarUrl} alt={child.name} />}
-              <AvatarFallback className="text-xs font-medium">{initials(child.name)}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <CardTitle className="text-base truncate">{child.name}</CardTitle>
-              <p className="text-sm text-muted-foreground">{child.grade}</p>
-            </div>
-          </div>
-          {child.alertCount > 0 && (
-            <Badge variant="destructive" className="text-xs shrink-0">
-              {child.alertCount} alert{child.alertCount > 1 ? "s" : ""}
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {child.currentSubjects.map((sub) => (
-          <div key={sub.code} className="space-y-1">
-            <div className="flex justify-between items-center text-sm gap-2">
-              <span className="text-muted-foreground truncate">{sub.name}</span>
-              <div className="flex items-center gap-1 shrink-0">
-                {sub.trend && <TrendIcon trend={sub.trend} />}
-                <span className="font-medium">{sub.mastery}%</span>
-              </div>
-            </div>
-            <Progress value={sub.mastery} className="h-1.5" />
-          </div>
-        ))}
-        <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground">
-          <span>Last active {lastActive}</span>
-          <span>{child.weeklyMinutes} min this week</span>
-        </div>
-        <Button asChild size="sm" variant="outline" className="w-full mt-1">
-          <Link href={`/parent/children/${child.id}`}>View Details</Link>
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function ParentDashboardPage() {
   usePageTitle("Parent Dashboard");

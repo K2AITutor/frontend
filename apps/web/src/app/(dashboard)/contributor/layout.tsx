@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { authOptions } from "@/lib/authOptions";
+import { homeForRole, normalizeRole } from "@/lib/roleRouting";
 
 export default async function ContributorLayout({
     children,
@@ -14,10 +15,10 @@ export default async function ContributorLayout({
         redirect("/auth/login");
     }
 
-    const role = (session.user as any)?.role;
+    const role = normalizeRole((session.user as any)?.role);
 
-    if (!["contributor", "teacher", "admin"].includes(String(role))) {
-        redirect("/student");
+    if (!["contributor", "teacher", "admin"].includes(role)) {
+        redirect(homeForRole(role, "/auth/login"));
     }
 
     return <DashboardLayout role="contributor">{children}</DashboardLayout>;

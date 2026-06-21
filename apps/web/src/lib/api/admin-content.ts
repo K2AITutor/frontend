@@ -3,6 +3,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/lib/apiClient";
 import { useAdminToken } from "@/lib/api/useAdminToken";
+import { fetchSubjects } from "@/lib/api/subjects";
+
+export interface ComboboxOption {
+  label: string;
+  value: string;
+}
+
+// Fetch many records so the combobox can filter client-side (revisit if >500/subject).
+const OPTION_PAGE_SIZE = 500;
 
 export type AdminContentKind = "topics" | "skills" | "questions" | "rubrics" | "tasks";
 
@@ -39,25 +48,23 @@ export interface AdminSkill {
 
 export interface AdminQuestion {
   id: number;
-  subject: string;
-  subjectCode: string | null;
+  subjectCode: string;
   topicCode: string;
   skillCode: string;
-  examStyle: string | null;
   examStyleType: string | null;
   status: string;
   title: string | null;
-  prompt: string;
-  questionText: string | null;
-  difficulty: string | null;
+  questionText: string;
   difficultyLevel: string | null;
   marks: number;
   isMarkable: boolean;
-  sourceRef: string | null;
+  sourceQuestionRef: string | null;
   createdAt: string;
   updatedAt: string;
   topic?: { name: string } | null;
   rubric?: { id: number; status: string; maxMarks: number } | null;
+  /** Contributor QA status (markingMeta.datasetQa.status); null if not reviewed yet. */
+  reviewStatus?: string | null;
 }
 
 export interface AdminRubric {
@@ -69,12 +76,10 @@ export interface AdminRubric {
   approvedAt: string | null;
   updatedAt: string;
   question?: {
-    subject: string;
-    subjectCode: string | null;
+    subjectCode: string;
     topicCode: string;
     skillCode: string;
-    prompt: string;
-    questionText: string | null;
+    questionText: string;
     title: string | null;
   } | null;
   _count?: { criteria: number };
@@ -147,4 +152,69 @@ export function useAdminContentList<T extends AdminContentItem>(
       ),
     enabled: !!token,
   });
+}
+
+// ==================== Option hooks for dropdown-from-list filters/forms ====================
+
+export function useSubjectOptions() {
+  const query = useQuery({
+    queryKey: ["admin", "options", "subjects"],
+    queryFn: () => fetchSubjects(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const options: ComboboxOption[] = (query.data ?? [])
+    .filter((subject) => !!subject.code)
+    .map((subject) => ({ label: subject.name, value: subject.code as string }));
+
+  return { ...query, options };
+}
+
+export function useTopicOptions(subjectCode?: string) {
+  const token = useAdminToken();
+  const params = new URLSearchParams({ pageSize: String(OPTION_PAGE_SIZE) });
+  if (subjectCode) params.set("subjectCode", subjectCode);
+
+  const query = useQuery({
+    queryKey: ["admin", "options", "topics", subjectCode, token],
+    queryFn: () =>
+      apiGet<AdminContentListResponse<AdminTopic>>(
+        `/admin/content/topics?${params.toString()}`,
+        token
+      ),
+    enabled: !!token,
+    staleTime: 60 * 1000,
+  });
+
+  const options: ComboboxOption[] = (query.data?.items ?? []).map((topic) => ({
+    label: `${topic.topicCode} — ${topic.name}`,
+    value: topic.topicCode,
+  }));
+
+  return { ...query, options };
+}
+
+export function useSkillOptions(subjectCode?: string, topicCode?: string) {
+  const token = useAdminToken();
+  const params = new URLSearchParams({ pageSize: String(OPTION_PAGE_SIZE) });
+  if (subjectCode) params.set("subjectCode", subjectCode);
+  if (topicCode) params.set("topicCode", topicCode);
+
+  const query = useQuery({
+    queryKey: ["admin", "options", "skills", subjectCode, topicCode, token],
+    queryFn: () =>
+      apiGet<AdminContentListResponse<AdminSkill>>(
+        `/admin/content/skills?${params.toString()}`,
+        token
+      ),
+    enabled: !!token,
+    staleTime: 60 * 1000,
+  });
+
+  const options: ComboboxOption[] = (query.data?.items ?? []).map((skill) => ({
+    label: `${skill.skillCode} — ${skill.name}`,
+    value: skill.skillCode,
+  }));
+
+  return { ...query, options };
 }

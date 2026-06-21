@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ProgressProvider } from "@bprogress/next/app";
 import { FetcherProvider } from "@aitutor/shared";
 import { webFetcher } from "@/lib/apiClient";
+import { SessionGuard } from "@/components/auth/SessionGuard";
 
 export default function Providers({
   children,
@@ -27,7 +28,8 @@ export default function Providers({
   return (
     <FetcherProvider fetcher={webFetcher}>
       <QueryClientProvider client={queryClient}>
-        <SessionProvider>
+        <SessionProvider refetchInterval={0} refetchOnWindowFocus>
+          <SessionGuard />
           <ProgressProvider
             height="3px"
             color="#14b8a6"

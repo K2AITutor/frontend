@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2, AlertCircle, Filter, ExternalLink } from "lucide-react";
+import { AlertCircle, Filter, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Button } from "@/components/dashboard/ui/button";
@@ -15,23 +15,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/dashboard/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
+import { DataTable, SortHeader } from "@/components/dashboard/DataTable";
+import { createColumnHelper } from "@tanstack/react-table";
 import { useReviewQueue, type ReviewQueueFilters } from "@/lib/api/teacher";
 import { usePageTitle } from "@/lib/usePageTitle";
 import type { ReviewQueueItem } from "@aitutor/shared";
 
 const REASON_OPTIONS = [
   { value: "all", label: "All reasons" },
-  { value: "ensemble_divergence", label: "Ensemble divergence" },
   { value: "low_overall_confidence", label: "Low confidence" },
-  { value: "escalated", label: "Escalated" },
+  { value: "audit_sample", label: "Audit sample" },
 ];
 
 const confidenceBadge = (level: ReviewQueueItem["confidenceLevel"]) => {
@@ -42,6 +35,8 @@ const confidenceBadge = (level: ReviewQueueItem["confidenceLevel"]) => {
 
 const reasonLabel = (reason: string) =>
   REASON_OPTIONS.find((o) => o.value === reason)?.label ?? reason;
+
+const columnHelper = createColumnHelper<ReviewQueueItem>();
 
 export default function TeacherReviewQueuePage() {
   usePageTitle("Review Queue");
@@ -62,7 +57,74 @@ export default function TeacherReviewQueuePage() {
 
   const { data, isLoading, error, refetch } = useReviewQueue(filters);
 
-  const totalPages = data ? Math.ceil(data.total / data.pageSize) : 1;
+  const hasFilters = !!(subject || minConf || maxConf || reason !== "all");
+
+  const columns = [
+    columnHelper.accessor("studentName", {
+      header: SortHeader("Student"),
+      cell: (info) => <span className="font-medium">{info.getValue()}</span>,
+    }),
+    columnHelper.accessor("subject", {
+      header: SortHeader("Subject"),
+    }),
+    columnHelper.accessor("questionType", {
+      header: SortHeader("Type"),
+      cell: (info) => <span className="capitalize">{info.getValue().replace("_", " ")}</span>,
+    }),
+    columnHelper.accessor((row) => row.aiScore, {
+      id: "aiScore",
+      header: SortHeader("AI Score"),
+      cell: (info) => {
+        const item = info.row.original;
+        return `${item.aiScore}/${item.maxScore}`;
+      },
+    }),
+    columnHelper.accessor("aiConfidence", {
+      header: SortHeader("Confidence"),
+      cell: (info) => {
+        const item = info.row.original;
+        const badge = confidenceBadge(item.confidenceLevel);
+        return (
+          <Badge variant={badge.variant} className="text-xs">
+            {badge.label} ({(item.aiConfidence * 100).toFixed(0)}%)
+          </Badge>
+        );
+      },
+    }),
+    columnHelper.accessor("reason", {
+      header: SortHeader("Reason"),
+      cell: (info) => (
+        <span className="text-sm text-muted-foreground">{reasonLabel(info.getValue())}</span>
+      ),
+    }),
+    columnHelper.accessor("submittedAt", {
+      header: SortHeader("Submitted"),
+      cell: (info) => (
+        <span className="text-sm text-muted-foreground">
+          {new Date(info.getValue()).toLocaleDateString("en-AU", {
+            day: "numeric",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </span>
+      ),
+    }),
+    columnHelper.display({
+      id: "action",
+      header: () => <span className="sr-only">Action</span>,
+      enableSorting: false,
+      cell: (info) => (
+        <div className="flex justify-end">
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/teacher/review/${info.row.original.id}`} className="flex items-center gap-1">
+              Open <ExternalLink className="h-3 w-3" />
+            </Link>
+          </Button>
+        </div>
+      ),
+    }),
+  ];
 
   const handleClearFilters = () => {
     setSubject("");
@@ -151,7 +213,7 @@ export default function TeacherReviewQueuePage() {
               </Select>
             </div>
           </div>
-          {(subject || minConf || maxConf || reason !== "all") && (
+          {hasFilters && (
             <Button variant="ghost" size="sm" className="mt-3" onClick={handleClearFilters}>
               Clear filters
             </Button>
@@ -161,102 +223,26 @@ export default function TeacherReviewQueuePage() {
 
       {/* Table */}
       <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-48">
-              <Loader2 className="h-7 w-7 animate-spin text-primary" />
-            </div>
-          ) : !data || data.items.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground">
-              {(subject || minConf || maxConf || reason !== "all")
+        <CardContent className="pt-6">
+          <DataTable
+            columns={columns}
+            data={data?.items ?? []}
+            isLoading={isLoading}
+            hidePageSize
+            emptyMessage={
+              hasFilters
                 ? "No submissions match the current filters."
-                : "No submissions are waiting for review."}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>AI Score</TableHead>
-                  <TableHead>Confidence</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.items.map((item) => {
-                  const badge = confidenceBadge(item.confidenceLevel);
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.studentName}</TableCell>
-                      <TableCell>{item.subject}</TableCell>
-                      <TableCell className="capitalize">
-                        {item.questionType.replace("_", " ")}
-                      </TableCell>
-                      <TableCell>
-                        {item.aiScore}/{item.maxScore}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={badge.variant} className="text-xs">
-                          {badge.label} ({(item.aiConfidence * 100).toFixed(0)}%)
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {reasonLabel(item.reason)}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(item.submittedAt).toLocaleDateString("en-AU", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button asChild size="sm" variant="outline">
-                          <Link href={`/teacher/review/${item.id}`} className="flex items-center gap-1">
-                            Open <ExternalLink className="h-3 w-3" />
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
+                : "No submissions are waiting for review."
+            }
+            server={{
+              total: data?.total ?? 0,
+              pageIndex: page - 1,
+              pageSize: data?.pageSize ?? 10,
+              onPaginationChange: ({ pageIndex }) => setPage(pageIndex + 1),
+            }}
+          />
         </CardContent>
       </Card>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Page {page} of {totalPages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

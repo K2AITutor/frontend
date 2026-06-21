@@ -14,18 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/dashboard/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
+import { DataTable, SortHeader } from "@/components/dashboard/DataTable";
+import { createColumnHelper } from "@tanstack/react-table";
 import { toast } from "@/components/dashboard/ui/sonner";
 import { Loader2, AlertCircle, Plus, ExternalLink, Database } from "lucide-react";
 import { useDatasets, useBuildDataset } from "@/lib/api/admin-datasets";
-import type { DatasetStatus } from "@/lib/types/dataset";
+import type { DatasetStatus, DatasetVersion } from "@/lib/types/dataset";
 
 const STATUS_VARIANT: Record<
   DatasetStatus,
@@ -35,6 +29,8 @@ const STATUS_VARIANT: Record<
   building: "secondary",
   archived: "outline",
 };
+
+const columnHelper = createColumnHelper<DatasetVersion>();
 
 export default function AdminDatasetsPage() {
   const { data, isLoading, error, refetch } = useDatasets();
@@ -63,6 +59,76 @@ export default function AdminDatasetsPage() {
     });
   }
 
+  const columns = [
+      columnHelper.accessor("name", {
+        header: SortHeader("Name"),
+        cell: (info) => <span className="font-medium">{info.getValue()}</span>,
+      }),
+      columnHelper.accessor("version", {
+        header: SortHeader("Version"),
+        enableGlobalFilter: false,
+        cell: (info) => <span className="font-mono text-xs">v{info.getValue()}</span>,
+      }),
+      columnHelper.accessor("status", {
+        header: SortHeader("Status"),
+        enableGlobalFilter: false,
+        cell: (info) => {
+          const status = info.getValue();
+          return (
+            <Badge variant={STATUS_VARIANT[status]} className="capitalize">
+              {status === "building" && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+              {status}
+            </Badge>
+          );
+        },
+      }),
+      columnHelper.accessor("rowCount", {
+        header: SortHeader("Rows"),
+        enableGlobalFilter: false,
+        cell: (info) => info.getValue().toLocaleString(),
+      }),
+      columnHelper.accessor("builtBy", {
+        header: SortHeader("Built By"),
+      }),
+      columnHelper.accessor("createdAt", {
+        header: SortHeader("Created"),
+        enableGlobalFilter: false,
+        cell: (info) => (
+          <span className="text-xs text-muted-foreground">
+            {new Date(info.getValue()).toLocaleDateString()}
+          </span>
+        ),
+      }),
+      columnHelper.display({
+        id: "action",
+        header: () => <span className="sr-only">Action</span>,
+        enableSorting: false,
+        cell: (info) => {
+          const ds = info.row.original;
+          return (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={ds.status !== "ready"}
+              asChild={ds.status === "ready"}
+            >
+              {ds.status === "ready" ? (
+                <Link href={`/admin/datasets/${ds.id}`}>
+                  <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                  Browse
+                </Link>
+              ) : (
+                <span>
+                  <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                  Browse
+                </span>
+              )}
+            </Button>
+          );
+        },
+      }),
+  ];
+
   if (isLoading)
     return (
       <div className="flex items-center justify-center h-64">
@@ -81,17 +147,11 @@ export default function AdminDatasetsPage() {
 
   return (
     <div className="space-y-6 p-6 pb-20">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Datasets</h1>
-          <p className="text-muted-foreground">
-            Training datasets built from teacher annotations.
-          </p>
-        </div>
-        <Button onClick={() => setBuildDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Build New Dataset
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Datasets</h1>
+        <p className="text-muted-foreground">
+          Training datasets built from teacher annotations.
+        </p>
       </div>
 
       <Card>
@@ -102,74 +162,30 @@ export default function AdminDatasetsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Version</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Rows</TableHead>
-                <TableHead>Built By</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(data ?? []).length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    No datasets yet.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data?.map((ds) => (
-                  <TableRow key={ds.id}>
-                    <TableCell className="font-medium">{ds.name}</TableCell>
-                    <TableCell className="font-mono text-xs">v{ds.version}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={STATUS_VARIANT[ds.status]}
-                        className="capitalize"
-                      >
-                        {ds.status === "building" && (
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        )}
-                        {ds.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{ds.rowCount.toLocaleString()}</TableCell>
-                    <TableCell>{ds.builtBy}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(ds.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={ds.status !== "ready"}
-                        asChild={ds.status === "ready"}
-                      >
-                        {ds.status === "ready" ? (
-                          <Link href={`/admin/datasets/${ds.id}`}>
-                            <ExternalLink className="mr-1 h-3.5 w-3.5" />
-                            Browse
-                          </Link>
-                        ) : (
-                          <span>
-                            <ExternalLink className="mr-1 h-3.5 w-3.5" />
-                            Browse
-                          </span>
-                        )}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={columns}
+            data={data ?? []}
+            searchPlaceholder="Search datasets..."
+            filters={[
+              {
+                id: "status",
+                label: "Status",
+                options: [
+                  { label: "All Statuses", value: "all" },
+                  { label: "Ready", value: "ready" },
+                  { label: "Building", value: "building" },
+                  { label: "Archived", value: "archived" },
+                ],
+              },
+            ]}
+            emptyMessage="No datasets yet."
+            toolbarActions={
+              <Button onClick={() => setBuildDialog(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Build New Dataset
+              </Button>
+            }
+          />
         </CardContent>
       </Card>
 

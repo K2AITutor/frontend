@@ -4,13 +4,7 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Button } from "@/components/dashboard/ui/button";
 import { Separator } from "@/components/dashboard/ui/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/dashboard/ui/sheet";
+import { DetailDrawer } from "@/components/dashboard/ui/detail-drawer";
 import { ConfidenceMeter } from "@/components/marking/ConfidenceMeter";
 import { HybridMarkingBadge } from "@/components/marking/HybridMarkingBadge";
 import { useSubmissionFull } from "@/lib/api/teacher";
@@ -23,28 +17,27 @@ interface Props {
 
 export function AnnotationDrawer({ annotation, onClose }: Props) {
   return (
-    <Sheet open={annotation !== null} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="right" className="sm:max-w-xl w-full flex flex-col p-0">
-        {annotation && <DrawerBody annotation={annotation} />}
-      </SheetContent>
-    </Sheet>
+    <DetailDrawer
+      open={annotation !== null}
+      onClose={onClose}
+      title="Annotation Audit"
+      description={
+        annotation
+          ? `${annotation.teacherName} · ${new Date(annotation.createdAt).toLocaleDateString()}`
+          : undefined
+      }
+    >
+      {annotation && <DrawerBody annotation={annotation} />}
+    </DetailDrawer>
   );
 }
 
 function DrawerBody({ annotation }: { annotation: Annotation }) {
-  const { data, isLoading, error, refetch } = useSubmissionFull(annotation.submissionId);
+  const { data, isLoading, error, refetch } = useSubmissionFull(annotation.attemptId);
 
   return (
     <>
-      <SheetHeader className="px-6 pt-6 pb-4 pr-12 border-b shrink-0">
-        <SheetTitle>Annotation Audit</SheetTitle>
-        <SheetDescription>
-          {annotation.teacherName} · {new Date(annotation.createdAt).toLocaleDateString()}
-        </SheetDescription>
-      </SheetHeader>
-
-      <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
-        {/* Teacher verdict */}
+      {/* Teacher verdict */}
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
             Teacher Verdict
@@ -89,7 +82,7 @@ function DrawerBody({ annotation }: { annotation: Annotation }) {
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                 Question
               </p>
-              <p className="text-sm whitespace-pre-wrap">{data.question.prompt}</p>
+              <p className="text-sm whitespace-pre-wrap">{data.question.questionText}</p>
               {data.question.expectedAnswer && (
                 <div className="mt-2 rounded bg-muted px-3 py-2 text-sm text-muted-foreground whitespace-pre-wrap">
                   <span className="font-medium">Expected: </span>
@@ -156,7 +149,6 @@ function DrawerBody({ annotation }: { annotation: Annotation }) {
             </div>
           </>
         )}
-      </div>
     </>
   );
 }

@@ -12,6 +12,7 @@ import {
   LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 type ActivityType =
   | "quiz_completed"
@@ -25,12 +26,22 @@ type ActivityType =
   | "info"
   | "success";
 
+interface ActivityScore {
+  awarded: number;
+  max: number;
+  percent: number | null;
+}
+
 interface ActivityItemProps {
   type: ActivityType | string;
   title: string;
   description?: string;
   timestamp: string;
   className?: string;
+  // Submission detail link — when provided the whole item becomes a link.
+  href?: string;
+  subjectName?: string;
+  score?: ActivityScore;
 }
 
 const activityConfig: Record<
@@ -102,18 +113,26 @@ function formatRelativeTime(timestamp: string): string {
   return date.toLocaleDateString();
 }
 
+function formatScore(score: ActivityScore): string {
+  const base = `${score.awarded}/${score.max}`;
+  return score.percent !== null ? `${base} (${score.percent}%)` : base;
+}
+
 export function ActivityItem({
   type,
   title,
   description,
   timestamp,
   className,
+  href,
+  subjectName,
+  score,
 }: ActivityItemProps) {
   const config = activityConfig[type] || activityConfig.info;
   const Icon = config.icon;
 
-  return (
-    <div className={cn("flex items-start gap-3 py-3", className)}>
+  const content = (
+    <>
       <div
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
@@ -127,10 +146,37 @@ export function ActivityItem({
         {description && (
           <p className="text-xs text-muted-foreground truncate">{description}</p>
         )}
+        {(subjectName || score) && (
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+            {subjectName && <span className="truncate">{subjectName}</span>}
+            {subjectName && score && <span aria-hidden>•</span>}
+            {score && (
+              <span className="font-medium text-foreground">{formatScore(score)}</span>
+            )}
+          </div>
+        )}
       </div>
       <span className="text-xs text-muted-foreground whitespace-nowrap">
         {formatRelativeTime(timestamp)}
       </span>
-    </div>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={cn(
+          "flex items-start gap-3 rounded-md py-3 transition-colors hover:bg-muted/50",
+          className
+        )}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={cn("flex items-start gap-3 py-3", className)}>{content}</div>
   );
 }

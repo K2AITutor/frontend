@@ -5,14 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard
 import { Button } from "@/components/dashboard/ui/button";
 import { Input } from "@/components/dashboard/ui/input";
 import { Textarea } from "@/components/dashboard/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
+import { DataTable, SortHeader } from "@/components/dashboard/DataTable";
+import { createColumnHelper } from "@tanstack/react-table";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +38,8 @@ import Image from "next/image";
 import { useAdminToken } from "@/lib/api/useAdminToken";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { toast } from "@/components/dashboard/ui/sonner";
+
+const columnHelper = createColumnHelper<Testimonial>();
 
 export default function AdminTestimonialsPage() {
   usePageTitle("Testimonials Management");
@@ -190,6 +186,109 @@ export default function AdminTestimonialsPage() {
     }
   }
 
+  const columns = [
+      columnHelper.accessor("name", {
+        header: SortHeader("Student"),
+        cell: (info) => {
+          const testimonial = info.row.original;
+          return (
+            <div className={`flex items-center gap-3 ${!testimonial.isActive ? "opacity-50" : ""}`}>
+              {testimonial.image ? (
+                <div className="relative h-10 w-10 overflow-hidden rounded-full">
+                  <Image src={testimonial.image} alt={testimonial.name} fill className="object-cover" />
+                </div>
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  <span className="text-sm font-medium">{testimonial.name.charAt(0)}</span>
+                </div>
+              )}
+              <div>
+                <div className="font-medium">{testimonial.name}</div>
+                {testimonial.atarImprovement && (
+                  <div className="text-xs text-green-600">{testimonial.atarImprovement}</div>
+                )}
+              </div>
+            </div>
+          );
+        },
+      }),
+      columnHelper.accessor("role", {
+        header: "Role / Subject",
+        enableGlobalFilter: false,
+        cell: (info) => {
+          const testimonial = info.row.original;
+          return (
+            <div className="text-sm">
+              <div>{testimonial.role}</div>
+              <div className="text-muted-foreground">{testimonial.subject}</div>
+            </div>
+          );
+        },
+      }),
+      columnHelper.accessor("quote", {
+        header: "Quote",
+        cell: (info) => (
+          <p className="max-w-[250px] truncate text-sm">{info.getValue()}</p>
+        ),
+      }),
+      columnHelper.accessor("rating", {
+        header: SortHeader("Rating"),
+        enableGlobalFilter: false,
+        cell: (info) => (
+          <div className="flex items-center gap-1">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                className={`h-4 w-4 ${
+                  i < info.getValue() ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                }`}
+              />
+            ))}
+          </div>
+        ),
+      }),
+      columnHelper.accessor("isActive", {
+        header: "Status",
+        enableGlobalFilter: false,
+        cell: (info) => (
+          <Badge variant={info.getValue() ? "default" : "secondary"}>
+            {info.getValue() ? "Active" : "Inactive"}
+          </Badge>
+        ),
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        enableSorting: false,
+        cell: (info) => {
+          const testimonial = info.row.original;
+          return (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => toggleActive(testimonial)}
+                title={testimonial.isActive ? "Deactivate" : "Activate"}
+              >
+                {testimonial.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => openDialog(testimonial)}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-red-500 hover:text-red-600"
+                onClick={() => openDeleteDialog(testimonial.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        },
+      }),
+  ];
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -211,27 +310,11 @@ export default function AdminTestimonialsPage() {
 
   return (
     <div className="space-y-6 p-6 pb-20">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Testimonials Management</h1>
-          <p className="text-muted-foreground">
-            Manage student and parent testimonials.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowInactive(!showInactive)}
-          >
-            {showInactive ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
-            {showInactive ? "Hide Inactive" : "Show All"}
-          </Button>
-          <Button onClick={() => openDialog()}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Testimonial
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Testimonials Management</h1>
+        <p className="text-muted-foreground">
+          Manage student and parent testimonials.
+        </p>
       </div>
 
       <Card>
@@ -242,117 +325,35 @@ export default function AdminTestimonialsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {testimonials.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              No testimonials yet. Add one to get started.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Role / Subject</TableHead>
-                  <TableHead>Quote</TableHead>
-                  <TableHead>Rating</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[120px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {testimonials.map((testimonial) => (
-                  <TableRow key={testimonial.id} className={!testimonial.isActive ? "opacity-50" : ""}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        {testimonial.image ? (
-                          <div className="relative w-10 h-10 rounded-full overflow-hidden">
-                            <Image
-                              src={testimonial.image}
-                              alt={testimonial.name}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <span className="text-sm font-medium">
-                              {testimonial.name.charAt(0)}
-                            </span>
-                          </div>
-                        )}
-                        <div>
-                          <div className="font-medium">{testimonial.name}</div>
-                          {testimonial.atarImprovement && (
-                            <div className="text-xs text-green-600">
-                              {testimonial.atarImprovement}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>{testimonial.role}</div>
-                        <div className="text-muted-foreground">{testimonial.subject}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[250px]">
-                      <p className="text-sm truncate">{testimonial.quote}</p>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4 w-4 ${
-                              i < testimonial.rating
-                                ? "fill-yellow-400 text-yellow-400"
-                                : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={testimonial.isActive ? "default" : "secondary"}>
-                        {testimonial.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleActive(testimonial)}
-                          title={testimonial.isActive ? "Deactivate" : "Activate"}
-                        >
-                          {testimonial.isActive ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openDialog(testimonial)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:text-red-600"
-                          onClick={() => openDeleteDialog(testimonial.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <DataTable
+            columns={columns}
+            data={testimonials}
+            searchPlaceholder="Search by name or quote..."
+            filters={[
+              {
+                id: "isActive",
+                label: "Status",
+                options: [
+                  { label: "All Status", value: "all" },
+                  { label: "Active", value: "true" },
+                  { label: "Inactive", value: "false" },
+                ],
+              },
+            ]}
+            emptyMessage="No testimonials yet."
+            toolbarActions={
+              <>
+                <Button variant="outline" size="sm" onClick={() => setShowInactive(!showInactive)}>
+                  {showInactive ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+                  {showInactive ? "Hide Inactive" : "Show All"}
+                </Button>
+                <Button onClick={() => openDialog()}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Testimonial
+                </Button>
+              </>
+            }
+          />
         </CardContent>
       </Card>
 

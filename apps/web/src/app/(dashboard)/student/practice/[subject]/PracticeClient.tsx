@@ -76,15 +76,15 @@ function getStatusFromMastery(mastery: number, attempted: number): TopicStatus {
 function statusClasses(status: TopicStatus) {
     switch (status) {
         case 'Weak':
-            return 'bg-red-500/15 text-red-300 border-red-500/20';
+            return 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20';
         case 'Monitor':
-            return 'bg-amber-500/15 text-amber-300 border-amber-500/20';
+            return 'bg-amber-500/10 text-amber-700 dark:text-amber-700 dark:text-amber-300 border-amber-500/20';
         case 'Strong':
-            return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20';
+            return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-700 dark:text-emerald-300 border-emerald-500/20';
         case 'Early signal':
-            return 'bg-sky-500/15 text-sky-300 border-sky-500/20';
+            return 'bg-sky-500/10 text-sky-700 dark:text-sky-700 dark:text-sky-300 border-sky-500/20';
         default:
-            return 'bg-slate-500/15 text-slate-300 border-white/10';
+            return 'bg-muted text-muted-foreground border-border';
     }
 }
 
@@ -280,7 +280,7 @@ export default function PracticeClient({
     }, [groupedTopics, selectedTopicCode]);
 
     const currentDifficultyLabel = useMemo(
-        () => formatDifficultyLabel((currentQuestion as any)?.difficulty),
+        () => formatDifficultyLabel(currentQuestion?.difficultyLevel),
         [currentQuestion]
     );
 
@@ -392,7 +392,9 @@ export default function PracticeClient({
             const filtered =
                 difficultyFilter === 'all'
                     ? nextQuestions
-                    : nextQuestions.filter((q: any) => q.difficulty === difficultyFilter);
+                    : nextQuestions.filter(
+                        (q: any) => String(q.difficultyLevel ?? '').toLowerCase() === difficultyFilter
+                    );
 
             const questionList = Array.isArray(filtered) ? filtered : [];
             const firstQuestion = questionList[0] ?? null;
@@ -472,7 +474,7 @@ export default function PracticeClient({
                 workedSolution: result?.workedSolution ?? result?.explanation ?? null,
                 modelAnswer:
                     result?.correctAnswer ||
-                    (currentQuestion as any).answer ||
+                    currentQuestion?.correctAnswer ||
                     'No model answer available.',
                 commonMistake:
                     (result as any)?.commonMistake ||
@@ -522,7 +524,7 @@ export default function PracticeClient({
                 feedback: 'Unable to submit answer at the moment.',
                 explanation: 'Unable to submit answer at the moment.',
                 workedSolution: null,
-                modelAnswer: (currentQuestion as any)?.answer || 'No model answer available.',
+                modelAnswer: currentQuestion?.correctAnswer || 'No model answer available.',
                 commonMistake: 'Submission service unavailable.',
             });
         } finally {
@@ -540,7 +542,7 @@ export default function PracticeClient({
             feedback: 'Question skipped. No attempt was recorded. Move on now, or retry this question before continuing.',
             explanation: null,
             workedSolution: null,
-            modelAnswer: (currentQuestion as any)?.answer || 'No model answer available.',
+            modelAnswer: currentQuestion?.correctAnswer || 'No model answer available.',
             commonMistake: null,
             wasSkipped: true,
         });
@@ -563,7 +565,7 @@ export default function PracticeClient({
             const res = await aiHint({
                 subject,
                 skillCode: (currentQuestion as any).skillCode || selectedTopicCode,
-                question: (currentQuestion as any).prompt,
+                question: currentQuestion?.questionText ?? '',
                 studentAnswer: userAnswer,
                 level,
             });
@@ -594,9 +596,9 @@ export default function PracticeClient({
             const res = await aiExplain({
                 subject,
                 skillCode: (currentQuestion as any).skillCode || selectedTopicCode,
-                question: (currentQuestion as any).prompt,
+                question: currentQuestion?.questionText ?? '',
                 studentAnswer: userAnswer,
-                correctAnswer: (currentQuestion as any).answer || '',
+                correctAnswer: currentQuestion?.correctAnswer || '',
             });
 
             const parts: string[] = [];
@@ -647,7 +649,7 @@ export default function PracticeClient({
                     topicCode: selectedTopicCode,
                     questionId: String((currentQuestion as any).id),
                     skillCode: (currentQuestion as any).skillCode || undefined,
-                    difficulty: (currentQuestion as any).difficulty || undefined,
+                    difficulty: currentQuestion?.difficultyLevel || undefined,
                     skillGaps: submissionResult?.skillGaps,
                     limit: 5,
                 });
@@ -677,7 +679,7 @@ export default function PracticeClient({
                 const aiRes = await aiSimilarQuestion({
                     subject,
                     skillCode: (currentQuestion as any).skillCode || selectedTopicCode,
-                    question: (currentQuestion as any).prompt,
+                    question: currentQuestion?.questionText ?? '',
                 });
 
                 setSimilarQuestionText(
@@ -725,7 +727,9 @@ export default function PracticeClient({
             const filtered =
                 difficultyFilter === 'all'
                     ? nextQuestions
-                    : nextQuestions.filter((q: any) => q.difficulty === difficultyFilter);
+                    : nextQuestions.filter(
+                        (q: any) => String(q.difficultyLevel ?? '').toLowerCase() === difficultyFilter
+                    );
 
             const pool = Array.isArray(filtered) ? filtered : [];
             const nextQuestion = chooseNextSessionQuestion(
@@ -768,14 +772,14 @@ export default function PracticeClient({
     return (
         <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
             <aside className="space-y-5">
-                <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg">
-                    <div className="text-sm font-medium uppercase tracking-wide text-slate-400">
+                <section className="rounded-xl border border-border bg-muted/50 p-5 shadow">
+                    <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
                         Topic filters
                     </div>
-                    <h2 className="mt-2 text-2xl font-bold text-white">Choose your practice area</h2>
+                    <h2 className="mt-2 text-2xl font-bold text-foreground">Choose your practice area</h2>
 
                     <div className="mt-4">
-                        <label className="mb-2 block text-sm text-slate-300">Difficulty filter</label>
+                        <label className="mb-2 block text-sm text-muted-foreground">Difficulty filter</label>
                         <select
                             value={difficultyFilter}
                             onChange={(e) => {
@@ -783,7 +787,7 @@ export default function PracticeClient({
                                 resetSupportState();
                                 setDifficultyFilter(e.target.value as any);
                             }}
-                            className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white"
+                            className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground"
                         >
                             <option value="all">All difficulties</option>
                             <option value="easy">Easy</option>
@@ -792,7 +796,7 @@ export default function PracticeClient({
                         </select>
                     </div>
 
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-sm text-slate-300">
+                    <div className="mt-4 rounded-lg border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
                         Progress now uses stored attempt data for this student.
                     </div>
                 </section>
@@ -804,18 +808,18 @@ export default function PracticeClient({
                         return (
                             <div
                                 key={group.strandName}
-                                className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg"
+                                className="rounded-lg border border-border bg-muted/50 p-4 shadow"
                             >
                                 <button
                                     type="button"
                                     onClick={() => toggleGroup(group.strandCode)}
                                     className="flex w-full items-center justify-between text-left"
                                 >
-                                    <span className="text-lg font-semibold text-white">
+                                    <span className="text-lg font-semibold text-foreground">
                                         {group.strandName}
                                     </span>
                                     <span
-                                        className={`text-slate-300 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+                                        className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-90' : ''}`}
                                     >
                                         ▶
                                     </span>
@@ -839,19 +843,19 @@ export default function PracticeClient({
                                                     type="button"
                                                     onClick={() => void startPractice(topic.topicCode)}
                                                     className={`block w-full rounded-xl border px-4 py-3 text-left transition ${isActive
-                                                            ? 'border-emerald-400 bg-emerald-500/10'
-                                                            : 'border-white/10 bg-slate-900/60 hover:border-slate-400 hover:bg-slate-800'
+                                                            ? 'border-primary bg-primary/10'
+                                                            : 'border-border bg-card hover:border-ring hover:bg-accent'
                                                         }`}
                                                 >
                                                     <div className="flex items-start justify-between gap-3">
                                                         <div>
-                                                            <div className="text-sm font-semibold text-white">
+                                                            <div className="text-sm font-semibold text-foreground">
                                                                 {topic.name}
                                                             </div>
-                                                            <div className="mt-1 text-xs text-slate-400">
+                                                            <div className="mt-1 text-xs text-muted-foreground">
                                                                 {meta.attempted}/{meta.available} attempted
                                                             </div>
-                                                            <div className="mt-1 text-xs text-slate-400">
+                                                            <div className="mt-1 text-xs text-muted-foreground">
                                                                 Mastery {meta.mastery}%
                                                             </div>
                                                         </div>
@@ -864,11 +868,11 @@ export default function PracticeClient({
                                                             >
                                                                 {meta.status}
                                                             </span>
-                                                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-slate-300">
+                                                            <span className="rounded-full bg-card px-2 py-0.5 text-xs text-muted-foreground">
                                                                 {meta.available} available
                                                             </span>
                                                             {meta.target !== meta.available ? (
-                                                                <span className="rounded-full bg-white/5 px-2 py-0.5 text-xs text-slate-400">
+                                                                <span className="rounded-full bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground">
                                                                     {meta.target} target
                                                                 </span>
                                                             ) : null}
@@ -888,22 +892,22 @@ export default function PracticeClient({
             <section className="space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200">
+                        <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-foreground">
                             {currentTopicName}
                         </span>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">
+                        <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground">
                             Difficulty: {currentDifficultyLabel}
                         </span>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">
+                        <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground">
                             Session set: {filteredQuestionCount}
                         </span>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">
+                        <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground">
                             Available: {activeTopicMeta.available}/{activeTopicMeta.target} target
                         </span>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">
+                        <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground">
                             Attempted: {activeTopicMeta.attempted}/{activeTopicMeta.available}
                         </span>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">
+                        <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground">
                             Mastery: {activeTopicMeta.mastery}%
                         </span>
                         <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses(activeTopicMeta.status)}`}>
@@ -911,25 +915,25 @@ export default function PracticeClient({
                         </span>
                     </div>
 
-                    <div className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm text-slate-300">
+                    <div className="rounded-full border border-border bg-muted/50 px-5 py-2 text-sm text-muted-foreground">
                         Question {questions.length === 0 ? 0 : currentIndex + 1} of {questions.length}
                     </div>
                 </div>
 
-                <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-xl backdrop-blur">
+                <div className="rounded-xl border border-border bg-card p-6 shadow backdrop-blur">
                     {loadingTopicQuestions ? (
-                        <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-8 text-center">
-                            <div className="text-lg font-semibold text-white">Loading questions...</div>
-                            <div className="mt-2 text-sm text-slate-300">
+                        <div className="rounded-lg border border-border bg-muted/50 p-8 text-center">
+                            <div className="text-lg font-semibold text-foreground">Loading questions...</div>
+                            <div className="mt-2 text-sm text-muted-foreground">
                                 Preparing your practice set for this topic.
                             </div>
                         </div>
                     ) : !currentQuestion ? (
-                        <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-8 text-center">
-                            <div className="text-xl font-semibold text-white">
+                        <div className="rounded-lg border border-border bg-muted/50 p-8 text-center">
+                            <div className="text-xl font-semibold text-foreground">
                                 No student-ready questions yet
                             </div>
-                            <div className="mt-3 text-sm leading-6 text-slate-300">
+                            <div className="mt-3 text-sm leading-6 text-muted-foreground">
                                 This topic has {activeTopicMeta.available} active question
                                 {activeTopicMeta.available === 1 ? '' : 's'} available for students
                                 {activeTopicMeta.target > 0
@@ -941,14 +945,14 @@ export default function PracticeClient({
                                 <button
                                     type="button"
                                     onClick={() => void loadQuestionsForTopic(selectedTopicCode, { resetSeen: true })}
-                                    className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-400"
+                                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
                                 >
                                     Retry loading
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setDifficultyFilter('all')}
-                                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                                    className="rounded-xl border border-border bg-muted/50 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-accent"
                                 >
                                     Reset difficulty filter
                                 </button>
@@ -957,22 +961,23 @@ export default function PracticeClient({
                     ) : (
                         <div className="space-y-6">
                             <div>
-                                <div className="mb-3 text-sm text-slate-400">Current question</div>
-                                <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-5 text-2xl font-medium text-white">
-                                    {(currentQuestion as any)?.prompt || 'No question available for this topic yet.'}
+                                <div className="mb-3 text-sm text-muted-foreground">Current question</div>
+                                <div data-testid="practice-question" className="rounded-lg border border-border bg-muted/50 p-5 text-2xl font-medium text-foreground">
+                                    {currentQuestion?.questionText || 'No question available for this topic yet.'}
                                 </div>
                             </div>
 
                             <div>
-                                <label className="mb-3 block text-sm font-medium text-white">
+                                <label className="mb-3 block text-sm font-medium text-foreground">
                                     Your answer
                                 </label>
                                 <input
+                                    data-testid="practice-answer"
                                     value={userAnswer}
                                     onChange={(e) => setUserAnswer(e.target.value)}
                                     placeholder="Enter your answer"
                                     disabled={hasResolvedCurrent}
-                                    className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-4 text-lg text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
+                                    className="w-full rounded-lg border border-border bg-background px-4 py-4 text-lg text-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring disabled:cursor-not-allowed disabled:opacity-70"
                                 />
                             </div>
 
@@ -980,10 +985,11 @@ export default function PracticeClient({
                                 <div className="space-y-4">
                                     <div className="flex flex-wrap items-center gap-4">
                                         <button
+                                            data-testid="practice-submit"
                                             type="button"
                                             onClick={handleSubmit}
                                             disabled={!currentQuestion || !userAnswer.trim() || loadingSubmit || hasResolvedCurrent}
-                                            className="rounded-xl bg-emerald-500 px-6 py-3 text-base font-semibold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="rounded-xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             {loadingSubmit ? 'Submitting...' : 'Submit Answer'}
                                         </button>
@@ -992,7 +998,7 @@ export default function PracticeClient({
                                             type="button"
                                             onClick={handleSkip}
                                             disabled={!currentQuestion || hasResolvedCurrent || loadingSubmit}
-                                            className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="rounded-xl border border-border bg-muted/50 px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             Skip
                                         </button>
@@ -1002,7 +1008,7 @@ export default function PracticeClient({
                                                 type="button"
                                                 onClick={() => handleHint(1)}
                                                 disabled={loadingHint1 || !currentQuestion}
-                                                className="text-sm font-medium text-emerald-300 underline underline-offset-4"
+                                                className="text-sm font-medium text-emerald-700 dark:text-emerald-300 underline underline-offset-4"
                                             >
                                                 {loadingHint1 ? 'Loading hint...' : 'Need a hint?'}
                                             </button>
@@ -1010,27 +1016,27 @@ export default function PracticeClient({
                                     </div>
 
                                     {hint1Text && (
-                                        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-slate-100">
-                                            <div className="mb-2 font-semibold text-amber-300">Hint 1</div>
+                                        <div data-testid="ai-hint-1" className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-foreground">
+                                            <div className="mb-2 font-semibold text-amber-700 dark:text-amber-300">Hint 1</div>
                                             <div className="whitespace-pre-line">{hint1Text}</div>
                                         </div>
                                     )}
 
                                     {hint2Text && (
-                                        <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-4 text-slate-100">
-                                            <div className="mb-2 font-semibold text-orange-300">Hint 2</div>
+                                        <div data-testid="ai-hint-2" className="rounded-lg border border-orange-500/20 bg-orange-500/10 p-4 text-foreground">
+                                            <div className="mb-2 font-semibold text-orange-700 dark:text-orange-300">Hint 2</div>
                                             <div className="whitespace-pre-line">{hint2Text}</div>
                                         </div>
                                     )}
 
                                     {submissionResult && (
-                                        <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-5">
+                                        <div data-testid="practice-feedback" className="rounded-lg border border-border bg-muted/50 p-5">
                                             <div
                                                 className={`text-2xl font-bold ${submissionResult.wasSkipped
-                                                        ? 'text-sky-300'
+                                                        ? 'text-sky-700 dark:text-sky-300'
                                                         : submissionResult.correct
-                                                            ? 'text-emerald-400'
-                                                            : 'text-red-400'
+                                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                                            : 'text-red-600 dark:text-red-400'
                                                     }`}
                                             >
                                                 {submissionResult.wasSkipped
@@ -1040,17 +1046,17 @@ export default function PracticeClient({
                                                         : 'Incorrect'}
                                             </div>
 
-                                            <div className="mt-2 text-lg text-slate-300">
+                                            <div className="mt-2 text-lg text-muted-foreground">
                                                 Marks:{' '}
-                                                <span className="font-semibold text-white">
+                                                <span className="font-semibold text-foreground">
                                                     {submissionResult.score ?? 0}
                                                 </span>
-                                                <span className="text-slate-400"> / {submissionResult.maxScore ?? 1}</span>
+                                                <span className="text-muted-foreground"> / {submissionResult.maxScore ?? 1}</span>
                                             </div>
 
                                             {submissionResult.topicProgress && (
-                                                <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-slate-100">
-                                                    <div className="font-semibold text-white">
+                                                <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-foreground">
+                                                    <div className="font-semibold text-foreground">
                                                         Updated topic progress
                                                     </div>
                                                     <div className="mt-1">
@@ -1063,21 +1069,21 @@ export default function PracticeClient({
                                             )}
 
                                             <div className="mt-5">
-                                                <div className="mb-2 text-lg font-semibold text-white">
+                                                <div className="mb-2 text-lg font-semibold text-foreground">
                                                     Accepted answer
                                                 </div>
-                                                <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-slate-100">
+                                                <div className="rounded-xl border border-border bg-muted/50 p-3 text-foreground">
                                                     {submissionResult.modelAnswer ||
-                                                        (currentQuestion as any)?.answer ||
+                                                        currentQuestion?.correctAnswer ||
                                                         'No model answer available.'}
                                                 </div>
                                             </div>
 
                                             <div className="mt-5">
-                                                <div className="mb-2 text-lg font-semibold text-white">
+                                                <div className="mb-2 text-lg font-semibold text-foreground">
                                                     Worked solution
                                                 </div>
-                                                <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-slate-100 whitespace-pre-line">
+                                                <div className="rounded-xl border border-border bg-muted/50 p-3 text-foreground whitespace-pre-line">
                                                     {submissionResult.workedSolution ||
                                                         submissionResult.explanation ||
                                                         submissionResult.feedback ||
@@ -1086,10 +1092,10 @@ export default function PracticeClient({
                                             </div>
 
                                             <div className="mt-5">
-                                                <div className="mb-2 text-lg font-semibold text-white">
+                                                <div className="mb-2 text-lg font-semibold text-foreground">
                                                     Common mistake note
                                                 </div>
-                                                <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-slate-100">
+                                                <div className="rounded-xl border border-border bg-muted/50 p-3 text-foreground">
                                                     {submissionResult.commonMistake ||
                                                         (submissionResult.wasSkipped
                                                             ? 'No marking was recorded because this question was skipped.'
@@ -1101,16 +1107,16 @@ export default function PracticeClient({
                                             {submissionResult.aiMarking && (() => {
                                                 const am = submissionResult.aiMarking as HybridMarkingResult;
                                                 return (
-                                                    <div className="mt-5 space-y-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
-                                                        <div className="text-base font-semibold text-white">AI Marking Details</div>
+                                                    <div className="mt-5 space-y-4 rounded-lg border border-border bg-muted/50 p-4">
+                                                        <div className="text-base font-semibold text-foreground">AI Marking Details</div>
 
                                                         {/* pending review banner */}
                                                         {submissionResult.humanReviewPending && (
-                                                            <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                                                            <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">
                                                                 <span>⏳</span>
                                                                 <span>
-                                                                    <strong>Đang chờ giáo viên xem xét.</strong>{' '}
-                                                                    Điểm có thể thay đổi sau khi giáo viên kiểm tra.
+                                                                    <strong>Awaiting teacher review.</strong>{' '}
+                                                                    Your score may change after the teacher reviews it.
                                                                 </span>
                                                             </div>
                                                         )}
@@ -1118,7 +1124,7 @@ export default function PracticeClient({
                                                         {/* Source badge + confidence */}
                                                         <div className="flex flex-wrap items-center gap-3">
                                                             <HybridMarkingBadge source={am.routingDecision?.chosenSource ?? 'rule'} />
-                                                            <span className="text-sm text-slate-300">
+                                                            <span className="text-sm text-muted-foreground">
                                                                 Confidence: {Math.round((am.finalConfidence ?? 0) * 100)}%
                                                             </span>
                                                         </div>
@@ -1128,7 +1134,7 @@ export default function PracticeClient({
                                                         {/* Error tags */}
                                                         {am.errorTags?.length > 0 && (
                                                             <div>
-                                                                <p className="mb-1.5 text-xs text-slate-400">Detected Issues</p>
+                                                                <p className="mb-1.5 text-xs text-muted-foreground">Detected Issues</p>
                                                                 <ErrorTagPicker
                                                                     available={am.errorTags}
                                                                     value={am.errorTags.map((t: { tagCode: string }) => t.tagCode)}
@@ -1140,7 +1146,7 @@ export default function PracticeClient({
                                                         {/* Source timeline */}
                                                         {am.sources?.length > 0 && (
                                                             <div>
-                                                                <p className="mb-1.5 text-xs text-slate-400">Marking Sources</p>
+                                                                <p className="mb-1.5 text-xs text-muted-foreground">Marking Sources</p>
                                                                 <MarkingSourceTimeline
                                                                     sources={am.sources}
                                                                     routingDecision={am.routingDecision}
@@ -1150,10 +1156,10 @@ export default function PracticeClient({
 
                                                         {/* Link to full submission */}
                                                         {submissionResult.submissionId && (
-                                                            <p className="text-xs text-slate-400">
+                                                            <p className="text-xs text-muted-foreground">
                                                                 <a
                                                                     href={`/student/submissions/${submissionResult.submissionId}`}
-                                                                    className="underline hover:text-white"
+                                                                    className="underline hover:text-foreground"
                                                                 >
                                                                     View full submission →
                                                                 </a>
@@ -1164,10 +1170,10 @@ export default function PracticeClient({
                                             })()}
 
                                             <div className="mt-5">
-                                                <div className="mb-2 text-lg font-semibold text-white">
+                                                <div className="mb-2 text-lg font-semibold text-foreground">
                                                     Next recommended action
                                                 </div>
-                                                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-slate-100">
+                                                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-foreground">
                                                     {nextRecommendedAction}
                                                 </div>
                                             </div>
@@ -1177,7 +1183,7 @@ export default function PracticeClient({
                                                     <button
                                                         type="button"
                                                         onClick={handleRetry}
-                                                        className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                                                        className="rounded-xl border border-border bg-muted/50 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-accent"
                                                     >
                                                         Retry this question
                                                     </button>
@@ -1186,7 +1192,7 @@ export default function PracticeClient({
                                                 <button
                                                     type="button"
                                                     onClick={moveNext}
-                                                    className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-400"
+                                                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
                                                 >
                                                     Next Question
                                                 </button>
@@ -1199,16 +1205,16 @@ export default function PracticeClient({
                                                         <button
                                                             type="button"
                                                             onClick={() => setShowDebug((prev) => !prev)}
-                                                            className="text-sm text-slate-300 underline"
+                                                            className="text-sm text-muted-foreground underline"
                                                         >
                                                             {showDebug ? 'Hide debug' : 'Show debug'}
                                                         </button>
 
                                                         {showDebug && (
-                                                            <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm text-slate-200">
+                                                            <div className="mt-4 space-y-3 rounded-lg border border-border bg-muted/50 p-4 text-sm text-foreground">
                                                                 {submissionResult.errorTags?.length ? (
                                                                     <div>
-                                                                        <div className="mb-1 font-semibold text-white">errorTags</div>
+                                                                        <div className="mb-1 font-semibold text-foreground">errorTags</div>
                                                                         <pre className="overflow-x-auto whitespace-pre-wrap">
                                                                             {JSON.stringify(submissionResult.errorTags, null, 2)}
                                                                         </pre>
@@ -1217,7 +1223,7 @@ export default function PracticeClient({
 
                                                                 {submissionResult.skillGaps?.length ? (
                                                                     <div>
-                                                                        <div className="mb-1 font-semibold text-white">skillGaps</div>
+                                                                        <div className="mb-1 font-semibold text-foreground">skillGaps</div>
                                                                         <pre className="overflow-x-auto whitespace-pre-wrap">
                                                                             {JSON.stringify(submissionResult.skillGaps, null, 2)}
                                                                         </pre>
@@ -1226,7 +1232,7 @@ export default function PracticeClient({
 
                                                                 {submissionResult.diagnostics ? (
                                                                     <div>
-                                                                        <div className="mb-1 font-semibold text-white">diagnostics</div>
+                                                                        <div className="mb-1 font-semibold text-foreground">diagnostics</div>
                                                                         <pre className="overflow-x-auto whitespace-pre-wrap">
                                                                             {JSON.stringify(submissionResult.diagnostics, null, 2)}
                                                                         </pre>
@@ -1240,8 +1246,8 @@ export default function PracticeClient({
                                     )}
 
                                     {explainText && (
-                                        <div className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4 text-slate-100">
-                                            <div className="mb-2 font-semibold text-violet-300">
+                                        <div data-testid="ai-explanation" className="rounded-lg border border-violet-500/20 bg-violet-500/10 p-4 text-foreground">
+                                            <div className="mb-2 font-semibold text-violet-700 dark:text-violet-300">
                                                 Worked explanation
                                             </div>
                                             <div className="whitespace-pre-line">{explainText}</div>
@@ -1249,8 +1255,8 @@ export default function PracticeClient({
                                     )}
 
                                     {similarQuestionText && (
-                                        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-slate-100">
-                                            <div className="mb-2 font-semibold text-emerald-300">
+                                        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-foreground">
+                                            <div className="mb-2 font-semibold text-emerald-700 dark:text-emerald-300">
                                                 Similar Question
                                             </div>
                                             <div>{similarQuestionText}</div>
@@ -1259,8 +1265,8 @@ export default function PracticeClient({
                                 </div>
 
                                 <div className="space-y-4">
-                                    <div className="rounded-2xl border border-white/10 bg-white/10 p-5">
-                                        <div className="mb-4 text-xl font-semibold text-white">
+                                    <div className="rounded-lg border border-border bg-card p-5">
+                                        <div className="mb-4 text-xl font-semibold text-foreground">
                                             Learning support
                                         </div>
 
@@ -1269,7 +1275,7 @@ export default function PracticeClient({
                                                 type="button"
                                                 onClick={() => handleHint(1)}
                                                 disabled={loadingHint1 || !currentQuestion}
-                                                className="rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-amber-400 disabled:opacity-50"
+                                                className="rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-amber-400 disabled:opacity-50"
                                             >
                                                 {loadingHint1 ? 'Loading...' : 'Hint 1'}
                                             </button>
@@ -1278,7 +1284,7 @@ export default function PracticeClient({
                                                 type="button"
                                                 onClick={() => handleHint(2)}
                                                 disabled={loadingHint2 || !currentQuestion}
-                                                className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-400 disabled:opacity-50"
+                                                className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-orange-400 disabled:opacity-50"
                                             >
                                                 {loadingHint2 ? 'Loading...' : 'Hint 2'}
                                             </button>
@@ -1287,7 +1293,7 @@ export default function PracticeClient({
                                                 type="button"
                                                 onClick={handleExplain}
                                                 disabled={loadingExplain || !currentQuestion}
-                                                className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
+                                                className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-violet-500 disabled:opacity-50"
                                             >
                                                 {loadingExplain ? 'Loading...' : 'Explain'}
                                             </button>
@@ -1296,7 +1302,7 @@ export default function PracticeClient({
                                                 type="button"
                                                 onClick={handleSimilarQuestion}
                                                 disabled={loadingSimilar || !currentQuestion}
-                                                className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-50"
+                                                className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-primary/90 disabled:opacity-50"
                                             >
                                                 {loadingSimilar ? 'Loading...' : 'Try Similar'}
                                             </button>

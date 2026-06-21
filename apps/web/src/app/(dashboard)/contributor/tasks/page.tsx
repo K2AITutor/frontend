@@ -1,12 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { useContributorTasks } from "@/lib/api/contributor";
+import {
+  ContributorTaskStatus,
+  updateContributorTaskStatus,
+  useContributorTasks,
+} from "@/lib/api/contributor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { Button } from "@/components/dashboard/ui/button";
 import { Skeleton } from "@/components/dashboard/ui/skeleton";
 import { Badge } from "@/components/dashboard/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/dashboard/ui/select";
 import { ClipboardList, FilePlus2, Library } from "lucide-react";
 
 function statusVariant(status: string) {
@@ -24,7 +36,24 @@ function statusVariant(status: string) {
 
 export default function ContributorTasksPage() {
   usePageTitle("Contributor Tasks");
-  const { data, isLoading, isError } = useContributorTasks();
+  const { data, isLoading, isError, refetch } = useContributorTasks();
+  const [updatingTaskId, setUpdatingTaskId] = useState<number | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function handleStatusChange(taskId: number, status: ContributorTaskStatus) {
+    setUpdatingTaskId(taskId);
+    setMessage(null);
+
+    try {
+      await updateContributorTaskStatus(taskId, status);
+      await refetch();
+      setMessage(`Task #${taskId} updated to ${status}.`);
+    } catch (error: any) {
+      setMessage(error?.message || "Failed to update task status");
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -55,6 +84,8 @@ export default function ContributorTasksPage() {
           Track assigned question-entry, rubric, annotation, and QA work.
         </p>
       </div>
+
+      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
 
       {!hasTasks ? (
         <Card>
@@ -102,10 +133,34 @@ export default function ContributorTasksPage() {
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>Task ID: {task.id}</p>
-                {task.questionId ? <p>Question ID: {task.questionId}</p> : null}
-                {task.dueAt ? <p>Due: {new Date(task.dueAt).toLocaleString()}</p> : <p>No due date</p>}
+              <CardContent className="space-y-4 text-sm text-muted-foreground">
+                <div className="space-y-2">
+                  <p>Task ID: {task.id}</p>
+                  {task.questionId ? <p>Question ID: {task.questionId}</p> : null}
+                  {task.dueAt ? <p>Due: {new Date(task.dueAt).toLocaleString()}</p> : <p>No due date</p>}
+                </div>
+
+                <div className="max-w-xs space-y-2">
+                  <p className="font-medium text-foreground">Update status</p>
+                  <Select
+                    value={task.status}
+                    onValueChange={(value) =>
+                      handleStatusChange(task.id, value as ContributorTaskStatus)
+                    }
+                    disabled={updatingTaskId === task.id}
+                  >
+                    <SelectTrigger aria-label={`Task ${task.id} status`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="TODO">TODO</SelectItem>
+                      <SelectItem value="IN_PROGRESS">IN_PROGRESS</SelectItem>
+                      <SelectItem value="IN_REVIEW">IN_REVIEW</SelectItem>
+                      <SelectItem value="DONE">DONE</SelectItem>
+                      <SelectItem value="BLOCKED">BLOCKED</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardContent>
             </Card>
           ))}

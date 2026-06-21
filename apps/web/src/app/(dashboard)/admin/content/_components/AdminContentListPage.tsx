@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useMemo, useState } from "react";
-import { AlertCircle, Loader2, Search } from "lucide-react";
+import { AlertCircle, Search } from "lucide-react";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Button } from "@/components/dashboard/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
@@ -13,19 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/dashboard/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
+import { DataTable } from "@/components/dashboard/DataTable";
+import { Combobox } from "@/components/dashboard/ui/combobox";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   AdminContentFilters,
   AdminContentItem,
   AdminContentKind,
   useAdminContentList,
+  useSubjectOptions,
+  useTopicOptions,
+  useSkillOptions,
 } from "@/lib/api/admin-content";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -35,6 +33,10 @@ type FilterConfig = {
   placeholder?: string;
   type?: "text" | "select";
   options?: Array<{ label: string; value: string }>;
+  /** Render a searchable Combobox whose options come from a live list. */
+  source?: "subjects" | "topics" | "skills";
+  /** Filter `source` options by another filter's current value; resets on change. */
+  dependsOn?: keyof AdminContentFilters;
 };
 
 type ColumnConfig<T extends AdminContentItem> = {
@@ -51,6 +53,10 @@ interface AdminContentListPageProps<T extends AdminContentItem> {
   icon: ReactNode;
   filters: FilterConfig[];
   columns: ColumnConfig<T>[];
+  /** Buttons rendered above the table (e.g. "Add ..."). */
+  toolbarActions?: ReactNode;
+  /** Trailing actions column (e.g. Edit/Delete) rendered per row. */
+  rowActions?: (item: T) => ReactNode;
 }
 
 const PAGE_SIZE = 20;
@@ -100,6 +106,8 @@ export default function AdminContentListPage<T extends AdminContentItem>({
   icon,
   filters,
   columns,
+  toolbarActions,
+  rowActions,
 }: AdminContentListPageProps<T>) {
   usePageTitle(title);
   const [page, setPage] = useState(1);
@@ -114,7 +122,71 @@ export default function AdminContentListPage<T extends AdminContentItem>({
   const { data, isLoading, error, refetch } = useAdminContentList<T>(kind, queryFilters);
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Live option lists for dropdown-from-list filters. Dependent filters narrow
+  // their options by the parent filter's current draft value.
+  const topicFilter = filters.find((f) => f.source === "topics");
+  const skillFilter = filters.find((f) => f.source === "skills");
+  const topicSubjectValue = topicFilter?.dependsOn
+    ? (draftFilters[topicFilter.dependsOn] as string | undefined)
+    : undefined;
+  const skillTopicValue = skillFilter?.dependsOn
+    ? (draftFilters[skillFilter.dependsOn] as string | undefined)
+    : undefined;
+
+  const subjectOptions = useSubjectOptions();
+  const topicOptions = useTopicOptions(topicSubjectValue || undefined);
+  const skillOptions = useSkillOptions(undefined, skillTopicValue || undefined);
+
+  function optionsForSource(source: FilterConfig["source"]) {
+    if (source === "subjects") return subjectOptions.options;
+    if (source === "topics") return topicOptions.options;
+    if (source === "skills") return skillOptions.options;
+    return [];
+  }
+
+  // Set a filter and cascade-reset any filters that depend (directly or
+  // transitively) on the one being changed, so stale child values don't linger.
+  function setFilterValue(key: keyof AdminContentFilters, value: string) {
+    setDraftFilters((current) => {
+      const next = { ...current, [key]: value } as Record<string, string>;
+      let justCleared: Array<keyof AdminContentFilters> = [key];
+      let guard = 0;
+      while (justCleared.length && guard++ < 10) {
+        const cleared = justCleared;
+        justCleared = [];
+        filters.forEach((f) => {
+          if (f.dependsOn && cleared.includes(f.dependsOn) && next[f.key as string]) {
+            next[f.key as string] = "";
+            justCleared.push(f.key);
+          }
+        });
+      }
+      return next as AdminContentFilters;
+    });
+  }
+
+  // Adapt the lightweight ColumnConfig contract to TanStack column defs. These
+  // are render-only (no accessors) so sorting stays off; pagination is server-side.
+  const tableColumns = useMemo<ColumnDef<T, any>[]>(() => {
+    const base = columns.map((column) => ({
+      id: column.key,
+      header: column.label,
+      enableSorting: false,
+      cell: ({ row }: { row: { original: T } }) => column.render(row.original),
+      meta: { className: column.className },
+    }));
+    if (rowActions) {
+      base.push({
+        id: "__actions",
+        header: "Actions" as any,
+        enableSorting: false,
+        cell: ({ row }: { row: { original: T } }) => rowActions(row.original),
+        meta: { className: "text-right" },
+      });
+    }
+    return base;
+  }, [columns, rowActions]);
 
   function applyFilters() {
     setPage(1);
@@ -146,14 +218,22 @@ export default function AdminContentListPage<T extends AdminContentItem>({
             {filters.map((filter) => (
               <div key={String(filter.key)} className="space-y-2">
                 <label className="text-sm font-medium">{filter.label}</label>
-                {filter.type === "select" ? (
+                {filter.source ? (
+                  <Combobox
+                    options={optionsForSource(filter.source)}
+                    value={String(draftFilters[filter.key] ?? "")}
+                    onChange={(value) => setFilterValue(filter.key, value)}
+                    placeholder={filter.placeholder ?? "All"}
+                    searchPlaceholder={`Search ${filter.label.toLowerCase()}...`}
+                    disabled={
+                      !!filter.dependsOn && !draftFilters[filter.dependsOn]
+                    }
+                  />
+                ) : filter.type === "select" ? (
                   <Select
                     value={String(draftFilters[filter.key] ?? "all")}
                     onValueChange={(value) =>
-                      setDraftFilters((current) => ({
-                        ...current,
-                        [filter.key]: value === "all" ? "" : value,
-                      }))
+                      setFilterValue(filter.key, value === "all" ? "" : value)
                     }
                   >
                     <SelectTrigger>
@@ -173,10 +253,7 @@ export default function AdminContentListPage<T extends AdminContentItem>({
                     placeholder={filter.placeholder}
                     value={String(draftFilters[filter.key] ?? "")}
                     onChange={(event) =>
-                      setDraftFilters((current) => ({
-                        ...current,
-                        [filter.key]: event.target.value,
-                      }))
+                      setFilterValue(filter.key, event.target.value)
                     }
                   />
                 )}
@@ -208,11 +285,7 @@ export default function AdminContentListPage<T extends AdminContentItem>({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex h-48 items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : error ? (
+          {error ? (
             <div className="flex h-48 flex-col items-center justify-center gap-4 text-center">
               <AlertCircle className="h-10 w-10 text-red-500" />
               <p className="text-muted-foreground">Failed to load {title.toLowerCase()}.</p>
@@ -221,64 +294,20 @@ export default function AdminContentListPage<T extends AdminContentItem>({
               </Button>
             </div>
           ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {columns.map((column) => (
-                      <TableHead key={column.key} className={column.className}>
-                        {column.label}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="py-8 text-center text-muted-foreground"
-                      >
-                        No records found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    items.map((item) => (
-                      <TableRow key={item.id}>
-                        {columns.map((column) => (
-                          <TableCell key={column.key} className={column.className}>
-                            {column.render(item)}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-              <div className="mt-4 flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Page {page} of {totalPages}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((current) => current + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            </>
+            <DataTable
+              columns={tableColumns}
+              data={items}
+              isLoading={isLoading}
+              hidePageSize
+              emptyMessage="No records found."
+              toolbarActions={toolbarActions}
+              server={{
+                total,
+                pageIndex: page - 1,
+                pageSize: PAGE_SIZE,
+                onPaginationChange: ({ pageIndex }) => setPage(pageIndex + 1),
+              }}
+            />
           )}
         </CardContent>
       </Card>

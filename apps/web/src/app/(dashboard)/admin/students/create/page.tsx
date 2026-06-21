@@ -55,7 +55,7 @@ export default function CreateUserPage() {
           avatar: avatarPreview || undefined,
         }, token);
         toast.success("User created successfully");
-        router.push(value.role === "student" ? "/admin/users" : "/admin/staff");
+        router.push(value.role === "student" ? "/admin/students" : "/admin/staff");
       } catch (err: any) {
         toast.error(err.message || "Failed to create user");
       }
@@ -76,7 +76,7 @@ export default function CreateUserPage() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-4">
-        <Link href="/admin/users">
+        <Link href="/admin/students">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -309,7 +309,7 @@ export default function CreateUserPage() {
                       <Button type="submit" disabled={!canSubmit || isSubmitting}>
                         {isSubmitting ? "Creating..." : "Create User"}
                       </Button>
-                      <Link href="/admin/users">
+                      <Link href="/admin/students">
                         <Button type="button" variant="outline">
                           Cancel
                         </Button>

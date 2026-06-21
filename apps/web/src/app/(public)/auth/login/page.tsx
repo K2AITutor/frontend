@@ -3,28 +3,60 @@
 import Link from 'next/link'
 import { Lock, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import AuthBanner from '@/components/auth/AuthBanner'
-import { Suspense, useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { Suspense, useEffect, useState } from 'react'
+import { signIn, useSession } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from '@/components/dashboard/ui/sonner'
+import { homeForRole, normalizeRole } from '@/lib/roleRouting'
 
 function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState('')
 
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || ''
   const router = useRouter()
+  const { status, data: session } = useSession()
 
-  const roleHomeMap: Record<string, string> = {
-    student: '/student',
-    teacher: '/teacher/review',
-    admin: '/admin',
-    contributor: '/contributor',
+  // Once signed in, the user shouldn't see the login form again. Middleware can't handle
+  // this page: next-auth withAuth early-returns for pages.signIn (/auth/login) to
+  // avoid a redirect loop, so we must redirect on the client. Skip while we're in the
+  // sign-in flow on this page (isRedirecting) so we don't race handleSubmit's router.push.
+  useEffect(() => {
+    if (status !== 'authenticated' || isRedirecting) return
+    const role = normalizeRole((session?.user as any)?.role)
+    router.replace(homeForRole(role))
+    // roleHomeMap is a stable literal; deps tracked are the dynamic values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session, isRedirecting, router])
+
+  // A callbackUrl pointing into another role's dashboard section (e.g. a
+  // leftover /contributor from a previous redirect) must not override the
+  // user's own home — admins can *access* /contributor but it isn't their home.
+  // Honor the callbackUrl only when it targets the user's own role section or a
+  // path that isn't scoped to any role.
+  const roleScopes = ['admin', 'contributor', 'student', 'teacher', 'parent']
+
+  const isCallbackForOwnRole = (url: string, role: string) => {
+    if (!url) return false
+    let pathname = url
+    try {
+      // callbackUrl may be absolute; only the path matters for the check.
+      pathname = new URL(url, window.location.origin).pathname
+    } catch {
+      // keep raw value when it isn't a parseable URL
+    }
+    const targetScope = roleScopes.find((scope) =>
+      pathname.startsWith(`/${scope}`)
+    )
+    // Non role-scoped path (e.g. /settings) is always fine.
+    if (!targetScope) return true
+    return targetScope === role
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,21 +79,29 @@ function LoginForm() {
 
       if (res?.error) {
         setError('Invalid email or password. Please try again.')
+        setIsLoading(false)
         return
       }
 
       // Fetch session to get role for redirect
       const sessionRes = await fetch('/api/auth/session')
       const session = await sessionRes.json()
-      const role = session?.user?.role
+      const role = normalizeRole(session?.user?.role)
 
-      const redirectTo = callbackUrl || roleHomeMap[role] || '/student'
+      const roleHome = homeForRole(role)
+      const redirectTo =
+        callbackUrl && isCallbackForOwnRole(callbackUrl, role)
+          ? callbackUrl
+          : roleHome
+      // Keep the loading state on until the dashboard route mounts and this
+      // page unmounts — resetting it here would leave a frozen-looking page
+      // while Next.js loads the destination.
+      setIsRedirecting(true)
       router.push(redirectTo)
       router.refresh()
     } catch (error) {
       console.error('Login error:', error)
       toast.error('An error occurred. Please try again.')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -75,15 +115,23 @@ function LoginForm() {
     } catch (error) {
       console.error('Google sign in error:', error)
       toast.error('Failed to sign in with Google. Please try again.')
-    } finally {
+      // Only reset on failure — on success the browser is navigating away to
+      // the Google consent screen and the spinner should stay visible.
       setIsLoading(false)
     }
   }
 
   return (
     <main className="min-h-screen bg-bg-primary">
+      {isRedirecting && (
+        <div className="fixed inset-0 z-[2000] bg-bg-primary/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+          <div className="w-12 h-12 border-[3px] border-accent-teal border-t-transparent rounded-full animate-spin" />
+          <p className="text-text-primary text-[1rem] font-medium">Signed in successfully</p>
+          <p className="text-text-secondary text-[0.875rem]">Taking you to your dashboard...</p>
+        </div>
+      )}
       <div className="flex min-h-screen">
-        <div className="w-[40%] p-12 overflow-y-auto flex flex-col bg-bg-secondary">
+        <div className="w-full lg:w-[40%] p-6 sm:p-8 lg:p-12 overflow-y-auto flex flex-col bg-bg-secondary">
           <Link href="/" className="flex items-center gap-3 mb-8">
             <div className="w-[42px] h-[42px] bg-gradient-to-br from-accent-teal to-accent-coral rounded-[10px] flex items-center justify-center font-serif text-[1.25rem] font-normal text-bg-primary">
               V
@@ -197,7 +245,7 @@ function LoginForm() {
               {isLoading ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="w-[18px] h-[18px] border-2 border-bg-primary border-t-transparent rounded-full animate-spin" />
-                  Signing in...
+                  {isRedirecting ? 'Taking you to your dashboard...' : 'Signing in...'}
                 </span>
               ) : (
                 <>

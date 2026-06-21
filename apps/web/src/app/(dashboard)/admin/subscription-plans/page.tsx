@@ -4,14 +4,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { Button } from "@/components/dashboard/ui/button";
 import { Input } from "@/components/dashboard/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
+import { DataTable, SortHeader } from "@/components/dashboard/DataTable";
+import { createColumnHelper } from "@tanstack/react-table";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +39,8 @@ import { toast } from "@/components/dashboard/ui/sonner";
 function formatPrice(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
+
+const columnHelper = createColumnHelper<SubscriptionPlan>();
 
 export default function AdminSubscriptionPlansPage() {
   usePageTitle("Subscription Plans");
@@ -177,6 +173,75 @@ export default function AdminSubscriptionPlansPage() {
     0
   );
 
+  const columns = [
+      columnHelper.accessor("id", {
+        header: SortHeader("ID"),
+        enableGlobalFilter: false,
+        cell: (info) => <span className="font-mono text-sm">{info.getValue()}</span>,
+      }),
+      columnHelper.accessor("name", {
+        header: SortHeader("Name"),
+        cell: (info) => <span className="font-medium">{info.getValue()}</span>,
+      }),
+      columnHelper.accessor("price", {
+        header: SortHeader("Price"),
+        enableGlobalFilter: false,
+        cell: (info) => <Badge variant="secondary">{formatPrice(info.getValue())}/mo</Badge>,
+      }),
+      columnHelper.accessor("questionsPerDay", {
+        header: SortHeader("Questions/Day"),
+        enableGlobalFilter: false,
+        cell: (info) => (
+          <span className="text-sm">{info.getValue() === -1 ? "Unlimited" : info.getValue()}</span>
+        ),
+      }),
+      columnHelper.accessor("aiExplanationsPerDay", {
+        header: SortHeader("AI/Day"),
+        enableGlobalFilter: false,
+        cell: (info) => (
+          <span className="text-sm">{info.getValue() === -1 ? "Unlimited" : info.getValue()}</span>
+        ),
+      }),
+      columnHelper.accessor("examAccess", {
+        header: SortHeader("Exam"),
+        enableGlobalFilter: false,
+        cell: (info) => (
+          <Badge variant={info.getValue() === "full" ? "default" : "secondary"} className="capitalize">
+            {info.getValue()}
+          </Badge>
+        ),
+      }),
+      columnHelper.accessor((row) => row._count?.subscriptions || 0, {
+        id: "subscribers",
+        header: SortHeader("Subscribers"),
+        enableGlobalFilter: false,
+        cell: (info) => <Badge variant="outline">{info.getValue()}</Badge>,
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        enableSorting: false,
+        cell: (info) => {
+          const plan = info.row.original;
+          return (
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={() => openDialog(plan)}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-red-500 hover:text-red-600"
+                onClick={() => openDeleteDialog(plan)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        },
+      }),
+  ];
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -198,17 +263,11 @@ export default function AdminSubscriptionPlansPage() {
 
   return (
     <div className="space-y-6 p-6 pb-20">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Subscription Plans</h1>
-          <p className="text-muted-foreground">
-            Manage subscription plans and pricing.
-          </p>
-        </div>
-        <Button size="sm" onClick={() => openDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Plan
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Subscription Plans</h1>
+        <p className="text-muted-foreground">
+          Manage subscription plans and pricing.
+        </p>
       </div>
 
       {/* Stats */}
@@ -247,70 +306,29 @@ export default function AdminSubscriptionPlansPage() {
       </div>
 
       {/* Table */}
-      {plans.length === 0 ? (
-        <p className="text-muted-foreground text-center py-4">
-          No subscription plans yet. Add one to get started.
-        </p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Questions/Day</TableHead>
-              <TableHead>AI/Day</TableHead>
-              <TableHead>Exam</TableHead>
-              <TableHead>Subscribers</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {plans.map((plan) => (
-              <TableRow key={plan.id}>
-                <TableCell className="font-mono text-sm">{plan.id}</TableCell>
-                <TableCell className="font-medium">{plan.name}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{formatPrice(plan.price)}/mo</Badge>
-                </TableCell>
-                <TableCell className="text-sm">
-                  {plan.questionsPerDay === -1 ? 'Unlimited' : plan.questionsPerDay}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {plan.aiExplanationsPerDay === -1 ? 'Unlimited' : plan.aiExplanationsPerDay}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={plan.examAccess === 'full' ? 'default' : 'secondary'} className="capitalize">
-                    {plan.examAccess}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{plan._count?.subscriptions || 0}</Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openDialog(plan)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-600"
-                      onClick={() => openDeleteDialog(plan)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      <DataTable
+        columns={columns}
+        data={plans}
+        searchPlaceholder="Search plans..."
+        filters={[
+          {
+            id: "examAccess",
+            label: "Exam Access",
+            options: [
+              { label: "All Access", value: "all" },
+              { label: "Full", value: "full" },
+              { label: "Limited", value: "limited" },
+            ],
+          },
+        ]}
+        emptyMessage="No subscription plans yet."
+        toolbarActions={
+          <Button size="sm" onClick={() => openDialog()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Plan
+          </Button>
+        }
+      />
 
       {/* Create/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

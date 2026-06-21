@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { BarChart3, CheckCircle2, FileText, FlaskConical, Save, Search, ShieldCheck, XCircle } from "lucide-react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useSession } from "next-auth/react";
+import { CheckCircle2, FileText, FlaskConical, Rocket, Save, Search, ShieldCheck, XCircle } from "lucide-react";
 import { usePageTitle } from "@/lib/usePageTitle";
 import {
     DatasetQaQuestion,
     DatasetQaStatus,
+    DatasetTrainingReadiness,
+    DatasetQaChecklist,
+    publishDatasetQaQuestions,
     testDatasetQaAnswer,
     updateDatasetQaQuestion,
     useDatasetQaQuestions,
@@ -75,6 +79,119 @@ const STATUS_STYLES: Record<DatasetQaStatus, string> = {
     REJECTED: "bg-red-600 text-white hover:bg-red-600",
     MANUAL_REVIEW: "bg-purple-600 text-white hover:bg-purple-600",
 };
+
+const TRAINING_READINESS_LABELS: Record<DatasetTrainingReadiness, string> = {
+    PRACTICE_ONLY: "Practice only",
+    TRAINING_READY: "Training ready",
+    EXPERT_REVIEW: "Expert review",
+};
+
+const TRAINING_READINESS_STYLES: Record<DatasetTrainingReadiness, string> = {
+    PRACTICE_ONLY: "border-slate-500/40 bg-slate-500/10 text-slate-200",
+    TRAINING_READY: "border-emerald-500/40 bg-emerald-500/15 text-emerald-100",
+    EXPERT_REVIEW: "border-sky-500/40 bg-sky-500/15 text-sky-100",
+};
+
+function isManualReviewQuestion(question: DatasetQaQuestion, reviewStatus = question.reviewStatus) {
+    return !question.isMarkable || reviewStatus === "MANUAL_REVIEW";
+}
+
+function isAutoCheckSafe(question: DatasetQaQuestion, checklist = question.qaChecklist, reviewStatus = question.reviewStatus) {
+    return !isManualReviewQuestion(question, reviewStatus) && Boolean(checklist.markerTestPassed);
+}
+
+function markerVisibilityLabel(question: DatasetQaQuestion, checklist = question.qaChecklist, reviewStatus = question.reviewStatus) {
+    if (isManualReviewQuestion(question, reviewStatus)) {
+        return {
+            label: "Manual review",
+            detail: "Do not publish for auto-scored practice until a person reviews the answer path.",
+            className: "border-purple-500/40 bg-purple-500/15 text-purple-100",
+        };
+    }
+
+    if (isAutoCheckSafe(question, checklist, reviewStatus)) {
+        return {
+            label: "Auto-check safe",
+            detail: "The expected answer passes the marker test and can be auto-scored.",
+            className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-100",
+        };
+    }
+
+    return {
+        label: "Needs marker test",
+        detail: "Run the marker test with the expected answer before approval.",
+        className: "border-amber-500/40 bg-amber-500/15 text-amber-100",
+    };
+}
+
+function contentVisibilityLabel(question: DatasetQaQuestion) {
+    if (question.contentStatus === "ACTIVE") {
+        return {
+            label: "Live in practice",
+            detail: "Students can see this record.",
+            className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-100",
+        };
+    }
+
+    if (question.reviewStatus === "APPROVED") {
+        return {
+            label: "Waiting publish",
+            detail: "Approved by contributor; owner/admin must publish before students see it.",
+            className: "border-blue-500/40 bg-blue-500/15 text-blue-100",
+        };
+    }
+
+    return {
+        label: "Not live",
+        detail: "Still in QA and hidden from student practice.",
+        className: "border-slate-500/40 bg-slate-500/10 text-slate-200",
+    };
+}
+
+function QaVisibilityBadges({
+    question,
+    checklist = question.qaChecklist,
+    reviewStatus = question.reviewStatus,
+    trainingReadiness = question.trainingReadiness,
+    compact = false,
+    showContentStatus = false,
+}: {
+    question: DatasetQaQuestion;
+    checklist?: DatasetQaChecklist;
+    reviewStatus?: DatasetQaStatus;
+    trainingReadiness?: DatasetTrainingReadiness;
+    compact?: boolean;
+    showContentStatus?: boolean;
+}) {
+    const marker = markerVisibilityLabel(question, checklist, reviewStatus);
+    const content = contentVisibilityLabel({ ...question, reviewStatus });
+
+    return (
+        <div className={`flex flex-wrap gap-2 ${compact ? "text-[11px]" : "text-xs"}`}>
+            <Badge variant="outline" className={marker.className} title={marker.detail}>
+                {marker.label}
+            </Badge>
+            <Badge variant="outline" className={TRAINING_READINESS_STYLES[trainingReadiness]}>
+                {TRAINING_READINESS_LABELS[trainingReadiness]}
+            </Badge>
+            {showContentStatus ? (
+                <Badge variant="outline" className={content.className} title={content.detail}>
+                    {content.label}
+                </Badge>
+            ) : null}
+        </div>
+    );
+}
+
+const CHECKLIST_ITEMS: Array<{ key: keyof DatasetQaChecklist; label: string }> = [
+    { key: "sourceMatched", label: "Source matched" },
+    { key: "topicChecked", label: "Topic checked" },
+    { key: "answerChecked", label: "Answer checked" },
+    { key: "acceptedAnswersChecked", label: "Accepted answers checked" },
+    { key: "markerTestPassed", label: "Marker test passed" },
+    { key: "rubricChecked", label: "Rubric checked" },
+    { key: "solutionChecked", label: "Solution checked" },
+];
 
 const TOPIC_LABELS: Record<string, string> = {
     MM_CALC_DIFF_RULES: "Differentiation rules",
@@ -162,9 +279,175 @@ function statusCounts(rows: DatasetQaQuestion[]) {
     );
 }
 
+function canPublishForRole(role: unknown) {
+    return ["admin", "teacher"].includes(String(role ?? "").toLowerCase());
+}
+
+function approvedUnpublishedRows(rows: DatasetQaQuestion[]) {
+    return rows.filter((row) => row.reviewStatus === "APPROVED" && row.contentStatus !== "ACTIVE");
+}
+
+function datasetYear(row: DatasetQaQuestion) {
+    const fromKey = row.examKey.match(/_(20\d{2})$/)?.[1] ?? row.examKey.match(/(20\d{2})/)?.[1];
+    return fromKey ?? "Practice";
+}
+
+function finalReviewSummary(allRows: DatasetQaQuestion[], publishRows: DatasetQaQuestion[]) {
+    const byReviewer = Object.values(
+        allRows.reduce(
+            (acc, row) => {
+                const key = row.reviewerName?.trim() || `User ${row.reviewerUserId ?? "unknown"}`;
+                if (!acc[key]) {
+                    acc[key] = {
+                        reviewer: key,
+                        count: 0,
+                        approved: 0,
+                        needsFix: 0,
+                        manualReview: 0,
+                        rejected: 0,
+                        trainingReady: 0,
+                        practiceOnly: 0,
+                        expertReview: 0,
+                        latestReviewedAt: "",
+                    };
+                }
+                acc[key].count += 1;
+                if (row.reviewStatus === "APPROVED") acc[key].approved += 1;
+                if (row.reviewStatus === "NEEDS_FIX") acc[key].needsFix += 1;
+                if (row.reviewStatus === "MANUAL_REVIEW") acc[key].manualReview += 1;
+                if (row.reviewStatus === "REJECTED") acc[key].rejected += 1;
+                if (row.trainingReadiness === "TRAINING_READY") acc[key].trainingReady += 1;
+                if (row.trainingReadiness === "PRACTICE_ONLY") acc[key].practiceOnly += 1;
+                if (row.trainingReadiness === "EXPERT_REVIEW") acc[key].expertReview += 1;
+                if (row.reviewedAt && row.reviewedAt > acc[key].latestReviewedAt) {
+                    acc[key].latestReviewedAt = row.reviewedAt;
+                }
+                return acc;
+            },
+            {} as Record<
+                string,
+                {
+                    reviewer: string;
+                    count: number;
+                    approved: number;
+                    needsFix: number;
+                    manualReview: number;
+                    rejected: number;
+                    trainingReady: number;
+                    practiceOnly: number;
+                    expertReview: number;
+                    latestReviewedAt: string;
+                }
+            >
+        )
+    ).sort((a, b) => b.count - a.count || a.reviewer.localeCompare(b.reviewer));
+
+    const byTopic = Object.values(
+        allRows.reduce(
+            (acc, row) => {
+                const key = row.topicCode || "UNMAPPED";
+                if (!acc[key]) {
+                    acc[key] = {
+                        topicCode: key,
+                        count: 0,
+                        marks: 0,
+                        approved: 0,
+                        publishReady: 0,
+                        reviewers: new Set<string>(),
+                    };
+                }
+                acc[key].count += 1;
+                acc[key].marks += Number(row.marks || 0);
+                if (row.reviewStatus === "APPROVED") acc[key].approved += 1;
+                if (row.reviewStatus === "APPROVED" && row.contentStatus !== "ACTIVE") acc[key].publishReady += 1;
+                acc[key].reviewers.add(row.reviewerName?.trim() || `User ${row.reviewerUserId ?? "unknown"}`);
+                return acc;
+            },
+            {} as Record<
+                string,
+                {
+                    topicCode: string;
+                    count: number;
+                    marks: number;
+                    approved: number;
+                    publishReady: number;
+                    reviewers: Set<string>;
+                }
+            >
+        )
+    ).sort((a, b) => b.count - a.count || a.topicCode.localeCompare(b.topicCode));
+
+    const byYear = Object.values(
+        allRows.reduce(
+            (acc, row) => {
+                const key = datasetYear(row);
+                if (!acc[key]) {
+                    acc[key] = { year: key, count: 0, approved: 0, live: 0, waitingPublish: 0, marks: 0 };
+                }
+                acc[key].count += 1;
+                acc[key].marks += Number(row.marks || 0);
+                if (row.reviewStatus === "APPROVED") acc[key].approved += 1;
+                if (row.contentStatus === "ACTIVE") acc[key].live += 1;
+                if (row.reviewStatus === "APPROVED" && row.contentStatus !== "ACTIVE") acc[key].waitingPublish += 1;
+                return acc;
+            },
+            {} as Record<
+                string,
+                { year: string; count: number; approved: number; live: number; waitingPublish: number; marks: number }
+            >
+        )
+    ).sort((a, b) => b.year.localeCompare(a.year));
+
+    const byStatus = (Object.keys(STATUS_LABELS) as DatasetQaStatus[]).map((status) => ({
+        status,
+        label: STATUS_LABELS[status],
+        count: allRows.filter((row) => row.reviewStatus === status).length,
+        marks: allRows
+            .filter((row) => row.reviewStatus === status)
+            .reduce((sum, row) => sum + Number(row.marks || 0), 0),
+    }));
+
+    return {
+        byReviewer,
+        byTopic,
+        byYear,
+        byStatus,
+        total: allRows.length,
+        waitingPublish: publishRows.length,
+        live: allRows.filter((row) => row.contentStatus === "ACTIVE").length,
+        autoCheckSafe: allRows.filter((row) => isAutoCheckSafe(row)).length,
+        manualReview: allRows.filter((row) => isManualReviewQuestion(row)).length,
+        trainingReady: allRows.filter((row) => row.trainingReadiness === "TRAINING_READY").length,
+        practiceOnly: allRows.filter((row) => row.trainingReadiness === "PRACTICE_ONLY").length,
+        expertReview: allRows.filter((row) => row.trainingReadiness === "EXPERT_REVIEW").length,
+    };
+}
+
+function formatReviewDate(value: string | null | undefined) {
+    if (!value) return "-";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "-";
+    return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function asDatasetRows(value: unknown): DatasetQaQuestion[] {
+    if (Array.isArray(value)) return value;
+    if (value && typeof value === "object") {
+        const maybeRecords = (value as { records?: unknown; items?: unknown; data?: unknown }).records;
+        const maybeItems = (value as { records?: unknown; items?: unknown; data?: unknown }).items;
+        const maybeData = (value as { records?: unknown; items?: unknown; data?: unknown }).data;
+        if (Array.isArray(maybeRecords)) return maybeRecords;
+        if (Array.isArray(maybeItems)) return maybeItems;
+        if (Array.isArray(maybeData)) return maybeData;
+    }
+    return [];
+}
+
 export default function ContributorDatasetQaPage() {
     usePageTitle("Dataset QA");
 
+    const { data: session } = useSession();
+    const canPublish = canPublishForRole((session?.user as any)?.role);
     const [datasetSourceKey, setDatasetSourceKey] = useState(EXAMS[0].key);
     const [reviewerName, setReviewerName] = useState("");
     const [statusFilter, setStatusFilter] = useState<"ALL" | DatasetQaStatus>("ALL");
@@ -176,8 +459,12 @@ export default function ContributorDatasetQaPage() {
         ],
         []
     );
-    const { data = [], isLoading: loading, isError: hasError, refetch } = useDatasetQaQuestions(datasetSourceKey);
+    const { data: rawData, isLoading: loading, isError: hasError, refetch } = useDatasetQaQuestions(datasetSourceKey);
+    const data = useMemo(() => asDatasetRows(rawData), [rawData]);
     const [selectedId, setSelectedId] = useState<number | null>(null);
+    const [selectedPublishIds, setSelectedPublishIds] = useState<Set<number>>(new Set());
+    const [publishing, setPublishing] = useState(false);
+    const [publishMessage, setPublishMessage] = useState<string | null>(null);
 
     const filtered = useMemo(() => {
         const term = search.trim().toLowerCase();
@@ -199,6 +486,25 @@ export default function ContributorDatasetQaPage() {
     }, [data, filtered, selectedId]);
 
     const counts = statusCounts(data);
+    const approvedForFinalReview = useMemo(() => approvedUnpublishedRows(data), [data]);
+    const publishSummary = useMemo(() => finalReviewSummary(data, approvedForFinalReview), [data, approvedForFinalReview]);
+
+    async function handlePublishApproved() {
+        if (!canPublish || selectedPublishIds.size === 0) return;
+
+        setPublishing(true);
+        setPublishMessage(null);
+        try {
+            const result = await publishDatasetQaQuestions(datasetSourceKey, Array.from(selectedPublishIds));
+            setPublishMessage(result.message);
+            setSelectedPublishIds(new Set());
+            await refetch();
+        } catch (error: any) {
+            setPublishMessage(error?.message || "Failed to publish approved records.");
+        } finally {
+            setPublishing(false);
+        }
+    }
 
     return (
         <div className="space-y-6 p-6">
@@ -215,9 +521,9 @@ export default function ContributorDatasetQaPage() {
 
                 <div className="grid gap-3 md:grid-cols-[180px_260px_280px]">
                     <Button variant="outline" asChild>
-                        <Link href="/contributor/dataset-qa/analytics">
-                            <BarChart3 className="mr-2 h-4 w-4" />
-                            Analytics
+                        <Link href="/docs/contributor-dataset-qa-guide.pdf" target="_blank">
+                            <FileText className="mr-2 h-4 w-4" />
+                            Guide PDF
                         </Link>
                     </Button>
                     <div className="space-y-2">
@@ -225,6 +531,8 @@ export default function ContributorDatasetQaPage() {
                         <Select value={datasetSourceKey} onValueChange={(value) => {
                             setDatasetSourceKey(value);
                             setSelectedId(null);
+                            setSelectedPublishIds(new Set());
+                            setPublishMessage(null);
                         }}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select dataset" />
@@ -248,6 +556,11 @@ export default function ContributorDatasetQaPage() {
                     </div>
                 </div>
             </div>
+            {publishMessage ? (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    {publishMessage}
+                </div>
+            ) : null}
 
             <div className="grid gap-3 md:grid-cols-5">
                 {(Object.keys(STATUS_LABELS) as DatasetQaStatus[]).map((status) => (
@@ -260,55 +573,15 @@ export default function ContributorDatasetQaPage() {
                 ))}
             </div>
 
-            <Card>
-                <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                        <FileText className="h-5 w-5" />
-                        QA review guideline
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-                    <div>
-                        <p className="text-sm text-muted-foreground">
-                            Review each record as if you are preparing it for a student and for future model training.
-                            Do not approve a record only because it loads on screen.
-                        </p>
-                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                            {[
-                                "Enter your reviewer name before saving any decision.",
-                                "Select the exam year and open the first Ready for QA record.",
-                                "Compare the rendered question with the original exam or trusted source.",
-                                "Check topic, subtopic, marks, answer type, and manual-review flag.",
-                                "For auto-check questions, run the marker using the expected answer.",
-                                "Read the worked solution and marking rubric for accuracy and clarity.",
-                                "Choose Approve, Needs Fix, Manual, or Reject, then write a short note.",
-                                "Move to the next question and repeat until the queue is complete.",
-                            ].map((step, index) => (
-                                <div key={step} className="rounded-md border p-3 text-sm">
-                                    <span className="mr-2 font-semibold text-primary">{index + 1}.</span>
-                                    {step}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="rounded-lg border bg-muted/30 p-4">
-                        <p className="font-semibold">Golden example: 2025 Question 1a</p>
-                        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                            <p>Question: differentiate y = x^2 cos(x).</p>
-                            <p>Expected answer: 2x cos(x) - x^2 sin(x).</p>
-                            <p>Marker test: paste the expected answer and confirm it scores 1 / 1.</p>
-                            <p>Topic check: Differentiation rules / Product rule.</p>
-                            <p>Decision: Approve only if the rendered question, answer, solution, rubric, and marker result all match.</p>
-                            <p>Reviewer note example: Checked against source. Expected answer marks correct. Product rule topic is correct.</p>
-                        </div>
-                        <Button className="mt-4 w-full" variant="outline" asChild>
-                            <Link href="/docs/contributor-dataset-qa-guide.pdf" target="_blank">
-                                Open full guide
-                            </Link>
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+            <FinalReviewPanel
+                rows={approvedForFinalReview}
+                summary={publishSummary}
+                canPublish={canPublish}
+                selectedIds={selectedPublishIds}
+                setSelectedIds={setSelectedPublishIds}
+                publishing={publishing}
+                onPublish={handlePublishApproved}
+            />
 
             {loading ? (
                 <DatasetQaSkeleton />
@@ -370,7 +643,9 @@ export default function ContributorDatasetQaPage() {
                                     <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                                         <span>{row.marks} mark{row.marks === 1 ? "" : "s"}</span>
                                         <span>{row.answerType}</span>
-                                        <span>{row.isMarkable ? "Auto-check" : "Manual"}</span>
+                                    </div>
+                                    <div className="mt-3">
+                                        <QaVisibilityBadges question={row} compact />
                                     </div>
                                 </button>
                             ))}
@@ -412,13 +687,17 @@ function DatasetQaEditor({
     const [correctAnswer, setCorrectAnswer] = useState(question.correctAnswer);
     const [acceptedAnswers, setAcceptedAnswers] = useState(question.acceptedAnswers.join("\n"));
     const [workedSolution, setWorkedSolution] = useState(question.workedSolution);
+    const [rubricText, setRubricText] = useState(formatRubricForEdit(question.markingRubric));
+    const [commonMistakes, setCommonMistakes] = useState(question.commonMistakes.join("\n"));
+    const [trainingReadiness, setTrainingReadiness] = useState<DatasetTrainingReadiness>(question.trainingReadiness);
+    const [qaChecklist, setQaChecklist] = useState<DatasetQaChecklist>(question.qaChecklist);
     const [topicCode, setTopicCode] = useState(question.topicCode ?? "");
     const [subtopicCode, setSubtopicCode] = useState(question.subtopicCode ?? "");
     const [reviewStatus, setReviewStatus] = useState<DatasetQaStatus>(question.reviewStatus);
     const [reviewNotes, setReviewNotes] = useState(question.reviewNotes ?? "");
     const [testAnswer, setTestAnswer] = useState(question.correctAnswer);
     const [message, setMessage] = useState<string | null>(null);
-    const [testResult, setTestResult] = useState<any>(null);
+    const [testResult, setTestResult] = useState<any>(question.lastMarkerTest ?? null);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
 
@@ -428,6 +707,10 @@ function DatasetQaEditor({
         try {
             const result = await testDatasetQaAnswer(question.id, testAnswer);
             setTestResult(result);
+            setQaChecklist((current) => ({
+                ...current,
+                markerTestPassed: result.isCorrect === true && Number(result.score ?? 0) >= Number(result.maxScore ?? question.marks),
+            }));
         } catch (error: any) {
             setMessage(error?.message || "Failed to test answer");
         } finally {
@@ -435,7 +718,45 @@ function DatasetQaEditor({
         }
     }
 
+    function toggleChecklist(key: keyof DatasetQaChecklist) {
+        setQaChecklist((current) => ({ ...current, [key]: !current[key] }));
+    }
+
+    function approvalBlockers(nextStatus: DatasetQaStatus) {
+        if (nextStatus !== "APPROVED") return [];
+
+        const blockers: string[] = [];
+        if (!questionText.trim()) blockers.push("question text");
+        if (!topicCode.trim()) blockers.push("topic code");
+        if (!subtopicCode.trim()) blockers.push("subtopic code");
+        if (!correctAnswer.trim() && question.isMarkable) blockers.push("correct answer");
+        if (!workedSolution.trim()) blockers.push("worked solution");
+        if (!rubricText.trim()) blockers.push("marking rubric");
+        if (trainingReadiness === "TRAINING_READY" && !commonMistakes.trim()) {
+            blockers.push("common mistakes for training-ready records");
+        }
+
+        const missingChecks = CHECKLIST_ITEMS
+            .filter((item) => {
+                if (!question.isMarkable && item.key === "markerTestPassed") return false;
+                return !qaChecklist[item.key];
+            })
+            .map((item) => item.label.toLowerCase());
+
+        if (missingChecks.length) {
+            blockers.push(`checklist incomplete: ${missingChecks.join(", ")}`);
+        }
+
+        return blockers;
+    }
+
     async function handleSave(nextStatus = reviewStatus) {
+        const blockers = approvalBlockers(nextStatus);
+        if (blockers.length) {
+            setMessage(`Cannot approve yet. Missing: ${blockers.join("; ")}.`);
+            return;
+        }
+
         setSaving(true);
         setMessage(null);
         try {
@@ -447,6 +768,11 @@ function DatasetQaEditor({
                 correctAnswer,
                 acceptedAnswers: acceptedAnswers.split(/\n+/g).map((item) => item.trim()).filter(Boolean),
                 workedSolution,
+                markingRubric: parseRubricFromEdit(rubricText),
+                commonMistakes: commonMistakes.split(/\n+/g).map((item) => item.trim()).filter(Boolean),
+                trainingReadiness,
+                qaChecklist,
+                lastMarkerTest: testResult,
                 topicCode,
                 subtopicCode,
             });
@@ -471,6 +797,14 @@ function DatasetQaEditor({
                                 {readableCode(question.topicCode, TOPIC_LABELS)} /{" "}
                                 {readableCode(question.subtopicCode, SUBTOPIC_LABELS)}
                             </p>
+                            <div className="mt-3">
+                                <QaVisibilityBadges
+                                    question={question}
+                                    checklist={qaChecklist}
+                                    reviewStatus={reviewStatus}
+                                    trainingReadiness={trainingReadiness}
+                                />
+                            </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <Badge variant="outline">{question.answerType}</Badge>
@@ -517,10 +851,88 @@ function DatasetQaEditor({
                         <Field label="Worked solution">
                             <Textarea rows={8} value={workedSolution} onChange={(event) => setWorkedSolution(event.target.value)} />
                         </Field>
+                        <Field label="Marking rubric">
+                            <Textarea
+                                rows={7}
+                                value={rubricText}
+                                onChange={(event) => setRubricText(event.target.value)}
+                                placeholder="One criterion per line, for example: 1 | Correct derivative using the product rule."
+                            />
+                        </Field>
+                        <Field label="Common mistakes">
+                            <Textarea
+                                rows={5}
+                                value={commonMistakes}
+                                onChange={(event) => setCommonMistakes(event.target.value)}
+                                placeholder="One common mistake per line"
+                            />
+                        </Field>
                     </CardContent>
                 </Card>
 
                 <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Training quality gate</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="rounded-md border bg-muted/20 p-3">
+                                <QaVisibilityBadges
+                                    question={question}
+                                    checklist={qaChecklist}
+                                    reviewStatus={reviewStatus}
+                                    trainingReadiness={trainingReadiness}
+                                />
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    Check whether this answer can be auto-marked, then choose whether it is only safe for practice or also ready for future model training.
+                                </p>
+                            </div>
+                            <Field label="Training readiness">
+                                <Select
+                                    value={trainingReadiness}
+                                    onValueChange={(value) => setTrainingReadiness(value as DatasetTrainingReadiness)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(Object.keys(TRAINING_READINESS_LABELS) as DatasetTrainingReadiness[]).map((value) => (
+                                            <SelectItem key={value} value={value}>
+                                                {TRAINING_READINESS_LABELS[value]}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </Field>
+                            <div className="grid gap-2 md:grid-cols-2">
+                                {CHECKLIST_ITEMS.map((item) => {
+                                    const checked = qaChecklist[item.key];
+                                    const disabled = !question.isMarkable && item.key === "markerTestPassed";
+
+                                    return (
+                                        <button
+                                            key={item.key}
+                                            type="button"
+                                            disabled={disabled}
+                                            onClick={() => toggleChecklist(item.key)}
+                                            className={`rounded-md border p-3 text-left text-sm transition ${
+                                                checked
+                                                    ? "border-emerald-600 bg-emerald-600/15 text-emerald-100"
+                                                    : "bg-muted/20 text-muted-foreground"
+                                            } ${disabled ? "cursor-not-allowed opacity-50" : "hover:bg-muted"}`}
+                                        >
+                                            <span className="font-medium">{checked ? "Checked" : "Open"}</span>
+                                            <span className="ml-2">{item.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                Approve requires all applicable checks. Use Expert review when the record is useful but not ready for model training.
+                            </p>
+                        </CardContent>
+                    </Card>
+
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-lg">Answer test</CardTitle>
@@ -622,8 +1034,8 @@ function DatasetQaEditor({
                             <CardTitle className="text-lg">Marking rubric</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            {question.markingRubric?.length ? (
-                                question.markingRubric.map((item, index) => (
+                            {parseRubricFromEdit(rubricText).length ? (
+                                parseRubricFromEdit(rubricText).map((item, index) => (
                                     <div key={index} className="grid grid-cols-[80px_1fr] overflow-hidden rounded-md border text-sm">
                                         <div className="bg-muted p-3 font-medium">{item.marks ?? "-"} mark</div>
                                         <div className="p-3">{item.criterion ?? "-"}</div>
@@ -640,6 +1052,326 @@ function DatasetQaEditor({
     );
 }
 
+function FinalReviewPanel({
+    rows,
+    summary,
+    canPublish,
+    selectedIds,
+    setSelectedIds,
+    publishing,
+    onPublish,
+}: {
+    rows: DatasetQaQuestion[];
+    summary: ReturnType<typeof finalReviewSummary>;
+    canPublish: boolean;
+    selectedIds: Set<number>;
+    setSelectedIds: Dispatch<SetStateAction<Set<number>>>;
+    publishing: boolean;
+    onPublish: () => Promise<void>;
+}) {
+    const allSelected = rows.length > 0 && rows.every((row) => selectedIds.has(row.id));
+
+    function toggleOne(id: number) {
+        setSelectedIds((current) => {
+            const next = new Set(current);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }
+
+    function toggleAll() {
+        setSelectedIds((current) => {
+            if (rows.length > 0 && rows.every((row) => current.has(row.id))) {
+                return new Set();
+            }
+            return new Set(rows.map((row) => row.id));
+        });
+    }
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-col gap-3 pb-3 xl:flex-row xl:items-start xl:justify-between">
+                <div>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <Rocket className="h-5 w-5 text-primary" />
+                        Owner final review
+                    </CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Contributor approval is evidence for final review. Student practice only changes after an admin or teacher publishes selected records.
+                    </p>
+                </div>
+                <Button
+                    type="button"
+                    onClick={onPublish}
+                    disabled={!canPublish || publishing || selectedIds.size === 0}
+                >
+                    <Rocket className="mr-2 h-4 w-4" />
+                    {publishing ? "Publishing..." : `Publish selected ${selectedIds.size}`}
+                </Button>
+            </CardHeader>
+            <CardContent className="space-y-5">
+                {!canPublish ? (
+                    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+                        Contributors can approve records, but only an admin or teacher can publish them to student practice.
+                    </div>
+                ) : null}
+
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Total records</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.total}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Waiting publish</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.waitingPublish}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Live practice</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.live}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Auto-check safe</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.autoCheckSafe}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Manual review</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.manualReview}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Training ready</p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.trainingReady}</p>
+                    </div>
+                </div>
+
+                <div className="grid gap-5 xl:grid-cols-2">
+                    <div className="rounded-md border">
+                        <div className="border-b p-3 font-medium">Records by year</div>
+                        <div className="divide-y">
+                            {summary.byYear.length ? (
+                                summary.byYear.map((row) => (
+                                    <div key={row.year} className="grid grid-cols-[80px_repeat(4,minmax(0,1fr))] gap-3 p-3 text-sm">
+                                        <div className="font-medium">{row.year}</div>
+                                        <div className="text-right">{row.count} q</div>
+                                        <div className="text-right text-emerald-100">{row.approved} approved</div>
+                                        <div className="text-right text-blue-100">{row.waitingPublish} waiting</div>
+                                        <div className="text-right text-muted-foreground">{row.live} live</div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-3 text-sm text-muted-foreground">No year summary yet.</div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="rounded-md border">
+                        <div className="border-b p-3 font-medium">Records by status</div>
+                        <div className="divide-y">
+                            {summary.byStatus.map((row) => (
+                                <div key={row.status} className="grid grid-cols-[1fr_72px_72px] gap-3 p-3 text-sm">
+                                    <div className="font-medium">{row.label}</div>
+                                    <div className="text-right">{row.count} q</div>
+                                    <div className="text-right text-muted-foreground">{row.marks} marks</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid gap-5 xl:grid-cols-2">
+                    <div className="rounded-md border">
+                        <div className="border-b p-3 font-medium">Approved by reviewer</div>
+                        <div className="divide-y">
+                            {summary.byReviewer.length ? (
+                                summary.byReviewer.map((row) => (
+                                    <div key={row.reviewer} className="grid grid-cols-[1fr_96px_120px] gap-3 p-3 text-sm">
+                                        <div>
+                                            <div className="font-medium">{row.reviewer}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                Latest review {formatReviewDate(row.latestReviewedAt)}
+                                            </div>
+                                        </div>
+                                        <div className="text-right font-semibold">{row.count} q</div>
+                                        <div className="text-right text-xs text-muted-foreground">
+                                            {row.approved} approved / {row.needsFix} fix
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-3 text-sm text-muted-foreground">No reviewed records yet.</div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="rounded-md border">
+                        <div className="border-b p-3 font-medium">Approved by category</div>
+                        <div className="max-h-64 divide-y overflow-auto">
+                            {summary.byTopic.length ? (
+                                summary.byTopic.map((row) => (
+                                    <div key={row.topicCode} className="grid grid-cols-[1fr_72px_72px] gap-3 p-3 text-sm">
+                                        <div>
+                                            <div className="font-medium">{readableCode(row.topicCode, TOPIC_LABELS)}</div>
+                                            <div className="text-xs text-muted-foreground">{row.topicCode}</div>
+                                        </div>
+                                        <div className="text-right">{row.count} q</div>
+                                        <div className="text-right text-xs text-muted-foreground">
+                                            {row.approved} approved / {row.publishReady} waiting
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-3 text-sm text-muted-foreground">No category summary yet.</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <Exam2PipelineGate summary={summary} />
+
+                <div className="rounded-md border">
+                    <div className="flex flex-col gap-3 border-b p-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p className="font-medium">Publish queue</p>
+                            <p className="text-sm text-muted-foreground">
+                                Select only the records you have final-reviewed and want students to see.
+                            </p>
+                        </div>
+                        {canPublish ? (
+                            <Button type="button" variant="outline" size="sm" onClick={toggleAll} disabled={!rows.length}>
+                                {allSelected ? "Clear selection" : "Select all approved"}
+                            </Button>
+                        ) : null}
+                    </div>
+                    <div className="max-h-80 divide-y overflow-auto">
+                        {rows.length ? (
+                            rows.map((row) => (
+                                <label
+                                    key={row.id}
+                                    className="grid cursor-pointer grid-cols-[24px_88px_minmax(0,1fr)_140px] gap-3 p-3 text-sm hover:bg-muted/40"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        className="mt-1"
+                                        disabled={!canPublish}
+                                        checked={selectedIds.has(row.id)}
+                                        onChange={() => toggleOne(row.id)}
+                                    />
+                                    <div className="font-medium">Q{row.questionNumber}</div>
+                                    <div className="min-w-0">
+                                        <div className="truncate">{readableCode(row.topicCode, TOPIC_LABELS)}</div>
+                                        <div className="truncate text-xs text-muted-foreground">
+                                            {readableCode(row.subtopicCode, SUBTOPIC_LABELS)}
+                                        </div>
+                                    </div>
+                                    <div className="text-right text-xs text-muted-foreground">
+                                        <div>{row.reviewerName || "Reviewer unknown"}</div>
+                                        <div className="mt-1 flex justify-end">
+                                            <QaVisibilityBadges question={row} compact showContentStatus />
+                                        </div>
+                                    </div>
+                                </label>
+                            ))
+                        ) : (
+                            <div className="p-4 text-sm text-muted-foreground">
+                                No approved records are waiting for owner publish.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function Exam2PipelineGate({ summary }: { summary: ReturnType<typeof finalReviewSummary> }) {
+    const reviewedCount = summary.byStatus
+        .filter((row) => row.status !== "READY_FOR_QA")
+        .reduce((total, row) => total + row.count, 0);
+    const publishedFlowExists = summary.live > 0;
+    const publishQueueClear = summary.waitingPublish === 0;
+    const noOpenFailures =
+        (summary.byStatus.find((row) => row.status === "NEEDS_FIX")?.count ?? 0) === 0 &&
+        (summary.byStatus.find((row) => row.status === "REJECTED")?.count ?? 0) === 0;
+
+    const steps = [
+        {
+            label: "Exam 1 imported",
+            done: summary.total > 0,
+            detail: `${summary.total} records loaded in the selected source.`,
+        },
+        {
+            label: "Contributor review started",
+            done: reviewedCount > 0,
+            detail: `${reviewedCount} records have a review decision.`,
+        },
+        {
+            label: "Owner publish tested",
+            done: publishedFlowExists,
+            detail: `${summary.live} records are live in student practice.`,
+        },
+        {
+            label: "Publish queue clear",
+            done: publishQueueClear,
+            detail: `${summary.waitingPublish} approved records are still waiting for owner publish.`,
+        },
+        {
+            label: "No unresolved review failures",
+            done: noOpenFailures,
+            detail: "Needs-fix and rejected records should be triaged before using the same flow for Exam 2.",
+        },
+        {
+            label: "Student practice and history checked",
+            done: false,
+            detail: "Manual check: submit a student answer and confirm the submission history detail is correct.",
+            manual: true,
+        },
+    ];
+    const automaticStepsDone = steps.filter((step) => !step.manual).every((step) => step.done);
+
+    return (
+        <div className="rounded-md border">
+            <div className="border-b p-3">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p className="font-medium">Exam 2 dataset pipeline gate</p>
+                        <p className="text-sm text-muted-foreground">
+                            Start Exam 2 only after the Exam 1 import, review, publish, practice, and history loop is stable.
+                        </p>
+                    </div>
+                    <Badge
+                        variant="outline"
+                        className={
+                            automaticStepsDone
+                                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-100"
+                                : "border-amber-500/40 bg-amber-500/15 text-amber-100"
+                        }
+                    >
+                        {automaticStepsDone ? "Almost ready for Exam 2" : "Keep Exam 2 paused"}
+                    </Badge>
+                </div>
+            </div>
+            <div className="grid gap-2 p-3 md:grid-cols-2 xl:grid-cols-3">
+                {steps.map((step) => {
+                    const done = step.done;
+                    return (
+                        <div key={step.label} className="rounded-md border bg-muted/20 p-3 text-sm">
+                            <div className="flex items-center gap-2">
+                                {done ? (
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                ) : (
+                                    <XCircle className="h-4 w-4 text-amber-500" />
+                                )}
+                                <span className="font-medium">{step.label}</span>
+                            </div>
+                            <p className="mt-2 text-xs text-muted-foreground">{step.detail}</p>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div className="space-y-2">
@@ -647,6 +1379,34 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
             {children}
         </div>
     );
+}
+
+function formatRubricForEdit(rubric: Array<{ marks?: number; criterion?: string }>) {
+    return rubric
+        .map((item) => {
+            const marks = item.marks == null ? "" : String(item.marks);
+            return `${marks} | ${item.criterion ?? ""}`.trim();
+        })
+        .filter(Boolean)
+        .join("\n");
+}
+
+function parseRubricFromEdit(value: string) {
+    return value
+        .split(/\n+/g)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+            const [marksPart, ...criterionParts] = line.split("|");
+            const parsedMarks = Number(marksPart.trim());
+            const criterion = criterionParts.length ? criterionParts.join("|").trim() : line;
+
+            return {
+                marks: Number.isFinite(parsedMarks) ? parsedMarks : undefined,
+                criterion,
+            };
+        })
+        .filter((item) => item.criterion);
 }
 
 function DatasetQaSkeleton() {

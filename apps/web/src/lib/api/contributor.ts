@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getSession, useSession } from "next-auth/react";
-import { apiGet, apiPost, apiPut } from "@/lib/apiClient";
+import { apiGet, apiPatch, apiPost, apiPut } from "@/lib/apiClient";
 import type {
   ContributorTaskStatus,
   ContributorTaskType,
@@ -31,6 +31,13 @@ export type {
   DatasetQaMarkingResult,
 };
 
+export interface PublishDatasetQaResult {
+    examKey: string;
+    published: number;
+    skipped: number;
+    message: string;
+}
+
 async function getAccessToken() {
     const session = await getSession();
     return (session?.user as any)?.accessToken as string | undefined;
@@ -58,6 +65,14 @@ export function useContributorTasks() {
         enabled: !!token,
         staleTime: 30_000,
     });
+}
+
+export async function updateContributorTaskStatus(
+    taskId: number | string,
+    status: ContributorTaskStatus
+) {
+    const token = await getAccessToken();
+    return apiPatch<ContributorTask>(`/contributor/tasks/${taskId}/status`, { status }, token);
 }
 
 export function useContributorRubricDrafts() {
@@ -119,6 +134,15 @@ export async function testDatasetQaAnswer(questionId: number | string, answer: s
     return apiPost<DatasetQaMarkingResult>(
         `/contributor/dataset-qa/${questionId}/test-answer`,
         { answer },
+        token
+    );
+}
+
+export async function publishDatasetQaQuestions(examKey: string, questionIds?: number[]) {
+    const token = await getAccessToken();
+    return apiPost<PublishDatasetQaResult>(
+        "/contributor/dataset-qa/publish",
+        { examKey, questionIds },
         token
     );
 }

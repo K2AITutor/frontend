@@ -12,7 +12,7 @@ export default function AuthBanner() {
     ]
 
     return (
-        <div className="w-[60%] relative flex flex-col justify-center p-16 bg-bg-primary">
+        <div className="hidden lg:flex w-full lg:w-[60%] relative flex-col justify-center p-16 bg-bg-primary">
             <div className="relative z-10 max-w-[37.5rem]">
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent-teal/12 text-accent-teal rounded-2xl text-[0.875rem] font-medium mb-6">
                     <Sparkles className="w-4 h-4" />

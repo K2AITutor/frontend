@@ -27,6 +27,7 @@ function RegisterPageContent() {
   })
   const [terms, setTerms] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const searchParams = useSearchParams()
   const router = useRouter()
   const callbackUrl = searchParams.get('callbackUrl') || ''
@@ -86,12 +87,15 @@ function RegisterPageContent() {
     try {
       await register(formData.email, formData.password, formData.firstName, formData.lastName, formData.studentId, formData.year)
 
-      // Redirect to verify-email page (no auto-login, user must verify email first)
+      // Redirect to verify-email page (no auto-login, user must verify email first).
+      // Keep the loading state on until the destination mounts and this page
+      // unmounts — resetting it here would leave a frozen-looking page while
+      // Next.js loads the route.
+      setIsRedirecting(true)
       router.push(`/auth/verify-email?registered=true&email=${encodeURIComponent(formData.email)}`)
     } catch (error: any) {
       console.error('Registration error:', error)
       toast.error(error.message || 'An error occurred during registration. Please try again.')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -103,7 +107,8 @@ function RegisterPageContent() {
     } catch (error) {
       console.error('Google sign in error:', error)
       toast.error('Failed to sign in with Google. Please try again.')
-    } finally {
+      // Only reset on failure — on success the browser is navigating away to
+      // the Google consent screen and the spinner should stay visible.
       setIsLoading(false)
     }
   }
@@ -116,8 +121,15 @@ function RegisterPageContent() {
 
   return (
     <main className="min-h-screen bg-bg-primary">
+      {isRedirecting && (
+        <div className="fixed inset-0 z-[2000] bg-bg-primary/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+          <div className="w-12 h-12 border-[3px] border-accent-teal border-t-transparent rounded-full animate-spin" />
+          <p className="text-text-primary text-[1rem] font-medium">Account created successfully</p>
+          <p className="text-text-secondary text-[0.875rem]">Taking you to email verification...</p>
+        </div>
+      )}
       <div className="flex min-h-screen">
-        <div className="w-[40%] p-12 overflow-y-auto flex flex-col bg-bg-secondary max-h-screen custom-scrollbar">
+        <div className="w-full lg:w-[40%] p-6 sm:p-8 lg:p-12 overflow-y-auto flex flex-col bg-bg-secondary max-h-screen custom-scrollbar">
           <Link href="/" className="flex items-center gap-3 mb-8">
             <div className="w-[42px] h-[42px] bg-gradient-to-br from-accent-teal to-accent-coral rounded-[10px] flex items-center justify-center font-serif text-[1.25rem] font-normal text-bg-primary">
               V
@@ -334,7 +346,11 @@ function RegisterPageContent() {
               className="w-full"
               disabled={isLoading || !formData.firstName || !formData.lastName || !formData.email || !formData.password || formData.password !== formData.confirmPassword || !formData.year || !terms}
             >
-              {isLoading ? 'Creating Account...' : 'Create Account'}
+              {isLoading
+                ? isRedirecting
+                  ? 'Account created! Redirecting...'
+                  : 'Creating Account...'
+                : 'Create Account'}
               {!isLoading && <ArrowRight className="w-4 h-4" />}
             </Button>
           </form>

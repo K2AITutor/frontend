@@ -13,11 +13,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Calendar,
   UserCheck,
   UserX,
   ShieldCheck,
   ShieldOff,
+  Power,
+  Trash2,
 } from "lucide-react";
 import {
   Select,
@@ -26,15 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/dashboard/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/dashboard/ui/dialog";
+import { ConfirmDialog } from "@/components/dashboard/ui/confirm-dialog";
+import { StudentDetailDrawer } from "@/components/dashboard/StudentDetailDrawer";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { DateRangePicker } from "@/components/dashboard/ui/date-range-picker";
 import { useAdminToken } from "@/lib/api/useAdminToken";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { toast } from "@/components/dashboard/ui/sonner";
@@ -78,6 +74,7 @@ export function AdminUsersDirectory({
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useUsers({
     page,
@@ -107,23 +104,19 @@ export function AdminUsersDirectory({
     setToggleDialogOpen(true);
   };
 
-  const confirmToggle = () => {
+  const confirmToggle = async () => {
     if (!pendingToggleId) return;
     const isActive = pendingToggleUser?.isActive;
     setLoadingUserId(pendingToggleId);
-    toggleActive.mutate(pendingToggleId, {
-      onSuccess: () => {
-        toast.success(isActive ? "User deactivated successfully" : "User activated successfully");
-      },
-      onError: () => {
-        toast.error("Failed to update user status");
-      },
-      onSettled: () => {
-        setLoadingUserId(null);
-        setToggleDialogOpen(false);
-        setPendingToggleId(null);
-      },
-    });
+    try {
+      await toggleActive.mutateAsync(pendingToggleId);
+      toast.success(isActive ? "User deactivated successfully" : "User activated successfully");
+    } catch {
+      toast.error("Failed to update user status");
+    } finally {
+      setLoadingUserId(null);
+      setPendingToggleId(null);
+    }
   };
 
   const handleResendVerification = (userId: string) => {
@@ -144,22 +137,18 @@ export function AdminUsersDirectory({
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!pendingDeleteId) return;
     setLoadingUserId(pendingDeleteId);
-    deleteUser.mutate(pendingDeleteId, {
-      onSuccess: () => {
-        toast.success("User deleted successfully");
-      },
-      onError: () => {
-        toast.error("Failed to delete user");
-      },
-      onSettled: () => {
-        setLoadingUserId(null);
-        setDeleteDialogOpen(false);
-        setPendingDeleteId(null);
-      },
-    });
+    try {
+      await deleteUser.mutateAsync(pendingDeleteId);
+      toast.success("User deleted successfully");
+    } catch {
+      toast.error("Failed to delete user");
+    } finally {
+      setLoadingUserId(null);
+      setPendingDeleteId(null);
+    }
   };
 
   const pendingDeleteUser = users.find(u => u.id === pendingDeleteId);
@@ -217,7 +206,7 @@ export function AdminUsersDirectory({
                   <p className="text-xs text-muted-foreground">Active</p>
                 </div>
               </div>
-              <div className="h-10 w-px bg-slate-200 dark:bg-slate-700" />
+              <div className="h-10 w-px bg-border" />
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
                   <UserX className="h-5 w-5 text-red-600 dark:text-red-400" />
@@ -245,7 +234,7 @@ export function AdminUsersDirectory({
                     <p className="text-xs text-muted-foreground">Verified</p>
                   </div>
                 </div>
-                <div className="h-10 w-px bg-slate-200 dark:bg-slate-700" />
+                <div className="h-10 w-px bg-border" />
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
                     <ShieldOff className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -261,8 +250,8 @@ export function AdminUsersDirectory({
         )}
       </div>
 
-      <Card className="shadow-sm border-slate-200/60 dark:border-slate-800">
-        <CardHeader className="border-b border-slate-100 dark:border-slate-800 pb-4">
+      <Card className="shadow-sm border-border">
+        <CardHeader className="border-b border-border pb-4">
           <div className="space-y-4">
             <div className="space-y-1">
               <CardTitle className="text-lg">{directoryTitle}</CardTitle>
@@ -279,13 +268,13 @@ export function AdminUsersDirectory({
                     setSearchQuery(e.target.value);
                     setPage(1);
                   }}
-                  className="pl-9 bg-slate-50/50 dark:bg-slate-900"
+                  className="pl-9 bg-muted/50"
                 />
               </div>
 
               {isStaff && (
                 <Select value={roleFilter} onValueChange={(v) => { setRoleFilter(v as AdminUserRole | "all"); setPage(1); }}>
-                  <SelectTrigger className="w-full bg-slate-50/50 dark:bg-slate-900">
+                  <SelectTrigger className="w-full bg-muted/50">
                     <SelectValue placeholder="Role" />
                   </SelectTrigger>
                   <SelectContent>
@@ -297,7 +286,7 @@ export function AdminUsersDirectory({
               )}
 
               <Select value={activeFilter} onValueChange={(v) => { setActiveFilter(v); setPage(1); }}>
-                <SelectTrigger className="w-full bg-slate-50/50 dark:bg-slate-900">
+                <SelectTrigger className="w-full bg-muted/50">
                   <SelectValue placeholder="Active Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -309,7 +298,7 @@ export function AdminUsersDirectory({
 
               {!isStaff && (
                 <Select value={verifiedFilter} onValueChange={(v) => { setVerifiedFilter(v); setPage(1); }}>
-                  <SelectTrigger className="w-full bg-slate-50/50 dark:bg-slate-900">
+                  <SelectTrigger className="w-full bg-muted/50">
                     <SelectValue placeholder="Verification" />
                   </SelectTrigger>
                   <SelectContent>
@@ -320,27 +309,18 @@ export function AdminUsersDirectory({
                 </Select>
               )}
 
-              {/* Date Filters */}
-              <div className={isStaff ? "flex min-w-0 items-center gap-2 md:col-span-2 xl:col-span-1" : "flex min-w-0 items-center gap-2"}>
-                <div className="relative min-w-0 flex-1">
-                  <Calendar className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                  <Input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-                    className="h-10 w-full pl-8 text-xs bg-slate-50/50 dark:bg-slate-900"
-                  />
-                </div>
-                <span className="text-muted-foreground text-xs">-</span>
-                <div className="relative min-w-0 flex-1">
-                  <Calendar className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                  <Input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-                    className="h-10 w-full pl-8 text-xs bg-slate-50/50 dark:bg-slate-900"
-                  />
-                </div>
+              {/* Date Filter — quick presets + calendar range picker */}
+              <div className={isStaff ? "min-w-0 md:col-span-2 xl:col-span-1" : "min-w-0"}>
+                <DateRangePicker
+                  startDate={startDate}
+                  endDate={endDate}
+                  onChange={(start, end) => {
+                    setStartDate(start);
+                    setEndDate(end);
+                    setPage(1);
+                  }}
+                  placeholder="Joined: All time"
+                />
               </div>
             </div>
           </div>
@@ -349,25 +329,26 @@ export function AdminUsersDirectory({
           <UserTable
             users={users}
             variant={roleScope}
-            className="border-none shadow-none"
+            className="shadow-none"
+            onView={setSelectedUserId}
             onToggleActive={handleToggleActive}
             onResendVerification={handleResendVerification}
             onDeleteUser={handleDeleteUser}
             loadingUserId={loadingUserId}
           />
 
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-4 border-t border-border">
             <div className="flex items-center gap-4 order-2 sm:order-1">
               <p className="text-sm text-muted-foreground">
                 Showing <span className="font-semibold text-foreground">{(page - 1) * limit + 1}</span> to <span className="font-semibold text-foreground">{Math.min(page * limit, totalUsers)}</span> of <span className="font-semibold text-foreground">{totalUsers}</span>
               </p>
 
-              <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-700 hidden sm:block" />
+              <div className="h-4 w-[1px] bg-border hidden sm:block" />
 
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground hidden lg:inline">Rows per page:</span>
                 <Select value={limit.toString()} onValueChange={(v) => { setLimit(parseInt(v)); setPage(1); }}>
-                  <SelectTrigger className="h-8 w-20 bg-transparent border-slate-200 shadow-none text-xs">
+                  <SelectTrigger className="h-8 w-20 bg-transparent border-border shadow-none text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -390,21 +371,21 @@ export function AdminUsersDirectory({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-8 w-8 rounded-md bg-white dark:bg-slate-950 border-slate-200"
+                  className="h-8 w-8 rounded-md bg-background border-border"
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
                 >
-                  <ChevronLeft className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                  <ChevronLeft className="h-4 w-4 text-muted-foreground" />
                   <span className="sr-only">Previous page</span>
                 </Button>
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-8 w-8 rounded-md bg-white dark:bg-slate-950 border-slate-200"
+                  className="h-8 w-8 rounded-md bg-background border-border"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                 >
-                  <ChevronRight className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   <span className="sr-only">Next page</span>
                 </Button>
               </div>
@@ -413,51 +394,42 @@ export function AdminUsersDirectory({
         </CardContent>
       </Card>
 
-      {/* Toggle Active Confirmation Dialog */}
-      <Dialog open={toggleDialogOpen} onOpenChange={setToggleDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{pendingToggleUser?.isActive ? "Deactivate" : "Activate"} User</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to {pendingToggleUser?.isActive ? "deactivate" : "activate"}{" "}
-              <span className="font-semibold text-foreground">{pendingToggleUser?.name}</span> ({pendingToggleUser?.email})?
-              {pendingToggleUser?.isActive
-                ? " They will no longer be able to access the platform."
-                : " They will regain access to the platform."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setToggleDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={confirmToggle} disabled={toggleActive.isPending}>
-              {toggleActive.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {pendingToggleUser?.isActive ? "Deactivate" : "Activate"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Toggle Active Confirmation */}
+      <ConfirmDialog
+        open={toggleDialogOpen}
+        onOpenChange={setToggleDialogOpen}
+        title={`${pendingToggleUser?.isActive ? "Deactivate" : "Activate"} User`}
+        description={
+          `Are you sure you want to ${pendingToggleUser?.isActive ? "deactivate" : "activate"} ${pendingToggleUser?.name ?? ""} (${pendingToggleUser?.email ?? ""})?` +
+          (pendingToggleUser?.isActive
+            ? " They will no longer be able to access the platform."
+            : " They will regain access to the platform.")
+        }
+        confirmLabel={pendingToggleUser?.isActive ? "Deactivate" : "Activate"}
+        variant={pendingToggleUser?.isActive ? "destructive" : "default"}
+        loading={toggleActive.isPending}
+        onConfirm={confirmToggle}
+        icon={<Power className="h-4 w-4" />}
+      />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete <span className="font-semibold text-foreground">{pendingDeleteUser?.name}</span> ({pendingDeleteUser?.email})? This action cannot be undone and will remove all associated data.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={deleteUser.isPending}>
-              {deleteUser.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete User"
+        description={`Are you sure you want to delete ${pendingDeleteUser?.name ?? ""} (${pendingDeleteUser?.email ?? ""})? This action cannot be undone and will remove all associated data.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        loading={deleteUser.isPending}
+        onConfirm={confirmDelete}
+        icon={<Trash2 className="h-4 w-4" />}
+      />
+
+      {/* Profile Detail Drawer (Rule 1) */}
+      <StudentDetailDrawer
+        userId={selectedUserId}
+        onClose={() => setSelectedUserId(null)}
+      />
     </div>
   );
 }

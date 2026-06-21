@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, AlertCircle, CheckCircle2, XCircle, History, Download } from "lucide-react";
+import { AlertCircle, CheckCircle2, XCircle, History, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/dashboard/ui/card";
 import { Badge } from "@/components/dashboard/ui/badge";
 import { Button } from "@/components/dashboard/ui/button";
@@ -12,17 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/dashboard/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
+import { DataTable, SortHeader } from "@/components/dashboard/DataTable";
+import { createColumnHelper } from "@tanstack/react-table";
 import { useTeacherHistory } from "@/lib/api/teacher";
 import { usePageTitle } from "@/lib/usePageTitle";
 import type { TeacherHistoryItem } from "@/lib/types/teacher";
+import { HistoryDetailDrawer } from "@/components/teacher/HistoryDetailDrawer";
 
 const RANGE_OPTIONS = [
   { value: "7d", label: "Last 7 days" },
@@ -37,7 +32,7 @@ const DECISION_OPTIONS = [
   { value: "escalate", label: "Escalated" },
 ];
 
-const PAGE_SIZE = 20;
+const columnHelper = createColumnHelper<TeacherHistoryItem>();
 
 const decisionBadge = (decision: TeacherHistoryItem["decision"]) => {
   if (decision === "approve") return { className: "bg-green-50 text-green-700 border-green-200", label: "Approved" };
@@ -78,8 +73,72 @@ export default function TeacherHistoryPage() {
 
   const [range, setRange] = useState("7d");
   const [decisionFilter, setDecisionFilter] = useState("all");
-  const [page, setPage] = useState(1);
+  const [openId, setOpenId] = useState<string | null>(null);
   const { data: history, isLoading, error, refetch } = useTeacherHistory(range);
+
+  const columns = [
+    columnHelper.accessor("id", {
+      header: SortHeader("Submission"),
+      cell: (info) => <span className="font-mono text-sm">{info.getValue()}</span>,
+    }),
+    columnHelper.accessor("submittedAt", {
+      header: SortHeader("Submitted"),
+      cell: (info) => (
+        <span className="text-sm text-muted-foreground">
+          {new Date(info.getValue()).toLocaleDateString("en-AU", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
+        </span>
+      ),
+    }),
+    columnHelper.accessor("decision", {
+      header: SortHeader("Decision"),
+      cell: (info) => {
+        const badge = decisionBadge(info.getValue());
+        return (
+          <Badge variant="outline" className={`text-xs ${badge.className}`}>
+            {badge.label}
+          </Badge>
+        );
+      },
+    }),
+    columnHelper.accessor("originalScore", {
+      header: SortHeader("AI Score"),
+      cell: (info) => info.getValue(),
+    }),
+    columnHelper.accessor("correctedScore", {
+      header: SortHeader("Corrected"),
+      cell: (info) => info.getValue(),
+    }),
+    columnHelper.accessor((row) => row.correctedScore - row.originalScore, {
+      id: "scoreChange",
+      header: SortHeader("Score change"),
+      cell: (info) => {
+        const scoreDelta = info.getValue();
+        return scoreDelta === 0 ? (
+          <span className="text-muted-foreground text-sm">—</span>
+        ) : (
+          <span
+            className={`text-sm font-medium ${scoreDelta > 0 ? "text-green-600" : "text-red-600"}`}
+          >
+            {scoreDelta > 0 ? "+" : ""}
+            {scoreDelta}
+          </span>
+        );
+      },
+    }),
+    columnHelper.accessor("agreementWithAi", {
+      header: SortHeader("Agreed with AI"),
+      cell: (info) =>
+        info.getValue() ? (
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+        ) : (
+          <XCircle className="h-4 w-4 text-red-500" />
+        ),
+    }),
+  ];
 
   if (error) {
     return (
@@ -101,12 +160,8 @@ export default function TeacherHistoryPage() {
       : history.filter((h) => h.decision === decisionFilter)
     : [];
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, pageCount);
-  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
-  const handleRangeChange = (v: string) => { setRange(v); setPage(1); };
-  const handleDecisionChange = (v: string) => { setDecisionFilter(v); setPage(1); };
+  const handleRangeChange = (v: string) => setRange(v);
+  const handleDecisionChange = (v: string) => setDecisionFilter(v);
 
   return (
     <div className="space-y-6 p-6 pb-20">
@@ -151,107 +206,23 @@ export default function TeacherHistoryPage() {
       </div>
 
       <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-48">
-              <Loader2 className="h-7 w-7 animate-spin text-primary" />
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground">
-              {history && history.length > 0
+        <CardContent className="pt-6">
+          <DataTable
+            columns={columns}
+            data={filtered}
+            enableSearch={false}
+            isLoading={isLoading}
+            onRowClick={(row) => setOpenId(row.id)}
+            emptyMessage={
+              history && history.length > 0
                 ? "No reviews match the selected filters."
-                : "No review history in the selected range."}
-            </div>
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Submission</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead>Decision</TableHead>
-                    <TableHead>AI Score</TableHead>
-                    <TableHead>Corrected</TableHead>
-                    <TableHead>Score change</TableHead>
-                    <TableHead>Agreed with AI</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paged.map((item) => {
-                    const badge = decisionBadge(item.decision);
-                    const scoreDelta = item.correctedScore - item.originalScore;
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-mono text-sm">{item.id}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {new Date(item.submittedAt).toLocaleDateString("en-AU", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                          })}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={`text-xs ${badge.className}`}>
-                            {badge.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{item.originalScore}</TableCell>
-                        <TableCell>{item.correctedScore}</TableCell>
-                        <TableCell>
-                          {scoreDelta === 0 ? (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          ) : (
-                            <span
-                              className={`text-sm font-medium ${
-                                scoreDelta > 0 ? "text-green-600" : "text-red-600"
-                              }`}
-                            >
-                              {scoreDelta > 0 ? "+" : ""}
-                              {scoreDelta}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {item.agreementWithAi ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              {pageCount > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 border-t text-sm text-muted-foreground">
-                  <span>
-                    Page {currentPage} of {pageCount} · {filtered.length} result{filtered.length !== 1 ? "s" : ""}
-                  </span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage === 1}
-                      onClick={() => setPage((p) => p - 1)}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage === pageCount}
-                      onClick={() => setPage((p) => p + 1)}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+                : "No review history in the selected range."
+            }
+          />
         </CardContent>
       </Card>
+
+      <HistoryDetailDrawer attemptId={openId} onClose={() => setOpenId(null)} />
     </div>
   );
 }

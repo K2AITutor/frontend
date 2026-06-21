@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { PATH } from "@aitutor/shared";
 import { apiGet, apiPost, apiPut, apiDelete } from "../apiClient";
 import type {
@@ -26,4 +27,31 @@ export async function updateSubject(id: number, dto: UpdateSubjectDto, token?: s
 
 export async function deleteSubject(id: number, token?: string): Promise<void> {
   return apiDelete<void>(PATH.admin.subjectById(id), token);
+}
+
+export type SubjectStatus = "active" | "coming";
+
+export interface PracticeSubjectPersonalized {
+  code: string;
+  name: string;
+  slug: string;
+  icon: string | null;
+  status: SubjectStatus;
+  order: number;
+  progressPercent: number;
+  questionsAttempted: number;
+  averageScore: number;
+  recommended: boolean;
+}
+
+export interface PracticeSubjectsResponse {
+  subjects: PracticeSubjectPersonalized[];
+}
+
+export function usePracticeSubjects() {
+  return useQuery({
+    queryKey: ["practice-subjects"],
+    queryFn: () =>
+      apiGet<PracticeSubjectsResponse>("/student/practice-subjects"),
+  });
 }

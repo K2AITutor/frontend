@@ -1,5 +1,5 @@
 import { AdminUsersDirectory } from "@/components/dashboard/AdminUsersDirectory";
 
-export default function AdminUsersPage() {
+export default function AdminStudentsPage() {
   return <AdminUsersDirectory />;
 }

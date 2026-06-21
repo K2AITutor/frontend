@@ -32,11 +32,13 @@ import {
   Cpu,
   Database,
   ShieldCheck,
-  BarChart3,
+  FileText,
   FileQuestion,
   ListChecks,
   ClipboardCheck,
   ChevronDown,
+  Bell,
+  BarChart3,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import type { UserRole } from "@aitutor/shared";
@@ -69,6 +71,11 @@ const studentNavItems: NavItem[] = [
     title: "Practice",
     href: "/student/practice",
     icon: <Sparkles className="h-5 w-5" />,
+  },
+  {
+    title: "History",
+    href: "/student/submissions",
+    icon: <History className="h-5 w-5" />,
   },
 ];
 
@@ -115,7 +122,7 @@ const adminNavGroups: NavGroup[] = [
     items: [
       {
         title: "Students",
-        href: "/admin/users",
+        href: "/admin/students",
         icon: <UserCog className="h-5 w-5" />,
       },
       {
@@ -158,31 +165,6 @@ const adminNavGroups: NavGroup[] = [
         href: "/admin/content/tasks",
         icon: <ClipboardList className="h-5 w-5" />,
       },
-      {
-        title: "FAQs",
-        href: "/admin/faqs",
-        icon: <HelpCircle className="h-5 w-5" />,
-      },
-      {
-        title: "Testimonials",
-        href: "/admin/testimonials",
-        icon: <Quote className="h-5 w-5" />,
-      },
-    ],
-  },
-  {
-    title: "Billing",
-    items: [
-      {
-        title: "Subscription Plans",
-        href: "/admin/subscription-plans",
-        icon: <CreditCard className="h-5 w-5" />,
-      },
-      {
-        title: "Billing Health",
-        href: "/admin/billing",
-        icon: <HeartPulse className="h-5 w-5" />,
-      },
     ],
   },
   {
@@ -215,23 +197,76 @@ const adminNavGroups: NavGroup[] = [
       },
     ],
   },
+  {
+    title: "Billing",
+    items: [
+      {
+        title: "Subscription Plans",
+        href: "/admin/subscription-plans",
+        icon: <CreditCard className="h-5 w-5" />,
+      },
+      {
+        title: "Billing Health",
+        href: "/admin/billing",
+        icon: <HeartPulse className="h-5 w-5" />,
+      },
+    ],
+  },
+  {
+    title: "Public Page",
+    items: [
+      {
+        title: "FAQs",
+        href: "/admin/faqs",
+        icon: <HelpCircle className="h-5 w-5" />,
+      },
+      {
+        title: "Testimonials",
+        href: "/admin/testimonials",
+        icon: <Quote className="h-5 w-5" />,
+      },
+    ],
+  },
 ];
 
 const contributorNavItems: NavItem[] = [
-  {
-    title: "Dashboard",
-    href: "/contributor",
-    icon: <LayoutDashboard className="h-5 w-5" />,
-  },
   {
     title: "Dataset QA",
     href: "/contributor/dataset-qa",
     icon: <ShieldCheck className="h-5 w-5" />,
   },
   {
-    title: "Dataset Analytics",
-    href: "/contributor/dataset-qa/analytics",
+    title: "Guide PDF",
+    href: "/docs/contributor-dataset-qa-guide.pdf",
+    icon: <FileText className="h-5 w-5" />,
+  },
+];
+
+const parentNavItems: NavItem[] = [
+  {
+    title: "Dashboard",
+    href: "/parent",
+    icon: <LayoutDashboard className="h-5 w-5" />,
+  },
+  {
+    title: "Children",
+    href: "/parent/children",
+    icon: <Users className="h-5 w-5" />,
+  },
+  {
+    title: "Alerts",
+    href: "/parent/alerts",
+    icon: <Bell className="h-5 w-5" />,
+  },
+  {
+    title: "Reports",
+    href: "/parent/reports",
     icon: <BarChart3 className="h-5 w-5" />,
+  },
+  {
+    title: "Settings",
+    href: "/parent/settings",
+    icon: <Settings className="h-5 w-5" />,
   },
 ];
 
@@ -240,7 +275,7 @@ const navItemsByRole: Record<UserRole, NavItem[]> = {
   teacher: teacherNavItems,
   admin: adminNavGroups.flatMap((group) => group.items),
   contributor: contributorNavItems,
-  parent: [], // Add parent items if any, or empty array for now
+  parent: parentNavItems,
 };
 
 const roleLabels: Record<UserRole, string> = {
@@ -266,7 +301,7 @@ export function DashboardSidebar({
       group.items.some((item) => {
         if (item.href === "/admin") return pathname === item.href;
         return pathname.startsWith(item.href);
-      })
+      }),
     );
 
     return activeGroup?.title ?? null;
@@ -276,7 +311,7 @@ export function DashboardSidebar({
       adminNavGroups.reduce<Record<string, boolean>>((groups, group) => {
         groups[group.title] = true;
         return groups;
-      }, {})
+      }, {}),
   );
 
   React.useEffect(() => {
@@ -309,7 +344,7 @@ export function DashboardSidebar({
       };
       window.localStorage.setItem(
         "adminSidebarOpenGroups",
-        JSON.stringify(nextGroups)
+        JSON.stringify(nextGroups),
       );
       return nextGroups;
     });
@@ -333,7 +368,7 @@ export function DashboardSidebar({
       };
       window.localStorage.setItem(
         "adminSidebarOpenGroups",
-        JSON.stringify(nextGroups)
+        JSON.stringify(nextGroups),
       );
       return nextGroups;
     });
@@ -344,7 +379,7 @@ export function DashboardSidebar({
       <div
         className={cn(
           "flex h-full flex-col border-r bg-card transition-all duration-300",
-          collapsed ? "w-[70px]" : "w-[240px]"
+          collapsed ? "w-[70px]" : "w-[240px]",
         )}
       >
         <div className="flex h-16 items-center border-b px-4">
@@ -390,7 +425,7 @@ export function DashboardSidebar({
                       <ChevronDown
                         className={cn(
                           "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                          !openGroups[group.title] && "-rotate-90"
+                          !openGroups[group.title] && "-rotate-90",
                         )}
                       />
                     </button>
@@ -412,7 +447,7 @@ export function DashboardSidebar({
                             className={cn(
                               "h-10 w-10",
                               active &&
-                                "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                                "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
                             )}
                           >
                             {item.icon}
@@ -428,7 +463,7 @@ export function DashboardSidebar({
                         className={cn(
                           "w-full justify-start gap-3",
                           active &&
-                            "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                            "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
                         )}
                       >
                         {item.icon}
@@ -462,7 +497,7 @@ export function DashboardSidebar({
                         className={cn(
                           "h-10 w-10",
                           active &&
-                          "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                            "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
                         )}
                       >
                         {item.icon}
@@ -481,7 +516,7 @@ export function DashboardSidebar({
                   className={cn(
                     "w-full justify-start gap-3",
                     active &&
-                    "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                      "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
                   )}
                 >
                   {item.icon}

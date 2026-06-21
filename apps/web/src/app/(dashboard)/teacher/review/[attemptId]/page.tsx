@@ -64,14 +64,14 @@ const DECISION_CONFIG: Record<
 export default function AnnotationWorkspacePage({
   params,
 }: {
-  params: Promise<{ submissionId: string }>;
+  params: { attemptId: string };
 }) {
-  const { submissionId } = use(params);
+  const { attemptId } = params;
   usePageTitle("Annotation Workspace");
   const router = useRouter();
 
-  const { data, isLoading, error, refetch } = useSubmissionFull(submissionId);
-  const mutation = useSubmitTeacherCorrection(submissionId);
+  const { data, isLoading, error, refetch } = useSubmissionFull(attemptId);
+  const mutation = useSubmitTeacherCorrection(attemptId);
 
   // Form state
   const [criterionOverrides, setCriterionOverrides] = useState<Record<string, number>>({});
@@ -237,7 +237,7 @@ export default function AnnotationWorkspacePage({
               <CardTitle className="text-sm">Question</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <p className="text-sm whitespace-pre-wrap">{question.prompt}</p>
+              <p className="text-sm whitespace-pre-wrap">{question.questionText}</p>
               {question.expectedAnswer && (
                 <>
                   <Separator />

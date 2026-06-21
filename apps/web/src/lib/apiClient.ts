@@ -98,6 +98,33 @@ export function getApiBase() {
   return clean.endsWith("/api") ? clean : `${clean}/api`;
 }
 
+// Prevent multiple parallel 401s (e.g. a dashboard firing several API calls at
+// once) from each triggering a sign-out/redirect.
+let handlingUnauthorized = false;
+
+/**
+ * The NextAuth session cookie outlives the backend access_token (7 days vs 60m).
+ * After the token expires the middleware still lets the user into the dashboard,
+ * but every backend call comes back 401. When that happens, clear the stale
+ * session and send the user to login so they get a fresh token.
+ */
+async function handleUnauthorized(url: string) {
+  if (typeof window === "undefined") return;
+  // Don't loop on the auth endpoints / login page themselves.
+  if (url.includes("/auth/") || window.location.pathname.startsWith("/auth")) {
+    return;
+  }
+  if (handlingUnauthorized) return;
+  handlingUnauthorized = true;
+
+  try {
+    const { signOut } = await import("next-auth/react");
+    await signOut({ callbackUrl: "/auth/login", redirect: true });
+  } catch {
+    window.location.href = "/auth/login";
+  }
+}
+
 async function safeText(res: Response): Promise<string> {
   try {
     return await res.text();
@@ -110,6 +137,10 @@ async function safeJsonFromResponse<T>(
   res: Response,
   urlForError: string
 ): Promise<T> {
+  if (res.status === 401) {
+    await handleUnauthorized(urlForError);
+  }
+
   const text = await safeText(res);
   const trimmed = text.trim();
 
@@ -223,6 +254,7 @@ export async function apiPatch<T>(path: string, body: any, token?: string): Prom
     credentials: "include",
     body: JSON.stringify(body),
   });
+
   return safeJsonFromResponse<T>(res, url);
 }
 
@@ -257,14 +289,20 @@ export async function submitExamAnswer(payload: {
   answer: string;
   userId?: number;
   token?: string;
+  normalizedAnswer?: string;
+  inputMode?: string;
+  parserWarnings?: unknown;
 }): Promise<SubmitAnswerResponse> {
-  const { examKey, questionId, answer, userId, token } = payload;
+  const { examKey, questionId, answer, userId, token, normalizedAnswer, inputMode, parserWarnings } = payload;
 
   return apiPost<SubmitAnswerResponse>(
     `/exams/${encodeURIComponent(examKey)}/submit`,
     {
       questionId: Number(questionId),
       answer,
+      ...(normalizedAnswer ? { normalizedAnswer } : {}),
+      ...(inputMode ? { inputMode } : {}),
+      ...(parserWarnings ? { parserWarnings } : {}),
       ...(typeof userId === "number" ? { userId } : {}),
     },
     token
@@ -315,23 +353,17 @@ export async function submitAnswer(
   hintCount?: number,
   userId?: number
 ): Promise<SubmitAnswerResponse> {
-  const base = getApiBase();
-  const url = `${base}/questions/submit`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({
-      questionId: Number(questionId),
-      answer,
-      userId: userId ?? 1,
-      ...(examKey ? { examKey } : {}),
-      ...(typeof hintCount === "number" ? { hintCount } : {}),
-    }),
+  // Route through apiPost so the request carries the Authorization: Bearer
+  // header resolved from the NextAuth session. The /questions/submit endpoint
+  // is JwtAuthGuard-protected and reads the token from the Authorization header
+  // only (not cookies), so a raw fetch with credentials alone returns 401.
+  return apiPost<SubmitAnswerResponse>("/questions/submit", {
+    questionId: Number(questionId),
+    answer,
+    userId: userId ?? 1,
+    ...(examKey ? { examKey } : {}),
+    ...(typeof hintCount === "number" ? { hintCount } : {}),
   });
-
-  return safeJsonFromResponse<SubmitAnswerResponse>(res, url);
 }
 
 export async function getNextRecommendedQuestions(args: {

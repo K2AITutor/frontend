@@ -1,20 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/dashboard/ui/table";
 import { Badge } from "@/components/dashboard/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
+import { UserAvatar } from "@/components/dashboard/UserAvatar";
 import { Button } from "@/components/dashboard/ui/button";
+import { DataTable, SortHeader } from "@/components/dashboard/DataTable";
 import {
-  ArrowUpDown, CreditCard, ShieldCheck, Clock, CircleCheck, CircleX,
+  CreditCard, ShieldCheck, Clock, CircleCheck, CircleX,
   MoreHorizontal, Eye, Power, Mail, Trash2, Loader2,
 } from "lucide-react";
 import {
@@ -25,16 +17,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/dashboard/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-  createColumnHelper,
-  SortingState,
-  getSortedRowModel,
-} from "@tanstack/react-table";
+import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
 
-interface User {
+export interface User {
   id: string;
   name: string;
   email: string;
@@ -54,6 +39,7 @@ interface UserTableProps {
   users: User[];
   className?: string;
   variant?: "students" | "staff";
+  onView?: (userId: string) => void;
   onToggleActive?: (userId: string) => void;
   onResendVerification?: (userId: string) => void;
   onDeleteUser?: (userId: string) => void;
@@ -70,42 +56,79 @@ function formatDate(dateString: string): string {
   });
 }
 
-export function UserTable({
-  users,
-  className,
+const ROLE_STYLES: Record<string, string> = {
+  admin: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900 dark:bg-purple-950/40 dark:text-purple-300",
+  teacher: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300",
+  contributor: "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-300",
+  parent: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
+};
+
+// A small label + icon pill, easier to scan than a bare icon.
+function StatusPill({
+  ok,
+  okLabel,
+  badLabel,
+  okIcon: OkIcon,
+  badIcon: BadIcon,
+  badTone = "red",
+}: {
+  ok: boolean;
+  okLabel: string;
+  badLabel: string;
+  okIcon: typeof CircleCheck;
+  badIcon: typeof CircleX;
+  badTone?: "red" | "amber";
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+        ok
+          ? "border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300"
+          : badTone === "amber"
+            ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+            : "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+      )}
+    >
+      {ok ? <OkIcon className="h-3.5 w-3.5" /> : <BadIcon className="h-3.5 w-3.5" />}
+      {ok ? okLabel : badLabel}
+    </span>
+  );
+}
+
+export interface UserColumnsOptions {
+  variant?: "students" | "staff";
+  /** When provided, "View Profile" opens via this callback (drawer) instead of navigating. */
+  onView?: (userId: string) => void;
+  onToggleActive?: (userId: string) => void;
+  onResendVerification?: (userId: string) => void;
+  onDeleteUser?: (userId: string) => void;
+  loadingUserId?: string | null;
+}
+
+/**
+ * The user-directory column set, shared by the full directory (DataTable
+ * server mode in AdminUsersDirectory) and the dashboard preview (UserTable).
+ */
+export function getUserColumns({
   variant = "students",
+  onView,
   onToggleActive,
   onResendVerification,
   onDeleteUser,
   loadingUserId,
-}: UserTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([]);
-
-  const columns = [
+}: UserColumnsOptions): ColumnDef<User, any>[] {
+  return [
     columnHelper.accessor("name", {
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-8 px-0"
-        >
-          User
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: SortHeader("User"),
       cell: (info) => {
         const user = info.row.original;
         return (
           <div className="flex items-center gap-3">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={user.avatar ?? undefined} alt={user.name} />
-              <AvatarFallback className="text-xs">
-                {user.name.split(" ").map((n) => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-medium text-sm">{user.name}</p>
-              <p className="text-xs text-muted-foreground">{user.email}</p>
+            <UserAvatar name={user.name} src={user.avatar} className="h-9 w-9" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">{user.name}</p>
+              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
             </div>
           </div>
         );
@@ -114,24 +137,21 @@ export function UserTable({
     ...(variant === "staff" ? [
       columnHelper.accessor("role", {
         header: "Role",
-        cell: (info) => (
-          <Badge variant="outline" className="capitalize">
-            {info.getValue()}
-          </Badge>
-        ),
+        cell: (info) => {
+          const role = (info.getValue() || "").toLowerCase();
+          return (
+            <Badge
+              variant="outline"
+              className={cn("capitalize font-medium", ROLE_STYLES[role] ?? "")}
+            >
+              {info.getValue()}
+            </Badge>
+          );
+        },
       }),
     ] : [
       columnHelper.accessor("subscriptionStatus", {
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-8 px-0"
-        >
-          Subscription
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: SortHeader("Subscription"),
       cell: (info) => {
         const val = info.getValue();
         if (!val) return <span className="text-xs text-muted-foreground italic">None</span>;
@@ -139,10 +159,10 @@ export function UserTable({
         const isActive = val.toLowerCase() === 'active';
         return (
           <Badge variant="outline" className={cn(
-            "gap-1",
+            "gap-1 font-medium",
             isActive
-              ? "border-green-200 bg-green-50 text-green-700 font-medium"
-              : "border-gray-200 bg-gray-50 text-gray-700"
+              ? "border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300"
+              : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300"
           )}>
             <CreditCard className="h-3 w-3" />
             {val.charAt(0).toUpperCase() + val.slice(1)}
@@ -155,45 +175,43 @@ export function UserTable({
         cell: (info) => {
           const val = info.getValue();
           if (!val) return <span className="text-xs text-muted-foreground italic">-</span>;
-          return <span className="text-sm">{val}</span>;
+          return (
+            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              {val}
+            </span>
+          );
         },
       }),
     ]),
     columnHelper.accessor("isActive", {
-      header: "Active",
-      cell: (info) => {
-        const active = info.getValue();
-        return active ? (
-          <CircleCheck className="h-4 w-4 text-green-500" />
-        ) : (
-          <CircleX className="h-4 w-4 text-red-500" />
-        );
-      },
+      header: "Status",
+      cell: (info) => (
+        <StatusPill
+          ok={!!info.getValue()}
+          okLabel="Active"
+          badLabel="Inactive"
+          okIcon={CircleCheck}
+          badIcon={CircleX}
+        />
+      ),
     }),
     ...(variant === "students" ? [
       columnHelper.accessor("emailVerified", {
       header: "Verified",
-      cell: (info) => {
-        const verified = info.getValue();
-        return verified ? (
-          <ShieldCheck className="h-4 w-4 text-green-500" />
-        ) : (
-          <Clock className="h-4 w-4 text-amber-500" />
-        );
-      },
+      cell: (info) => (
+        <StatusPill
+          ok={!!info.getValue()}
+          okLabel="Verified"
+          badLabel="Pending"
+          okIcon={ShieldCheck}
+          badIcon={Clock}
+          badTone="amber"
+        />
+      ),
       }),
     ] : []),
     columnHelper.accessor("lastLoginAt", {
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-8 px-0"
-        >
-          Last Login
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: SortHeader("Last Login"),
       cell: (info) => {
         const val = info.getValue();
         if (!val) return <span className="text-xs text-muted-foreground italic">Never</span>;
@@ -201,16 +219,7 @@ export function UserTable({
       },
     }),
     columnHelper.accessor("joinedDate", {
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-8 px-0"
-        >
-          Joined
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: SortHeader("Joined"),
       cell: (info) => (
         <span className="text-sm text-muted-foreground">
           {formatDate(info.getValue())}
@@ -219,14 +228,17 @@ export function UserTable({
     }),
     columnHelper.display({
       id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      enableSorting: false,
       cell: (info) => {
         const user = info.row.original;
         const isLoading = loadingUserId === user.id;
 
         return (
+          <div className="flex justify-end">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isLoading}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" disabled={isLoading}>
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -235,12 +247,19 @@ export function UserTable({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <Link href={`/admin/users/${user.id}`}>
-                <DropdownMenuItem>
+              {onView ? (
+                <DropdownMenuItem onClick={() => onView(user.id)}>
                   <Eye className="mr-2 h-4 w-4" />
                   View Profile
                 </DropdownMenuItem>
-              </Link>
+              ) : (
+                <Link href={`/admin/students/${user.id}`}>
+                  <DropdownMenuItem>
+                    <Eye className="mr-2 h-4 w-4" />
+                    View Profile
+                  </DropdownMenuItem>
+                </Link>
+              )}
               <DropdownMenuItem onClick={() => onToggleActive?.(user.id)}>
                 <Power className="mr-2 h-4 w-4" />
                 {user.isActive ? "Deactivate" : "Activate"}
@@ -261,61 +280,44 @@ export function UserTable({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         );
       },
     }),
   ];
+}
 
-  const table = useReactTable({
-    data: users,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    state: {
-      sorting,
-    },
-    onSortingChange: setSorting,
+/**
+ * Lightweight, footer-less user table for embedded previews (e.g. the admin
+ * dashboard). The full searchable/paginated directory uses DataTable directly.
+ */
+export function UserTable({
+  users,
+  className,
+  variant = "students",
+  onView,
+  onToggleActive,
+  onResendVerification,
+  onDeleteUser,
+  loadingUserId,
+}: UserTableProps) {
+  const columns = getUserColumns({
+    variant,
+    onView,
+    onToggleActive,
+    onResendVerification,
+    onDeleteUser,
+    loadingUserId,
   });
 
   return (
-    <div className={cn("rounded-md border", className)}>
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <TableHead key={header.id}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
-                No results.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={columns}
+      data={users}
+      enableSearch={false}
+      hideFooter
+      emptyMessage="No users found."
+      className={className}
+    />
   );
 }

@@ -77,6 +77,10 @@ export interface WorkingStep {
 
 export interface StudentAnswer {
   text?: string;
+  rawAnswer?: string | null;
+  normalizedAnswer?: string | null;
+  interpretedAnswer?: string | null;
+  displayAnswer?: string | null;
   imageUrl?: string;
   ocrText?: string;
   working?: WorkingStep[];
@@ -84,8 +88,11 @@ export interface StudentAnswer {
 
 export interface QuestionSummary {
   id: string;
-  prompt: string;
+  title?: string | null;
+  questionText: string;
   type: string;
+  subjectCode?: string | null;
+  subjectName?: string | null;
   maxScore: number;
   expectedAnswer?: string;
 }
@@ -104,5 +111,13 @@ export interface SubmissionFull {
   studentAnswer: StudentAnswer;
   rubric: Rubric;
   aiMarking: HybridMarkingResult;
+  markingArtifact?: Record<string, any> | null;
+  markingMeta?: Record<string, any> | null;
+  rawAnswer?: string | null;
+  normalizedAnswer?: string | null;
+  interpretedAnswer?: string | null;
+  expectedAnswer?: string | null;
+  expectedSolution?: string | null;
+  workedSolution?: string | null;
   flags: SubmissionFlag[];
 }
