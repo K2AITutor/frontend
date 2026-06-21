@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Tabs, useRouter, useSegments } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { getToken } from "../../src/lib/secureStore";
 import apiClient from "../../src/lib/apiClient";
 import { House, BookOpen, Bell, User } from "lucide-react-native";
@@ -8,7 +8,6 @@ import { authenticateIfBiometricEnabled } from "../../src/lib/biometricAuth";
 
 export default function TabLayout() {
   const router = useRouter();
-  const segments = useSegments();
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const card = useCSSVariable("--color-card");
   const border = useCSSVariable("--color-border");
@@ -43,7 +42,7 @@ export default function TabLayout() {
       }
     }
     checkAuth();
-  }, [router, segments]);
+  }, [router]);
 
   if (!isAuthChecked) return null;
 

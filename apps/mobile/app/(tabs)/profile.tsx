@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView, useCSSVariable } from "../../src/tw"
 import { useRouter } from "expo-router";
 import { User, Lock, Palette, Bell, CreditCard, LogOut } from "lucide-react-native";
 import { clearToken } from "../../src/lib/secureStore";
+import { resetSessionAuth } from "../../src/lib/biometricAuth";
 import { SettingsLink } from "../../src/components/SettingsLink";
 import { useUserProfile } from "@aitutor/shared";
 import { Screen, ScreenHeader } from "../../src/components/Screen";
@@ -34,6 +35,7 @@ export default function ProfileScreen() {
     .slice(0, 2);
 
   const handleLogout = async () => {
+    resetSessionAuth();
     await clearToken();
     router.replace("/login");
   };
