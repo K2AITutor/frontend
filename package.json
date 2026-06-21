@@ -6,7 +6,8 @@
         "dev": "next dev -p 3000",
         "build": "next build",
         "start": "next start -p 3000",
-        "lint": "next lint"
+        "lint": "next lint",
+        "test:answer-input-normalizer": "node scripts/validate-answer-input-normalizer.mjs"
     },
     "dependencies": {
         "@bprogress/next": "^3.2.12",

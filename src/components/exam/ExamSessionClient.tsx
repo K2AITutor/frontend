@@ -17,6 +17,7 @@ import {
 type MarkingResult = {
   correct?: boolean;
   isCorrect?: boolean;
+  markingConfidence?: MarkingConfidenceStatus | null;
   correctAnswer?: string | null;
   score?: number | null;
   maxScore?: number | null;
@@ -35,6 +36,7 @@ type MarkingResult = {
   diagnostics?: any;
   criterionOutcomes?: CriterionOutcomeLike[] | null;
   markingArtifact?: {
+    markingConfidence?: MarkingConfidenceStatus | null;
     criterionOutcomes?: CriterionOutcomeLike[] | null;
     criteria?: CriterionOutcomeLike[] | null;
     criterionResults?: CriterionOutcomeLike[] | null;
@@ -43,6 +45,12 @@ type MarkingResult = {
   input?: NormalizedAnswerInput;
   needsClarification?: boolean;
 };
+
+type MarkingConfidenceStatus =
+  | "safe_auto_marked"
+  | "auto_marked_with_warning"
+  | "manual_review_required"
+  | "invalid_syntax";
 
 type RubricLine = { marks?: number | null; criterion?: string | null };
 
@@ -160,6 +168,174 @@ const ANSWER_INPUT_COPY: Record<AnswerInputKind, AnswerInputCopy> = {
     examples: ["State the rule used and show the key working steps."],
   },
 };
+
+type StructuredAnswerBuilderProps = {
+  answerKind: AnswerInputKind;
+  answer: string;
+  onAnswerChange: (value: string) => void;
+};
+
+const structuredInputClass =
+  "w-full px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+function parseCoordinateAnswer(answer: string) {
+  const match = answer.trim().match(/^\((.*),(.*)\)$/);
+  return {
+    x: match?.[1]?.trim() ?? "",
+    y: match?.[2]?.trim() ?? "",
+  };
+}
+
+function parseIntervalAnswer(answer: string) {
+  const match = answer.trim().match(/^([\[(])([^,]*),([^,\]\)]*)([\])])$/);
+  return {
+    leftBracket: match?.[1] ?? "[",
+    lower: match?.[2]?.trim() ?? "",
+    upper: match?.[3]?.trim() ?? "",
+    rightBracket: match?.[4] ?? ")",
+  };
+}
+
+function parseSetListAnswer(answer: string) {
+  const trimmed = answer.trim();
+  const braced = trimmed.match(/^\{(.*)\}$/);
+  return braced?.[1]?.trim() ?? trimmed;
+}
+
+function StructuredAnswerBuilder({ answerKind, answer, onAnswerChange }: StructuredAnswerBuilderProps) {
+  if (answerKind === "coordinate") {
+    const parts = parseCoordinateAnswer(answer);
+    const update = (next: { x?: string; y?: string }) => {
+      const x = next.x ?? parts.x;
+      const y = next.y ?? parts.y;
+      onAnswerChange(`(${x.trim()},${y.trim()})`);
+    };
+
+    return (
+      <div className="rounded-lg border border-border bg-muted/20 p-3">
+        <p className="text-xs font-medium text-muted-foreground">Coordinate builder</p>
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <label className="text-xs text-muted-foreground">
+            x value
+            <input
+              value={parts.x}
+              onChange={(event) => update({ x: event.target.value })}
+              placeholder="2"
+              className={`${structuredInputClass} mt-1`}
+            />
+          </label>
+          <label className="text-xs text-muted-foreground">
+            y value
+            <input
+              value={parts.y}
+              onChange={(event) => update({ y: event.target.value })}
+              placeholder="3"
+              className={`${structuredInputClass} mt-1`}
+            />
+          </label>
+        </div>
+      </div>
+    );
+  }
+
+  if (answerKind === "interval") {
+    const parts = parseIntervalAnswer(answer);
+    const update = (next: Partial<typeof parts>) => {
+      const leftBracket = next.leftBracket ?? parts.leftBracket;
+      const lower = next.lower ?? parts.lower;
+      const upper = next.upper ?? parts.upper;
+      const rightBracket = next.rightBracket ?? parts.rightBracket;
+      onAnswerChange(`${leftBracket}${lower.trim()},${upper.trim()}${rightBracket}`);
+    };
+
+    return (
+      <div className="rounded-lg border border-border bg-muted/20 p-3">
+        <p className="text-xs font-medium text-muted-foreground">Interval builder</p>
+        <div className="mt-2 grid grid-cols-[70px_1fr_1fr_70px] gap-2">
+          <label className="text-xs text-muted-foreground">
+            Start
+            <select
+              value={parts.leftBracket}
+              onChange={(event) => update({ leftBracket: event.target.value })}
+              className={`${structuredInputClass} mt-1`}
+            >
+              <option value="[">[</option>
+              <option value="(">(</option>
+            </select>
+          </label>
+          <label className="text-xs text-muted-foreground">
+            Lower
+            <input
+              value={parts.lower}
+              onChange={(event) => update({ lower: event.target.value })}
+              placeholder="0"
+              className={`${structuredInputClass} mt-1`}
+            />
+          </label>
+          <label className="text-xs text-muted-foreground">
+            Upper
+            <input
+              value={parts.upper}
+              onChange={(event) => update({ upper: event.target.value })}
+              placeholder="1"
+              className={`${structuredInputClass} mt-1`}
+            />
+          </label>
+          <label className="text-xs text-muted-foreground">
+            End
+            <select
+              value={parts.rightBracket}
+              onChange={(event) => update({ rightBracket: event.target.value })}
+              className={`${structuredInputClass} mt-1`}
+            >
+              <option value="]">]</option>
+              <option value=")">)</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    );
+  }
+
+  if (answerKind === "set_list") {
+    const values = parseSetListAnswer(answer);
+    return (
+      <div className="rounded-lg border border-border bg-muted/20 p-3">
+        <p className="text-xs font-medium text-muted-foreground">Set/list builder</p>
+        <label className="mt-2 block text-xs text-muted-foreground">
+          Values separated by commas
+          <input
+            value={values}
+            onChange={(event) => onAnswerChange(`{${event.target.value.trim()}}`)}
+            placeholder="-1,2,5"
+            className={`${structuredInputClass} mt-1`}
+          />
+        </label>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function answerWarningText(
+  warning: NormalizedAnswerInput["warnings"][number],
+  normalizedAnswer: string,
+  isExamMode: boolean
+) {
+  if (isExamMode) {
+    if (warning.code === "SAFE_IMPLICIT_MULTIPLICATION_NORMALIZED") {
+      return "Formatting check: multiplication signs were added before marking.";
+    }
+    return warning.message;
+  }
+
+  if (warning.code === "SAFE_IMPLICIT_MULTIPLICATION_NORMALIZED" && normalizedAnswer) {
+    return `Did you mean ${normalizedAnswer}? Multiplication signs were added before checking.`;
+  }
+
+  return `${warning.message}${warning.suggestion ? ` ${warning.suggestion}` : ""}`;
+}
 
 function plainAnswerForClipboard(value: string | null | undefined) {
   return String(value ?? "")
@@ -306,6 +482,61 @@ function criterionStateLabel(state: CriterionFeedback["state"]) {
   return "Guide only";
 }
 
+function normalizeMarkingConfidence(result: MarkingResult | null): MarkingConfidenceStatus | null {
+  const raw = String(
+    result?.markingConfidence ??
+      result?.markingArtifact?.markingConfidence ??
+      result?.diagnostics?.markingConfidence ??
+      result?.diagnostics?.artifact?.markingConfidence ??
+      ""
+  );
+
+  if (
+    raw === "safe_auto_marked" ||
+    raw === "auto_marked_with_warning" ||
+    raw === "manual_review_required" ||
+    raw === "invalid_syntax"
+  ) {
+    return raw;
+  }
+
+  if (result?.needsClarification) return "invalid_syntax";
+  if ((result?.errorTags ?? []).includes("NOT_MARKABLE_YET")) return "manual_review_required";
+  return null;
+}
+
+function markingConfidenceCopy(status: MarkingConfidenceStatus) {
+  if (status === "safe_auto_marked") {
+    return {
+      label: "Safe auto-marked",
+      detail: "The answer format was clear and the marker checked it automatically.",
+    };
+  }
+  if (status === "auto_marked_with_warning") {
+    return {
+      label: "Auto-marked with warning",
+      detail: "The marker checked a safely normalized version of your answer.",
+    };
+  }
+  if (status === "manual_review_required") {
+    return {
+      label: "Manual review required",
+      detail: "This answer was saved, but it needs a person to review the marking.",
+    };
+  }
+  return {
+    label: "Invalid syntax",
+    detail: "The answer format needs fixing before the marker can safely check it.",
+  };
+}
+
+function markingConfidenceClasses(status: MarkingConfidenceStatus) {
+  if (status === "safe_auto_marked") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  if (status === "auto_marked_with_warning") return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  if (status === "manual_review_required") return "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300";
+  return "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300";
+}
+
 export default function ExamSessionClient(props: {
   initialQuestions: ExamQuestionLike[];
   subject: string;
@@ -407,6 +638,9 @@ export default function ExamSessionClient(props: {
   const shouldShowRubricGuide =
     displayedRubric.length > 0 && !shouldShowCriterionFeedback;
 
+  const markingConfidence = useMemo(() => normalizeMarkingConfidence(result), [result]);
+  const markingConfidenceText = markingConfidence ? markingConfidenceCopy(markingConfidence) : null;
+
   const qLabel = useMemo(() => {
     if (!question) return "";
     const qn = question.questionNumber?.trim();
@@ -436,7 +670,7 @@ export default function ExamSessionClient(props: {
   );
   const submitValidationMessage =
     hasTypedAnswer && !needsWorkingInput && blockingInputWarning
-      ? `${blockingInputWarning.message}${blockingInputWarning.suggestion ? ` ${blockingInputWarning.suggestion}` : ""}`
+      ? answerWarningText(blockingInputWarning, interpretedAnswer.normalizedAnswer, isExamMode)
       : null;
   const canSubmitAnswer =
     !isSubmitting &&
@@ -881,6 +1115,15 @@ export default function ExamSessionClient(props: {
                   />
                 )}
 
+                {!needsWorkingInput &&
+                  (answerKind === "coordinate" || answerKind === "interval" || answerKind === "set_list") && (
+                    <StructuredAnswerBuilder
+                      answerKind={answerKind}
+                      answer={answer}
+                      onAnswerChange={setAnswer}
+                    />
+                  )}
+
                 <div className="flex flex-wrap items-center gap-2">
                   {answerShortcuts.map((shortcut) => (
                     <button
@@ -920,7 +1163,11 @@ export default function ExamSessionClient(props: {
                     <div className="space-y-3">
                       <div>
                         <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          We will mark this as
+                          {isExamMode
+                            ? "Answer format check"
+                            : interpretedAnswer.normalizedAnswer !== answer.trim()
+                              ? "Did you mean this?"
+                              : "Your input means"}
                         </div>
                         <div className="mt-2 rounded-lg border border-slate-700/80 bg-slate-950/50 px-4 py-3 text-slate-100">
                           {renderedInterpretedAnswer ? (
@@ -932,7 +1179,9 @@ export default function ExamSessionClient(props: {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="text-slate-400">Typed form used for checking</span>
+                        <span className="text-slate-400">
+                          {isExamMode ? "Formatted answer" : "Typed form used for checking"}
+                        </span>
                         <code className="rounded bg-slate-950/60 px-2 py-1 text-slate-100">
                           {interpretedAnswer.displayAnswer || "empty"}
                         </code>
@@ -943,8 +1192,9 @@ export default function ExamSessionClient(props: {
                       <div className="mt-3 space-y-1 text-xs">
                         {interpretedAnswer.warnings.map((warning) => (
                           <p key={`${warning.code}-${warning.message}`}>
-                            <span className="font-semibold">{warning.message}</span>
-                            {warning.suggestion ? ` ${warning.suggestion}` : ""}
+                            <span className="font-semibold">
+                              {answerWarningText(warning, interpretedAnswer.normalizedAnswer, isExamMode)}
+                            </span>
                           </p>
                         ))}
                       </div>
@@ -1018,6 +1268,21 @@ export default function ExamSessionClient(props: {
                           {displayedScore} / {displayedMaxScore}
                         </span>
                       </p>
+                    )}
+
+                    {markingConfidenceText && (
+                      <div className="mt-3">
+                        <span
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${markingConfidenceClasses(
+                            markingConfidence!
+                          )}`}
+                        >
+                          {markingConfidenceText.label}
+                        </span>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {markingConfidenceText.detail}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
