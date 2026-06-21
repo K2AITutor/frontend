@@ -74,6 +74,12 @@
           "imageWidth": 180
         }
       ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow VCE Tutor to use Face ID for quick unlock."
+        }
+      ],
       "expo-secure-store",
       "expo-router"
     ]
