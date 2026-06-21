@@ -91,6 +91,8 @@ const ChartTooltipContent = React.forwardRef<
       hideIndicator?: boolean;
       labelFormatter?: (value: React.ReactNode) => React.ReactNode;
       unit?: string;
+      payload?: Array<{ value?: unknown; name?: string; dataKey?: string; color?: string }>;
+      label?: string;
     }
 >(
   (
@@ -145,7 +147,7 @@ const ChartTooltipContent = React.forwardRef<
                     {itemConfig?.label ?? item.name}
                   </span>
                   <span className="font-mono font-medium tabular-nums text-foreground">
-                    {item.value}
+                    {String(item.value ?? "")}
                     {unit}
                   </span>
                 </div>

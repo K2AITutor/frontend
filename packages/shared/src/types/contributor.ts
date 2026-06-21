@@ -67,6 +67,21 @@ export type DatasetQaStatus =
   | "REJECTED"
   | "MANUAL_REVIEW";
 
+export type DatasetTrainingReadiness =
+  | "PRACTICE_ONLY"
+  | "TRAINING_READY"
+  | "EXPERT_REVIEW";
+
+export interface DatasetQaChecklist {
+  sourceMatched: boolean;
+  topicChecked: boolean;
+  answerChecked: boolean;
+  acceptedAnswersChecked: boolean;
+  markerTestPassed: boolean;
+  rubricChecked: boolean;
+  solutionChecked: boolean;
+}
+
 export interface DatasetQaQuestion {
   id: number;
   examKey: string;
@@ -85,9 +100,15 @@ export interface DatasetQaQuestion {
   markingRubric: Array<{ marks?: number; criterion?: string }>;
   reviewStatus: DatasetQaStatus;
   reviewerName?: string;
+  reviewerUserId?: number | string;
   reviewNotes?: string;
   reviewedAt?: string | null;
   pdfPage?: number | null;
+  contentStatus?: string;
+  trainingReadiness: DatasetTrainingReadiness;
+  commonMistakes: string[];
+  qaChecklist: DatasetQaChecklist;
+  lastMarkerTest?: DatasetQaMarkingResult | null;
 }
 
 export interface UpdateDatasetQaPayload {
@@ -98,6 +119,11 @@ export interface UpdateDatasetQaPayload {
   correctAnswer?: string;
   acceptedAnswers?: string[];
   workedSolution?: string;
+  markingRubric?: Array<{ marks?: number; criterion?: string }>;
+  commonMistakes?: string[];
+  trainingReadiness?: DatasetTrainingReadiness;
+  qaChecklist?: DatasetQaChecklist;
+  lastMarkerTest?: DatasetQaMarkingResult | null;
   topicCode?: string;
   subtopicCode?: string;
 }

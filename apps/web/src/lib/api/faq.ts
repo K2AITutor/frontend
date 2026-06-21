@@ -3,9 +3,11 @@ import { apiGet } from "../apiClient";
 import type {
   PublicFAQCategory,
   PublicFAQ,
+  FAQCategory,
+  FAQ,
 } from "@aitutor/shared";
 
-export type { PublicFAQCategory, PublicFAQ };
+export type { PublicFAQCategory, PublicFAQ, FAQCategory, FAQ };
 
 export async function fetchFAQCategories(): Promise<PublicFAQCategory[]> {
   return apiGet<PublicFAQCategory[]>(PATH.public.faqCategories);

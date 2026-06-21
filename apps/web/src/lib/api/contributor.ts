@@ -15,6 +15,8 @@ import type {
   DatasetQaQuestion,
   UpdateDatasetQaPayload,
   DatasetQaMarkingResult,
+  DatasetTrainingReadiness,
+  DatasetQaChecklist,
 } from "@aitutor/shared";
 
 export type {
@@ -29,6 +31,8 @@ export type {
   DatasetQaQuestion,
   UpdateDatasetQaPayload,
   DatasetQaMarkingResult,
+  DatasetTrainingReadiness,
+  DatasetQaChecklist,
 };
 
 export interface PublishDatasetQaResult {

@@ -18,9 +18,12 @@ export type PracticeSubmitResponseDTO = {
 export type PracticeQuestion = {
   id: number | string;
   prompt: string;
+  questionText?: string;
   answer?: string;
+  correctAnswer?: string;
   marks?: number;
   difficulty?: string;
+  difficultyLevel?: string;
   topicCode?: string;
   subtopicCode?: string;
   skillCode?: string;

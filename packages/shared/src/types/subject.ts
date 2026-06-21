@@ -1,6 +1,7 @@
 export interface Subject {
   id: number;
   name: string;
+  code?: string;
   description?: string;
   icon?: string;
   order?: number;
@@ -10,6 +11,7 @@ export interface Subject {
 
 export interface CreateSubjectDto {
   name: string;
+  code?: string;
   description?: string;
   icon?: string;
 }

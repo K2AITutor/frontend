@@ -47,6 +47,7 @@ export default function NewContributorQuestionPage() {
                 subject: form.subject,
                 topicCode: form.topicCode,
                 skillCode: form.skillCode,
+                prompt: form.prompt,
                 questionText: form.prompt,
                 answerType: form.answerType,
                 marks: Number(form.marks),
