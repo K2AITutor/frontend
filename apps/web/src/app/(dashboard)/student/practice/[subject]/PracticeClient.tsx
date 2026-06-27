@@ -1,6 +1,7 @@
 'use client';
 
 import { TopicProgressRow } from '@/lib/apiClient';
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     aiExplain,
@@ -65,6 +66,8 @@ type LocalTopicProgress = {
     status?: TopicStatus;
 };
 
+type PracticeClientMode = 'landing' | 'session';
+
 function getStatusFromMastery(mastery: number, attempted: number): TopicStatus {
     if (attempted === 0) return 'Not started';
     if (attempted < 3) return 'Early signal';
@@ -107,6 +110,9 @@ export default function PracticeClient({
     topicCounts = {},
     topicGroups = [],
     initialTopicProgress = [],
+    mode = 'session',
+    showSelector = true,
+    sessionHrefBase = '/student/practice/math-methods/topic/session',
 }: {
     initialQuestions: PracticeQuestion[];
     subject: string;
@@ -116,6 +122,9 @@ export default function PracticeClient({
     topicCounts?: Record<string, number>;
     topicGroups?: TopicGroup[];
     initialTopicProgress?: TopicProgressRow[];
+    mode?: PracticeClientMode;
+    showSelector?: boolean;
+    sessionHrefBase?: string;
 }) {
     const [questions, setQuestions] = useState<PracticeQuestion[]>(initialQuestions ?? []);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -141,8 +150,9 @@ export default function PracticeClient({
     const topicLoadRequestRef = useRef(0);
     const hasMountedDifficultyRef = useRef(false);
 
-    const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
     const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
+    const [topicSearch, setTopicSearch] = useState('');
+    const [selectedStrandCode, setSelectedStrandCode] = useState('');
 
     const [localTopicProgress, setLocalTopicProgress] = useState<Record<string, LocalTopicProgress>>(() => {
         const map: Record<string, LocalTopicProgress> = {};
@@ -229,12 +239,19 @@ export default function PracticeClient({
     }, [topicGroups]);
 
     useEffect(() => {
-        const initialState: Record<string, boolean> = {};
-        for (const group of groupedTopics) {
-            const hasSelected = group.topics.some((t) => t.topicCode === selectedTopicCode);
-            initialState[group.strandCode] = hasSelected;
-        }
-        setOpenGroups((prev) => ({ ...initialState, ...prev }));
+        if (groupedTopics.length === 0) return;
+
+        const selectedGroup = groupedTopics.find((group) =>
+            group.topics.some((topic) => topic.topicCode === selectedTopicCode)
+        );
+        const selectedGroupCode = selectedGroup?.strandCode ?? groupedTopics[0]?.strandCode ?? '';
+
+        setSelectedStrandCode((current) => {
+            if (current && groupedTopics.some((group) => group.strandCode === current)) {
+                return current;
+            }
+            return selectedGroupCode;
+        });
     }, [groupedTopics, selectedTopicCode]);
 
     const topicMetaMap = useMemo(() => {
@@ -279,6 +296,99 @@ export default function PracticeClient({
         return 'Topic';
     }, [groupedTopics, selectedTopicCode]);
 
+    const selectedGroup = useMemo(() => {
+        return groupedTopics.find((group) => group.strandCode === selectedStrandCode) ?? groupedTopics[0] ?? null;
+    }, [groupedTopics, selectedStrandCode]);
+
+    const selectedTopic = useMemo(() => {
+        for (const group of groupedTopics) {
+            const topic = group.topics.find((item) => item.topicCode === selectedTopicCode);
+            if (topic) return topic;
+        }
+        return null;
+    }, [groupedTopics, selectedTopicCode]);
+
+    const visibleTopics = useMemo(() => {
+        const term = topicSearch.trim().toLowerCase();
+        const topics = selectedGroup?.topics ?? [];
+        if (!term) return topics;
+
+        return topics.filter((topic) => {
+            return (
+                topic.name.toLowerCase().includes(term) ||
+                topic.topicCode.toLowerCase().includes(term)
+            );
+        });
+    }, [selectedGroup, topicSearch]);
+
+    const topicOverview = useMemo(() => {
+        const topics = groupedTopics.flatMap((group) => group.topics);
+        const totalAvailable = topics.reduce((sum, topic) => sum + (topicCounts[topic.topicCode] ?? 0), 0);
+        const attempted = Object.values(localTopicProgress).reduce((sum, row) => sum + row.attempted, 0);
+        const strong = topics.filter((topic) => topicMetaMap[topic.topicCode]?.status === 'Strong').length;
+
+        return {
+            topics: topics.length,
+            totalAvailable,
+            attempted,
+            strong,
+        };
+    }, [groupedTopics, localTopicProgress, topicCounts, topicMetaMap]);
+
+    const isLandingMode = mode === 'landing';
+
+    const buildTopicSessionHref = (topicCode: string) =>
+        `${sessionHrefBase}?topicCode=${encodeURIComponent(topicCode)}`;
+
+    const topicCoverageRows = useMemo(() => {
+        return groupedTopics.flatMap((group) =>
+            group.topics.map((topic) => {
+                const meta = topicMetaMap[topic.topicCode] || {
+                    attempted: 0,
+                    available: topicCounts[topic.topicCode] ?? 0,
+                    target: topic.questionCount ?? topicCounts[topic.topicCode] ?? 0,
+                    mastery: 0,
+                    status: 'Not started' as const,
+                };
+
+                return {
+                    strandName: group.strandName,
+                    topicCode: topic.topicCode,
+                    topicName: topic.name,
+                    available: meta.available,
+                    attempted: meta.attempted,
+                    mastery: meta.mastery,
+                    status: meta.status,
+                };
+            })
+        );
+    }, [groupedTopics, topicCounts, topicMetaMap]);
+
+    const recommendedTopic = useMemo(() => {
+        const candidates = topicCoverageRows.filter((row) => row.available > 0);
+        if (candidates.length === 0) return null;
+
+        const unattempted = candidates.find((row) => row.attempted === 0);
+        if (unattempted) {
+            return {
+                ...unattempted,
+                reason: 'Not attempted yet',
+            };
+        }
+
+        const weakest = [...candidates].sort((a, b) => {
+            if (a.mastery !== b.mastery) return a.mastery - b.mastery;
+            return b.available - a.available;
+        })[0];
+
+        return weakest
+            ? {
+                ...weakest,
+                reason: weakest.mastery < 75 ? 'Lowest current mastery' : 'Maintain fluency',
+            }
+            : null;
+    }, [topicCoverageRows]);
+
     const currentDifficultyLabel = useMemo(
         () => formatDifficultyLabel(currentQuestion?.difficultyLevel),
         [currentQuestion]
@@ -294,13 +404,6 @@ export default function PracticeClient({
         setHintLevelUsed(0);
         setSubmissionResult(null);
         setShowDebug(false);
-    };
-
-    const toggleGroup = (strandCode: string) => {
-        setOpenGroups((prev) => ({
-            ...prev,
-            [strandCode]: !prev[strandCode],
-        }));
     };
 
     const markQuestionAsSeen = (topicCode: string, question: PracticeQuestion | null | undefined) => {
@@ -770,13 +873,36 @@ export default function PracticeClient({
     }, [submissionResult]);
 
     return (
-        <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <div className={showSelector ? 'grid gap-6 xl:grid-cols-[460px_minmax(0,1fr)]' : 'space-y-6'}>
+            {showSelector && (
             <aside className="space-y-5">
                 <section className="rounded-xl border border-border bg-muted/50 p-5 shadow">
                     <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                        Topic filters
+                        Select practice topic
                     </div>
-                    <h2 className="mt-2 text-2xl font-bold text-foreground">Choose your practice area</h2>
+                    <h2 className="mt-2 text-2xl font-bold text-foreground">Choose your focus</h2>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        Search within a study area, then start a focused practice set for one topic.
+                    </p>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-center text-sm">
+                        <div className="rounded-lg border border-border bg-card px-3 py-3">
+                            <div className="text-lg font-semibold">{topicOverview.topics}</div>
+                            <div className="text-xs text-muted-foreground">Topics</div>
+                        </div>
+                        <div className="rounded-lg border border-border bg-card px-3 py-3">
+                            <div className="text-lg font-semibold">{topicOverview.totalAvailable}</div>
+                            <div className="text-xs text-muted-foreground">Questions</div>
+                        </div>
+                        <div className="rounded-lg border border-border bg-card px-3 py-3">
+                            <div className="text-lg font-semibold">{topicOverview.attempted}</div>
+                            <div className="text-xs text-muted-foreground">Attempted</div>
+                        </div>
+                        <div className="rounded-lg border border-border bg-card px-3 py-3">
+                            <div className="text-lg font-semibold">{topicOverview.strong}</div>
+                            <div className="text-xs text-muted-foreground">Strong</div>
+                        </div>
+                    </div>
 
                     <div className="mt-4">
                         <label className="mb-2 block text-sm text-muted-foreground">Difficulty filter</label>
@@ -796,100 +922,242 @@ export default function PracticeClient({
                         </select>
                     </div>
 
-                    <div className="mt-4 rounded-lg border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
-                        Progress now uses stored attempt data for this student.
+                    <div className="mt-4">
+                        <label className="mb-2 block text-sm text-muted-foreground">Search topic</label>
+                        <input
+                            value={topicSearch}
+                            onChange={(event) => setTopicSearch(event.target.value)}
+                            placeholder="Search topic name or code"
+                            className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring"
+                        />
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                        {groupedTopics.map((group) => {
+                            const isActive = selectedGroup?.strandCode === group.strandCode;
+                            const available = group.topics.reduce(
+                                (sum, topic) => sum + (topicCounts[topic.topicCode] ?? 0),
+                                0
+                            );
+
+                            return (
+                                <button
+                                    key={group.strandCode}
+                                    type="button"
+                                    onClick={() => setSelectedStrandCode(group.strandCode)}
+                                    className={`rounded-xl border px-3 py-3 text-left text-sm transition ${
+                                        isActive
+                                            ? 'border-primary bg-primary/10 text-foreground'
+                                            : 'border-border bg-card text-muted-foreground hover:border-ring hover:bg-accent'
+                                    }`}
+                                >
+                                    <div className="font-semibold">{group.strandName}</div>
+                                    <div className="mt-1 text-xs">{group.topics.length} topics &middot; {available} q</div>
+                                </button>
+                            );
+                        })}
                     </div>
                 </section>
 
-                <section className="space-y-4">
-                    {groupedTopics.map((group) => {
-                        const isOpen = !!openGroups[group.strandCode];
-
-                        return (
-                            <div
-                                key={group.strandName}
-                                className="rounded-lg border border-border bg-muted/50 p-4 shadow"
-                            >
-                                <button
-                                    type="button"
-                                    onClick={() => toggleGroup(group.strandCode)}
-                                    className="flex w-full items-center justify-between text-left"
-                                >
-                                    <span className="text-lg font-semibold text-foreground">
-                                        {group.strandName}
-                                    </span>
-                                    <span
-                                        className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-90' : ''}`}
-                                    >
-                                        ▶
-                                    </span>
-                                </button>
-
-                                {isOpen && (
-                                    <div className="mt-4 space-y-2">
-                                        {group.topics.map((topic) => {
-                                            const isActive = selectedTopicCode === topic.topicCode;
-                                            const meta = topicMetaMap[topic.topicCode] || {
-                                                attempted: 0,
-                                                available: topicCounts[topic.topicCode] ?? 0,
-                                                target: topic.questionCount ?? topicCounts[topic.topicCode] ?? 0,
-                                                mastery: 0,
-                                                status: 'Not started' as const,
-                                            };
-
-                                            return (
-                                                <button
-                                                    key={topic.topicCode}
-                                                    type="button"
-                                                    onClick={() => void startPractice(topic.topicCode)}
-                                                    className={`block w-full rounded-xl border px-4 py-3 text-left transition ${isActive
-                                                            ? 'border-primary bg-primary/10'
-                                                            : 'border-border bg-card hover:border-ring hover:bg-accent'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div>
-                                                            <div className="text-sm font-semibold text-foreground">
-                                                                {topic.name}
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-muted-foreground">
-                                                                {meta.attempted}/{meta.available} attempted
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-muted-foreground">
-                                                                Mastery {meta.mastery}%
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex flex-col items-end gap-2">
-                                                            <span
-                                                                className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusClasses(
-                                                                    meta.status
-                                                                )}`}
-                                                            >
-                                                                {meta.status}
-                                                            </span>
-                                                            <span className="rounded-full bg-card px-2 py-0.5 text-xs text-muted-foreground">
-                                                                {meta.available} available
-                                                            </span>
-                                                            {meta.target !== meta.available ? (
-                                                                <span className="rounded-full bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground">
-                                                                    {meta.target} target
-                                                                </span>
-                                                            ) : null}
-                                                        </div>
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                <section className="rounded-xl border border-border bg-muted/50 p-5 shadow">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                                {selectedGroup?.strandName ?? 'Study area'}
                             </div>
-                        );
-                    })}
+                            <h3 className="mt-2 text-lg font-semibold text-foreground">Topics</h3>
+                        </div>
+                        <span className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+                            {visibleTopics.length} shown
+                        </span>
+                    </div>
+
+                    <div className="mt-4 max-h-[560px] space-y-2 overflow-y-auto pr-1">
+                        {visibleTopics.length === 0 ? (
+                            <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+                                No topics match your search in this study area.
+                            </div>
+                        ) : (
+                            visibleTopics.map((topic) => {
+                                const isActive = selectedTopicCode === topic.topicCode;
+                                const meta = topicMetaMap[topic.topicCode] || {
+                                    attempted: 0,
+                                    available: topicCounts[topic.topicCode] ?? 0,
+                                    target: topic.questionCount ?? topicCounts[topic.topicCode] ?? 0,
+                                    mastery: 0,
+                                    status: 'Not started' as const,
+                                };
+
+                                return (
+                                    <button
+                                        key={topic.topicCode}
+                                        type="button"
+                                        onClick={() => void startPractice(topic.topicCode)}
+                                        className={`block w-full rounded-xl border px-4 py-3 text-left transition ${
+                                            isActive
+                                                ? 'border-primary bg-primary/10'
+                                                : 'border-border bg-card hover:border-ring hover:bg-accent'
+                                        }`}
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="truncate text-sm font-semibold text-foreground">
+                                                    {topic.name}
+                                                </div>
+                                                <div className="mt-1 text-xs text-muted-foreground">
+                                                    {topic.topicCode}
+                                                </div>
+                                                <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                                    <span>{meta.attempted}/{meta.available} attempted</span>
+                                                    <span>Mastery {meta.mastery}%</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex shrink-0 flex-col items-end gap-2">
+                                                <span
+                                                    className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusClasses(
+                                                        meta.status
+                                                    )}`}
+                                                >
+                                                    {meta.status}
+                                                </span>
+                                                <span className="rounded-full bg-card px-2 py-0.5 text-xs text-muted-foreground">
+                                                    {meta.available} q
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
                 </section>
             </aside>
+            )}
 
             <section className="space-y-6">
+                <div className="rounded-xl border border-border bg-card p-5 shadow">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                            <div className="text-sm font-medium text-primary">
+                                {selectedGroup?.strandName ?? 'Selected study area'}
+                            </div>
+                            <h2 className="mt-1 text-2xl font-bold text-foreground">
+                                {selectedTopic?.name ?? currentTopicName}
+                            </h2>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                                {selectedTopicCode}
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-center text-sm sm:grid-cols-4">
+                            <div className="rounded-lg border border-border bg-muted/50 px-3 py-3">
+                                <div className="text-lg font-semibold">{activeTopicMeta.available}</div>
+                                <div className="text-xs text-muted-foreground">Available</div>
+                            </div>
+                            <div className="rounded-lg border border-border bg-muted/50 px-3 py-3">
+                                <div className="text-lg font-semibold">{activeTopicMeta.attempted}</div>
+                                <div className="text-xs text-muted-foreground">Attempted</div>
+                            </div>
+                            <div className="rounded-lg border border-border bg-muted/50 px-3 py-3">
+                                <div className="text-lg font-semibold">{activeTopicMeta.mastery}%</div>
+                                <div className="text-xs text-muted-foreground">Mastery</div>
+                            </div>
+                            <div className="rounded-lg border border-border bg-muted/50 px-3 py-3">
+                                <div className="text-lg font-semibold">{filteredQuestionCount}</div>
+                                <div className="text-xs text-muted-foreground">Session</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {isLandingMode && (
+                        <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-sm leading-6 text-muted-foreground">
+                                Start a dedicated session for this topic when you are ready to answer questions.
+                                The session page keeps the practice workspace focused and easier to use.
+                            </p>
+                            <Link
+                                href={buildTopicSessionHref(selectedTopicCode)}
+                                className="inline-flex shrink-0 items-center justify-center rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+                            >
+                                Start topic session
+                            </Link>
+                        </div>
+                    )}
+                </div>
+
+                {isLandingMode ? (
+                    <>
+                        {recommendedTopic && (
+                            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-5 shadow">
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                    <div>
+                                        <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                            Recommended next topic
+                                        </div>
+                                        <h3 className="mt-1 text-xl font-bold text-foreground">
+                                            {recommendedTopic.topicName}
+                                        </h3>
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            {recommendedTopic.strandName} · {recommendedTopic.reason} ·{' '}
+                                            {recommendedTopic.available} question
+                                            {recommendedTopic.available === 1 ? '' : 's'} available
+                                        </p>
+                                    </div>
+                                    <Link
+                                        href={buildTopicSessionHref(recommendedTopic.topicCode)}
+                                        className="inline-flex items-center justify-center rounded-xl border border-emerald-500/30 bg-card px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-accent"
+                                    >
+                                        Practise recommendation
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="rounded-xl border border-border bg-card shadow">
+                            <div className="border-b border-border p-5">
+                                <h3 className="text-lg font-semibold text-foreground">Topic coverage</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Review available questions, attempts, and mastery before choosing a session.
+                                </p>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[760px] text-left text-sm">
+                                    <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+                                        <tr>
+                                            <th className="px-5 py-3 font-semibold">Study area</th>
+                                            <th className="px-5 py-3 font-semibold">Topic</th>
+                                            <th className="px-5 py-3 text-right font-semibold">Questions</th>
+                                            <th className="px-5 py-3 text-right font-semibold">Attempted</th>
+                                            <th className="px-5 py-3 text-right font-semibold">Mastery</th>
+                                            <th className="px-5 py-3 font-semibold">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {topicCoverageRows.map((row) => (
+                                            <tr key={row.topicCode} className="border-b border-border last:border-b-0">
+                                                <td className="px-5 py-4 text-muted-foreground">{row.strandName}</td>
+                                                <td className="px-5 py-4">
+                                                    <div className="font-semibold text-foreground">{row.topicName}</div>
+                                                    <div className="mt-1 text-xs text-muted-foreground">{row.topicCode}</div>
+                                                </td>
+                                                <td className="px-5 py-4 text-right text-foreground">{row.available}</td>
+                                                <td className="px-5 py-4 text-right text-foreground">{row.attempted}</td>
+                                                <td className="px-5 py-4 text-right text-foreground">{row.mastery}%</td>
+                                                <td className="px-5 py-4">
+                                                    <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClasses(row.status)}`}>
+                                                        {row.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-foreground">
@@ -1313,6 +1581,8 @@ export default function PracticeClient({
                         </div>
                     )}
                 </div>
+                    </>
+                )}
             </section>
         </div>
     );
