@@ -64,9 +64,9 @@ const DECISION_CONFIG: Record<
 export default function AnnotationWorkspacePage({
   params,
 }: {
-  params: { attemptId: string };
+  params: Promise<{ attemptId: string }>;
 }) {
-  const { attemptId } = params;
+  const { attemptId } = use(params);
   usePageTitle("Annotation Workspace");
   const router = useRouter();
 
