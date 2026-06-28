@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -33,7 +33,7 @@ import { MarkingSourceTimeline } from "@/components/marking/MarkingSourceTimelin
 import { RubricChecklist } from "@/components/marking/RubricChecklist";
 import { ErrorTagPicker } from "@/components/marking/ErrorTagPicker";
 import { ScoreOverrideInput } from "@/components/marking/ScoreOverrideInput";
-import type { ReviewDecisionType } from "@/lib/types/review";
+import type { ReviewDecisionType } from "@aitutor/shared";
 
 type Decision = ReviewDecisionType;
 
@@ -64,9 +64,15 @@ const DECISION_CONFIG: Record<
 export default function AnnotationWorkspacePage({
   params,
 }: {
+<<<<<<<< HEAD:apps/web/src/app/(dashboard)/teacher/review/[submissionId]/page.tsx
+  params: Promise<{ submissionId: string }>;
+}) {
+  const { submissionId } = use(params);
+========
   params: { attemptId: string };
 }) {
   const { attemptId } = params;
+>>>>>>>> origin/main:src/app/(dashboard)/teacher/review/[attemptId]/page.tsx
   usePageTitle("Annotation Workspace");
   const router = useRouter();
 

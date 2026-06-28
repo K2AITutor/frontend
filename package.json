@@ -1,67 +1,30 @@
 {
-    "name": "aitutor-frontend",
-    "version": "0.1.0",
-    "private": true,
-    "scripts": {
-        "dev": "next dev -p 3000",
-        "build": "next build",
-        "start": "next start -p 3000",
-        "lint": "next lint",
-        "test:answer-input-normalizer": "node scripts/validate-answer-input-normalizer.mjs"
-    },
-    "dependencies": {
-        "@bprogress/next": "^3.2.12",
-        "@radix-ui/react-avatar": "^1.1.11",
-        "@radix-ui/react-dialog": "^1.1.15",
-        "@radix-ui/react-dropdown-menu": "^2.1.16",
-        "@radix-ui/react-label": "^2.1.8",
-        "@radix-ui/react-popover": "^1.1.15",
-        "@radix-ui/react-progress": "^1.1.8",
-        "@radix-ui/react-scroll-area": "^1.2.10",
-        "@radix-ui/react-select": "^2.2.6",
-        "@radix-ui/react-separator": "^1.1.8",
-        "@radix-ui/react-slider": "^1.3.6",
-        "@radix-ui/react-slot": "^1.2.4",
-        "@radix-ui/react-tabs": "^1.1.13",
-        "@radix-ui/react-tooltip": "^1.2.8",
-        "@tanstack/react-form": "^1.27.7",
-        "@tanstack/react-query": "^5.90.18",
-        "@tanstack/react-table": "^8.21.3",
-        "@types/katex": "^0.16.8",
-        "axios": "^1.6.0",
-        "class-variance-authority": "^0.7.1",
-        "clsx": "^2.1.1",
-        "cmdk": "^1.1.1",
-        "date-fns": "^4.1.0",
-        "framer-motion": "^12.29.2",
-        "jsonwebtoken": "^9.0.3",
-        "katex": "^0.16.45",
-        "lucide-react": "^0.562.0",
-        "next": "^14.2.5",
-        "next-auth": "^4.24.13",
-        "next-themes": "^0.4.6",
-        "pdfjs-dist": "^4.10.38",
-        "react": "^18.3.1",
-        "react-day-picker": "^10.0.1",
-        "react-dom": "^18.3.1",
-        "recharts": "^2.15.4",
-        "sonner": "^2.0.7",
-        "tailwind-merge": "^3.4.0",
-        "tailwindcss-animate": "^1.0.7"
-    },
-    "devDependencies": {
-        "@eslint/eslintrc": "^3.3.3",
-        "@tailwindcss/postcss": "^4.1.18",
-        "@types/axios": "^0.9.36",
-        "@types/next-auth": "^3.13.0",
-        "@types/node": "^20.12.12",
-        "@types/passport-jwt": "^4.0.1",
-        "@types/react": "^18.3.3",
-        "@types/react-dom": "^18.3.0",
-        "autoprefixer": "^10.4.23",
-        "eslint": "^8.57.1",
-        "eslint-config-next": "^14.2.5",
-        "tailwindcss": "^4.0.0",
-        "typescript": "^5.5.4"
-    }
+  "name": "@aitutor/monorepo",
+  "private": true,
+  "packageManager": "npm@10.9.3",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "dev": "turbo run dev",
+    "web": "npm run dev -w @aitutor/web",
+    "mobile": "npm run start -w @aitutor/mobile",
+    "mobile:web": "npm run web -w @aitutor/mobile",
+    "clean": "find . -name '.next' -o -name '.expo' -o -name 'dist' | xargs rm -rf"
+  },
+  "overrides": {
+    "react-native-screens": "4.16.0",
+    "expo-constants": "18.0.13",
+    "expo-linking": "8.0.12",
+    "expo-modules-core": "3.0.30"
+  },
+  "devDependencies": {
+    "expo": "^54.0.34",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "turbo": "^2.9.16"
+  }
 }
