@@ -911,7 +911,8 @@ export default function ExamSessionClient(props: {
   }, [attemptsByQid]);
 
   const finishAndReview = () => {
-    router.push(`/student/practice/math-methods/exam-1/review?examKey=${encodeURIComponent(examKey)}`);
+    const examPath = examKey.includes("_EXAM2_") ? "exam-2" : "exam-1";
+    router.push(`/student/practice/math-methods/${examPath}/review?examKey=${encodeURIComponent(examKey)}`);
   };
 
   const answerPanelCopy = isExamMode
