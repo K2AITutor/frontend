@@ -24,14 +24,17 @@ import { Label } from "@/components/dashboard/ui/label";
 import {
     Select,
     SelectContent,
+    SelectGroup,
     SelectItem,
+    SelectLabel,
+    SelectSeparator,
     SelectTrigger,
     SelectValue,
 } from "@/components/dashboard/ui/select";
 import { Skeleton } from "@/components/dashboard/ui/skeleton";
 import { Textarea } from "@/components/dashboard/ui/textarea";
 
-const EXAMS = [
+const EXAM1_SOURCES = [
     { key: "VCE_MM_EXAM1_2025", label: "2025 Mathematical Methods Exam 1" },
     { key: "VCE_MM_EXAM1_2024", label: "2024 Mathematical Methods Exam 1" },
     { key: "VCE_MM_EXAM1_2023", label: "2023 Mathematical Methods Exam 1" },
@@ -42,6 +45,19 @@ const EXAMS = [
     { key: "VCE_MM_EXAM1_2018", label: "2018 Mathematical Methods Exam 1" },
     { key: "VCE_MM_EXAM1_2017", label: "2017 Mathematical Methods Exam 1" },
     { key: "VCE_MM_EXAM1_2016", label: "2016 Mathematical Methods Exam 1" },
+];
+
+const EXAM2_SOURCES = [
+    { key: "VCE_MM_EXAM2_2025", label: "2025 Mathematical Methods Exam 2" },
+    { key: "VCE_MM_EXAM2_2024", label: "2024 Mathematical Methods Exam 2" },
+    { key: "VCE_MM_EXAM2_2023", label: "2023 Mathematical Methods Exam 2" },
+    { key: "VCE_MM_EXAM2_2022", label: "2022 Mathematical Methods Exam 2" },
+    { key: "VCE_MM_EXAM2_2021", label: "2021 Mathematical Methods Exam 2" },
+    { key: "VCE_MM_EXAM2_2020", label: "2020 Mathematical Methods Exam 2" },
+    { key: "VCE_MM_EXAM2_2019", label: "2019 Mathematical Methods Exam 2" },
+    { key: "VCE_MM_EXAM2_2018", label: "2018 Mathematical Methods Exam 2" },
+    { key: "VCE_MM_EXAM2_2017", label: "2017 Mathematical Methods Exam 2" },
+    { key: "VCE_MM_EXAM2_2016", label: "2016 Mathematical Methods Exam 2" },
 ];
 
 const PRACTICE_QA_SOURCES = [
@@ -63,6 +79,29 @@ const PRACTICE_QA_SOURCES = [
     { key: "PRACTICE_MM_CH15_CONTINUOUS_RANDOM_VARIABLES", label: "Practice QA - Chapter 15 Continuous random variables" },
     { key: "PRACTICE_MM_CH16_NORMAL_DISTRIBUTION", label: "Practice QA - Chapter 16 Normal distribution" },
 ];
+
+type DatasetSource = {
+    key: string;
+    label: string;
+    kind: "exam1" | "exam2" | "practiceQa";
+};
+
+const DATASET_SOURCE_GROUPS: Array<{ label: string; sources: DatasetSource[] }> = [
+    {
+        label: "Exam-1",
+        sources: EXAM1_SOURCES.map((source): DatasetSource => ({ ...source, kind: "exam1" })),
+    },
+    {
+        label: "Exam-2",
+        sources: EXAM2_SOURCES.map((source): DatasetSource => ({ ...source, kind: "exam2" })),
+    },
+    {
+        label: "Practice-QA",
+        sources: PRACTICE_QA_SOURCES.map((source): DatasetSource => ({ ...source, kind: "practiceQa" })),
+    },
+];
+
+const DEFAULT_DATASET_SOURCE_KEY = DATASET_SOURCE_GROUPS[0].sources[0].key;
 
 const STATUS_LABELS: Record<DatasetQaStatus, string> = {
     READY_FOR_QA: "Ready for QA",
@@ -448,17 +487,10 @@ export default function ContributorDatasetQaPage() {
 
     const { data: session } = useSession();
     const canPublish = canPublishForRole((session?.user as any)?.role);
-    const [datasetSourceKey, setDatasetSourceKey] = useState(EXAMS[0].key);
+    const [datasetSourceKey, setDatasetSourceKey] = useState(DEFAULT_DATASET_SOURCE_KEY);
     const [reviewerName, setReviewerName] = useState("");
     const [statusFilter, setStatusFilter] = useState<"ALL" | DatasetQaStatus>("ALL");
     const [search, setSearch] = useState("");
-    const datasetSources = useMemo(
-        () => [
-            ...EXAMS.map((exam) => ({ ...exam, kind: "exam" as const })),
-            ...PRACTICE_QA_SOURCES.map((source) => ({ ...source, kind: "practiceQa" as const })),
-        ],
-        []
-    );
     const { data: rawData, isLoading: loading, isError: hasError, refetch } = useDatasetQaQuestions(datasetSourceKey);
     const data = useMemo(() => asDatasetRows(rawData), [rawData]);
     const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -538,10 +570,16 @@ export default function ContributorDatasetQaPage() {
                                 <SelectValue placeholder="Select dataset" />
                             </SelectTrigger>
                             <SelectContent>
-                                {datasetSources.map((source) => (
-                                    <SelectItem key={source.key} value={source.key}>
-                                        {source.label}
-                                    </SelectItem>
+                                {DATASET_SOURCE_GROUPS.map((group, groupIndex) => (
+                                    <SelectGroup key={group.label}>
+                                        <SelectLabel>{group.label}</SelectLabel>
+                                        {group.sources.map((source) => (
+                                            <SelectItem key={source.key} value={source.key}>
+                                                {source.label}
+                                            </SelectItem>
+                                        ))}
+                                        {groupIndex < DATASET_SOURCE_GROUPS.length - 1 ? <SelectSeparator /> : null}
+                                    </SelectGroup>
                                 ))}
                             </SelectContent>
                         </Select>
