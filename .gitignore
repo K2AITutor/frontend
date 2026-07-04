@@ -40,7 +40,8 @@ temp/
 *.tmp
 
 # Package manager files
-package-lock.json
+# package-lock.json is committed intentionally — Vercel/CI rely on it for
+# reproducible installs (see .npmrc legacy-peer-deps for the Expo peer conflicts).
 yarn.lock
 pnpm-lock.yaml
 

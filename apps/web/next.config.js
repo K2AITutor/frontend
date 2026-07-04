@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ["@aitutor/shared"],
   eslint: {
     ignoreDuringBuilds: true,
   },

@@ -16,6 +16,9 @@
     "clean": "find . -name '.next' -o -name '.expo' -o -name 'dist' | xargs rm -rf"
   },
   "overrides": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-test-renderer": "19.1.0",
     "react-native-screens": "4.16.0",
     "expo-constants": "18.0.13",
     "expo-linking": "8.0.12",
