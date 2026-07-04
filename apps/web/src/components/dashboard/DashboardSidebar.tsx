@@ -191,6 +191,11 @@ const adminNavGroups: NavGroup[] = [
         icon: <Cpu className="h-5 w-5" />,
       },
       {
+        title: "Dataset Candidates",
+        href: "/admin/dataset-candidates",
+        icon: <ClipboardCheck className="h-5 w-5" />,
+      },
+      {
         title: "Datasets",
         href: "/admin/datasets",
         icon: <Database className="h-5 w-5" />,
