@@ -1,0 +1,7 @@
+appId: com.k2aitutor.vcetutor
+---
+- launchApp
+- tapOn: "Profile"
+- tapOn: "Subscription"
+- tapOn: "Upgrade Now"
+- assertVisible: "Restore Purchases"

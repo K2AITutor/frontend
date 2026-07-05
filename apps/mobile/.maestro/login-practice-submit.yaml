@@ -1,0 +1,14 @@
+appId: com.k2aitutor.vcetutor
+---
+- launchApp
+- tapOn: "Email"
+- inputText: "student@example.com"
+- tapOn: "Password"
+- inputText: "password123"
+- tapOn: "Sign In"
+- tapOn: "Practice"
+- tapOn: "Start Practice"
+- tapOn: "Start session"
+- tapOn: "Type your answer"
+- inputText: "42"
+- tapOn: "Submit"
