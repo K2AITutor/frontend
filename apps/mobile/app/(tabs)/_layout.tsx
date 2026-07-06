@@ -5,10 +5,13 @@ import apiClient from "../../src/lib/apiClient";
 import { House, BookOpen, Bell, User } from "lucide-react-native";
 import { useCSSVariable } from "../../src/tw";
 import { authenticateIfBiometricEnabled } from "../../src/lib/biometricAuth";
+import { useFeatureFlag } from "../../src/lib/featureFlags";
 
 export default function TabLayout() {
   const router = useRouter();
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const notificationsEnabled = useFeatureFlag("notifications-inbox");
+  const biometricUnlockEnabled = useFeatureFlag("biometric-unlock");
   const card = useCSSVariable("--color-card");
   const border = useCSSVariable("--color-border");
   const primary = useCSSVariable("--color-primary");
@@ -23,10 +26,12 @@ export default function TabLayout() {
           return;
         }
 
-        const unlocked = await authenticateIfBiometricEnabled();
-        if (!unlocked) {
-          router.replace("/login");
-          return;
+        if (biometricUnlockEnabled) {
+          const unlocked = await authenticateIfBiometricEnabled();
+          if (!unlocked) {
+            router.replace("/login");
+            return;
+          }
         }
 
         const me: any = await apiClient.get("/auth/me");
@@ -42,7 +47,7 @@ export default function TabLayout() {
       }
     }
     checkAuth();
-  }, [router]);
+  }, [router, biometricUnlockEnabled]);
 
   if (!isAuthChecked) return null;
 
@@ -84,6 +89,8 @@ export default function TabLayout() {
         options={{
           title: "Alerts",
           tabBarIcon: ({ color, size }) => <Bell size={size} color={color} />,
+          // Hide the tab (but keep the route registered) when flagged off.
+          href: notificationsEnabled ? undefined : null,
         }}
       />
       <Tabs.Screen

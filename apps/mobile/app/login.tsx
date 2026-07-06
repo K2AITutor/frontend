@@ -5,12 +5,15 @@ import { type LoginResponse } from "@aitutor/shared";
 import apiClient from "../src/lib/apiClient";
 import { saveToken, saveTokens } from "../src/lib/secureStore";
 import { Screen } from "../src/components/Screen";
+import { posthog } from "../src/lib/observability";
 import { registerForPushNotifications } from "../src/lib/pushNotifications";
+import { useFeatureFlag } from "../src/lib/featureFlags";
 import { Button, Input, Label } from "../src/components/ui";
 import { ScrollView, Text, View } from "../src/tw";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const pushEnabled = useFeatureFlag("push-notifications");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -31,14 +34,24 @@ export default function LoginScreen() {
         password,
       });
 
-      const { access_token, refresh_token, role } = response.data;
+      const { access_token, refresh_token, role, userId, email: userEmail } = response.data;
       if (access_token) {
         if (role && String(role).toUpperCase() !== "STUDENT") {
           setError("The mobile app is currently for students. Please use the web app for this account.");
           return;
         }
         await saveTokens(access_token, refresh_token);
-        registerForPushNotifications().catch(() => undefined);
+        // Identify the user so PostHog feature-flag targeting / rollouts apply.
+        if (userId != null) {
+          try {
+            posthog.identify(String(userId), { email: userEmail });
+          } catch {
+            // observability disabled — feature flags fall back to defaults
+          }
+        }
+        if (pushEnabled) {
+          registerForPushNotifications().catch(() => undefined);
+        }
         router.replace("/");
       } else {
         setError("Login failed. No token received.");

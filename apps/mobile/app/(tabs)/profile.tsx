@@ -1,12 +1,14 @@
 import React from "react";
 import { View, Text, Pressable, ScrollView, useCSSVariable } from "../../src/tw";
 import { useRouter } from "expo-router";
-import { User, Lock, Palette, Bell, CreditCard, LogOut } from "lucide-react-native";
+import { User, Lock, Palette, Bell, CreditCard, LogOut, Flag } from "lucide-react-native";
 import { clearToken } from "../../src/lib/secureStore";
 import { resetSessionAuth } from "../../src/lib/biometricAuth";
 import { SettingsLink } from "../../src/components/SettingsLink";
+import { FeatureGate } from "../../src/components/FeatureGate";
 import { useUserProfile } from "@aitutor/shared";
 import { Screen, ScreenHeader } from "../../src/components/Screen";
+import { posthog } from "../../src/lib/observability";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -37,6 +39,11 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     resetSessionAuth();
     await clearToken();
+    try {
+      posthog.reset();
+    } catch {
+      // observability disabled — nothing to reset
+    }
     router.replace("/login");
   };
 
@@ -81,36 +88,53 @@ export default function ProfileScreen() {
             label="Security & Password"
             onPress={() => router.push("/settings/security")}
           />
-          <SettingsLink
-            icon={CreditCard}
-            label="Subscription Plan"
-            onPress={() => router.push("/settings/subscription")}
-          />
+          <FeatureGate flag="subscriptions">
+            <SettingsLink
+              icon={CreditCard}
+              label="Subscription Plan"
+              onPress={() => router.push("/settings/subscription")}
+            />
+          </FeatureGate>
 
           <Text className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-6 mb-2 ml-1">Preferences</Text>
 
-          <SettingsLink
-            icon={Palette}
-            label="Appearance"
-            sublabel="Dark Mode"
-            onPress={() => router.push("/settings/appearance")}
-          />
-          <SettingsLink
-            icon={Bell}
-            label="Notifications"
-            onPress={() => router.push("/settings/notifications")}
-          />
+          <FeatureGate flag="appearance-dark-mode">
+            <SettingsLink
+              icon={Palette}
+              label="Appearance"
+              sublabel="Dark Mode"
+              onPress={() => router.push("/settings/appearance")}
+            />
+          </FeatureGate>
+          <FeatureGate flag="push-notifications">
+            <SettingsLink
+              icon={Bell}
+              label="Notifications"
+              onPress={() => router.push("/settings/notifications")}
+            />
+          </FeatureGate>
           <SettingsLink
             icon={User}
             label="About VCE Tutor"
             onPress={() => router.push("/settings/about")}
           />
-          <SettingsLink
-            icon={LogOut}
-            label="Delete Account"
-            sublabel="Permanently remove your account"
-            onPress={() => router.push("/settings/delete-account")}
-          />
+          <FeatureGate flag="account-deletion">
+            <SettingsLink
+              icon={LogOut}
+              label="Delete Account"
+              sublabel="Permanently remove your account"
+              onPress={() => router.push("/settings/delete-account")}
+            />
+          </FeatureGate>
+
+          {__DEV__ && (
+            <SettingsLink
+              icon={Flag}
+              label="Feature Flags"
+              sublabel="Developer overrides"
+              onPress={() => router.push("/settings/feature-flags")}
+            />
+          )}
 
           <View className="h-4" />
 

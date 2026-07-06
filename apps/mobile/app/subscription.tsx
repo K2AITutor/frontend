@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { ChevronLeft, Check, ShieldCheck } from "lucide-react-native";
 import { Screen, ScreenHeader } from "../src/components/Screen";
 import { useBillingPlans, useMySubscription, useUserProfile } from "@aitutor/shared";
+import { FeatureGate } from "../src/components/FeatureGate";
 import {
   getSubscriptionProducts,
   initializeIap,
@@ -113,15 +114,17 @@ export default function SubscriptionScreen() {
                 ))}
               </View>
 
-              <Pressable 
-                className={`w-full py-4 rounded-2xl items-center justify-center ${active ? 'bg-muted' : 'bg-primary shadow-lg shadow-primary/20'}`}
-                disabled={active}
-                onPress={() => !active && requestSubscriptionPurchase(sku)}
-              >
-                <Text className={`${active ? 'text-muted-foreground' : 'text-white'} font-bold`}>
-                  {active ? 'Active' : 'Upgrade Now'}
-                </Text>
-              </Pressable>
+              <FeatureGate flag="in-app-purchases">
+                <Pressable
+                  className={`w-full py-4 rounded-2xl items-center justify-center ${active ? 'bg-muted' : 'bg-primary shadow-lg shadow-primary/20'}`}
+                  disabled={active}
+                  onPress={() => !active && requestSubscriptionPurchase(sku)}
+                >
+                  <Text className={`${active ? 'text-muted-foreground' : 'text-white'} font-bold`}>
+                    {active ? 'Active' : 'Upgrade Now'}
+                  </Text>
+                </Pressable>
+              </FeatureGate>
               {storeProduct?.displayPrice && (
                 <Text className="mt-3 text-center text-xs text-muted-foreground">
                   Store price: {storeProduct.displayPrice}
@@ -138,19 +141,21 @@ export default function SubscriptionScreen() {
           </View>
         )}
 
-        <Pressable
-          className="mb-6 w-full rounded-2xl border border-border bg-card py-4"
-          onPress={() =>
-            restoreSubscriptionPurchases()
-              .then(() => {
-                setIapMessage("Purchases restored.");
-                queryClient.invalidateQueries({ queryKey: ["billing"] });
-              })
-              .catch(() => setIapMessage("No active purchases could be restored."))
-          }
-        >
-          <Text className="text-center font-bold text-primary">Restore Purchases</Text>
-        </Pressable>
+        <FeatureGate flag="in-app-purchases">
+          <Pressable
+            className="mb-6 w-full rounded-2xl border border-border bg-card py-4"
+            onPress={() =>
+              restoreSubscriptionPurchases()
+                .then(() => {
+                  setIapMessage("Purchases restored.");
+                  queryClient.invalidateQueries({ queryKey: ["billing"] });
+                })
+                .catch(() => setIapMessage("No active purchases could be restored."))
+            }
+          >
+            <Text className="text-center font-bold text-primary">Restore Purchases</Text>
+          </Pressable>
+        </FeatureGate>
 
         <View className="bg-card/50 p-6 rounded-3xl border border-dashed border-border items-center mb-10">
            <ShieldCheck size={32} color={muted} />

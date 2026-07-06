@@ -8,6 +8,7 @@ import {
 } from "../../src/lib/biometricAuth";
 import { PATH } from "@aitutor/shared";
 import { Text, View } from "../../src/tw";
+import { FeatureGate } from "../../src/components/FeatureGate";
 
 export default function SecuritySettingsScreen() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -34,17 +35,19 @@ export default function SecuritySettingsScreen() {
 
   return (
     <SettingsScreen title="Security" subtitle="Password and biometric unlock">
-      <View className="mb-6 rounded-3xl border border-border bg-card p-5">
-        <Text className="mb-2 text-lg font-bold text-foreground">Biometric Unlock</Text>
-        <Text className="mb-4 text-sm text-muted-foreground">
-          Use Face ID, Touch ID, or Android biometrics after opening the app.
-        </Text>
-        <Button
-          label={biometricEnabled ? "Disable biometric unlock" : "Enable biometric unlock"}
-          variant={biometricEnabled ? "outline" : "default"}
-          onPress={toggleBiometric}
-        />
-      </View>
+      <FeatureGate flag="biometric-unlock">
+        <View className="mb-6 rounded-3xl border border-border bg-card p-5">
+          <Text className="mb-2 text-lg font-bold text-foreground">Biometric Unlock</Text>
+          <Text className="mb-4 text-sm text-muted-foreground">
+            Use Face ID, Touch ID, or Android biometrics after opening the app.
+          </Text>
+          <Button
+            label={biometricEnabled ? "Disable biometric unlock" : "Enable biometric unlock"}
+            variant={biometricEnabled ? "outline" : "default"}
+            onPress={toggleBiometric}
+          />
+        </View>
+      </FeatureGate>
 
       <View className="gap-4 rounded-3xl border border-border bg-card p-5">
         <Text className="text-lg font-bold text-foreground">Change Password</Text>

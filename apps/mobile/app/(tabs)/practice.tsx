@@ -7,6 +7,7 @@ import { useSubjects, useGradePhotoAnswer } from "@aitutor/shared";
 import { Alert, Modal } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { MathView } from "../../src/components/math/MathView";
+import { FeatureGate } from "../../src/components/FeatureGate";
 
 export default function PracticeScreen() {
   const router = useRouter();
@@ -95,25 +96,27 @@ export default function PracticeScreen() {
 
       <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false}>
         {/* Sleek Gradient AI Photo Tutor Hero Card */}
-        <View className="bg-primary/10 border border-primary/20 p-6 rounded-3xl mb-8 flex-row items-center justify-between overflow-hidden">
-          <View className="flex-1 mr-4">
-            <Text className="text-xl font-bold text-foreground mb-1">
-              AI Photo Math Tutor
-            </Text>
-            <Text className="text-xs text-muted-foreground leading-5">
-              Snap a photo of any math question to parse and explain it instantly with step-by-step LaTeX formatting.
-            </Text>
-            <Pressable
-              className="mt-4 bg-primary px-5 py-3 rounded-2xl flex-row items-center self-start active:opacity-80"
-              onPress={handlePhotoTutor}
-            >
-              <Camera size={16} color={primaryForeground} className="mr-2" />
-              <Text className="text-primary-foreground font-bold text-sm">
-                Snap Math Problem
+        <FeatureGate flag="ai-photo-tutor">
+          <View className="bg-primary/10 border border-primary/20 p-6 rounded-3xl mb-8 flex-row items-center justify-between overflow-hidden">
+            <View className="flex-1 mr-4">
+              <Text className="text-xl font-bold text-foreground mb-1">
+                AI Photo Math Tutor
               </Text>
-            </Pressable>
+              <Text className="text-xs text-muted-foreground leading-5">
+                Snap a photo of any math question to parse and explain it instantly with step-by-step LaTeX formatting.
+              </Text>
+              <Pressable
+                className="mt-4 bg-primary px-5 py-3 rounded-2xl flex-row items-center self-start active:opacity-80"
+                onPress={handlePhotoTutor}
+              >
+                <Camera size={16} color={primaryForeground} className="mr-2" />
+                <Text className="text-primary-foreground font-bold text-sm">
+                  Snap Math Problem
+                </Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
+        </FeatureGate>
 
         {isLoading && (
           <Text className="mb-4 text-sm text-muted-foreground">Loading subjects...</Text>
@@ -124,6 +127,14 @@ export default function PracticeScreen() {
           </Text>
         )}
 
+        <FeatureGate
+          flag="practice-sessions"
+          fallback={
+            <Text className="mb-4 text-sm text-muted-foreground">
+              Practice sessions are currently unavailable.
+            </Text>
+          }
+        >
         <View className="flex-row flex-wrap gap-3 mb-8">
           {subjects.map((subject, index) => {
             const Icon = fallbackIcons[index % fallbackIcons.length];
@@ -183,6 +194,7 @@ export default function PracticeScreen() {
             );
           })}
         </View>
+        </FeatureGate>
       </ScrollView>
 
       {/* Full-Screen Beautiful LaTeX Math Solution Modal */}

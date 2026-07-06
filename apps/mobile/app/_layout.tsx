@@ -10,6 +10,7 @@ import React, { useEffect } from "react";
 import { FetcherProvider } from "@aitutor/shared";
 import { AppErrorBoundary } from "../src/components/AppErrorBoundary";
 import { ThemeProvider } from "../src/lib/ThemeProvider";
+import { FeatureFlagProvider } from "../src/lib/featureFlags";
 import { mobileFetcher, setUnauthorizedHandler } from "../src/lib/apiClient";
 import { initObservability } from "../src/lib/observability";
 import { requestTrackingConsentIfNeeded } from "../src/lib/privacy";
@@ -50,18 +51,20 @@ export default function RootLayout() {
         <ThemeProvider>
           <FetcherProvider fetcher={mobileFetcher}>
             <QueryClientProvider client={queryClient}>
-              <BottomSheetModalProvider>
-                <AppErrorBoundary>
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="(tabs)" />
-                    <Stack.Screen name="login" />
-                    <Stack.Screen name="register" />
-                    <Stack.Screen name="forgot-password" />
-                    <Stack.Screen name="subscription" />
-                    <Stack.Screen name="unsupported-role" />
-                  </Stack>
-                </AppErrorBoundary>
-              </BottomSheetModalProvider>
+              <FeatureFlagProvider>
+                <BottomSheetModalProvider>
+                  <AppErrorBoundary>
+                    <Stack screenOptions={{ headerShown: false }}>
+                      <Stack.Screen name="(tabs)" />
+                      <Stack.Screen name="login" />
+                      <Stack.Screen name="register" />
+                      <Stack.Screen name="forgot-password" />
+                      <Stack.Screen name="subscription" />
+                      <Stack.Screen name="unsupported-role" />
+                    </Stack>
+                  </AppErrorBoundary>
+                </BottomSheetModalProvider>
+              </FeatureFlagProvider>
             </QueryClientProvider>
           </FetcherProvider>
         </ThemeProvider>

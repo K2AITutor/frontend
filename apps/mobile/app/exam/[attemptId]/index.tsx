@@ -7,6 +7,7 @@ import { Screen, ScreenHeader } from "../../../src/components/Screen";
 import { Badge, Button, Input } from "../../../src/components/ui";
 import apiClient from "../../../src/lib/apiClient";
 import { loadExamAnswers, saveExamAnswer } from "../../../src/lib/examCache";
+import { useFeatureFlag } from "../../../src/lib/featureFlags";
 import { Pressable, ScrollView, Text, View } from "../../../src/tw";
 
 type ExamQuestion = {
@@ -19,6 +20,7 @@ type ExamQuestion = {
 
 export default function ExamAttemptScreen() {
   const router = useRouter();
+  const examsEnabled = useFeatureFlag("exams");
   const { attemptId } = useLocalSearchParams<{ attemptId: string }>();
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -91,6 +93,19 @@ export default function ExamAttemptScreen() {
         },
       },
     ]);
+  }
+
+  if (!examsEnabled) {
+    return (
+      <Screen>
+        <ScreenHeader title="Exam" leftIcon={ChevronLeft} onLeftPress={() => router.back()} />
+        <View className="flex-1 items-center justify-center p-8">
+          <Text className="text-center text-muted-foreground">
+            Exams are currently unavailable.
+          </Text>
+        </View>
+      </Screen>
+    );
   }
 
   return (

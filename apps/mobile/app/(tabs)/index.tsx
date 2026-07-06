@@ -9,6 +9,7 @@ import { Clock, Target, Trophy, BookOpen, Flame, ArrowRight } from "lucide-react
 import { Pressable, useCSSVariable } from "../../src/tw";
 import { useRouter } from "expo-router";
 import { Screen, ScreenHeader } from "../../src/components/Screen";
+import { FeatureGate } from "../../src/components/FeatureGate";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -173,16 +174,18 @@ export default function HomeScreen() {
           )}
         </View>
 
-        <View className="mb-10">
-          <Text className="mb-4 text-xl font-bold text-foreground">Recent Activity</Text>
-          {recentActivities.slice(0, 3).map((activity) => (
-            <View key={activity.id} className="mb-3 rounded-2xl border border-border bg-card p-4">
-              <Text className="font-semibold text-foreground">{activity.title}</Text>
-              <Text className="mt-1 text-xs text-muted-foreground">{activity.description}</Text>
-              <Text className="mt-2 text-[10px] text-muted-foreground">{activity.timestamp}</Text>
-            </View>
-          ))}
-        </View>
+        <FeatureGate flag="dashboard-activity-feed">
+          <View className="mb-10">
+            <Text className="mb-4 text-xl font-bold text-foreground">Recent Activity</Text>
+            {recentActivities.slice(0, 3).map((activity) => (
+              <View key={activity.id} className="mb-3 rounded-2xl border border-border bg-card p-4">
+                <Text className="font-semibold text-foreground">{activity.title}</Text>
+                <Text className="mt-1 text-xs text-muted-foreground">{activity.description}</Text>
+                <Text className="mt-2 text-[10px] text-muted-foreground">{activity.timestamp}</Text>
+              </View>
+            ))}
+          </View>
+        </FeatureGate>
       </ScrollView>
     </Screen>
   );
