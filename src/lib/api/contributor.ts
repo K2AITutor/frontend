@@ -88,6 +88,19 @@ export interface DatasetQaChecklist {
     solutionChecked: boolean;
 }
 
+export interface DatasetQaDataMapping {
+    section: "A" | "B" | "unknown";
+    profile: "multiple_choice" | "extended_response" | "unknown";
+    status: "ready" | "needs_attention";
+    summary: string;
+    optionKeys?: string[];
+    hasMultipleChoiceOptions?: boolean;
+    hasCorrectAnswer?: boolean;
+    hasMultipleChoiceMetadata?: boolean;
+    hasLongAnswerFields?: boolean;
+    missing?: string[];
+}
+
 export interface DatasetQaQuestion {
     id: number;
     examKey: string;
@@ -116,6 +129,7 @@ export interface DatasetQaQuestion {
     publishedAt?: string | null;
     contentStatus?: "DRAFT" | "REVIEW" | "ACTIVE" | "ARCHIVED" | null;
     pdfPage?: number | null;
+    dataMapping?: DatasetQaDataMapping | null;
 }
 
 export interface UpdateDatasetQaPayload {
