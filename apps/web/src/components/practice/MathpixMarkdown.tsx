@@ -121,11 +121,11 @@ function TextBlock({ value }: { value: string }) {
   );
 }
 
-export default function MathpixMarkdown({ value }: { value: string }) {
+export default function MathpixMarkdown({ value, className = "" }: { value: string; className?: string }) {
   const segments = parseBlockSegments(value);
 
   return (
-    <div className="space-y-4 text-base leading-8 text-slate-100">
+    <div className={`space-y-4 text-base leading-8 text-slate-100 ${className}`}>
       {segments.map((segment, index) => {
         if (segment.type === "image") {
           return (

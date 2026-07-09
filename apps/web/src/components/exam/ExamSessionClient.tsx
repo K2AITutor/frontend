@@ -210,6 +210,20 @@ function multipleChoiceOptionsForQuestion(question: ExamQuestionLike | null | un
   return ["A", "B", "C", "D"].map((key) => ({ key, label: "Option " + key }));
 }
 
+function renderableMultipleChoiceLabel(option: MultipleChoiceOption) {
+  const label = String(option.label || `Option ${option.key}`).trim();
+  if (!label) return `Option ${option.key}`;
+
+  const hasMathDelimiters = /\\\(|\\\[|\$\$?/.test(label);
+  const looksLikeLatex = /\\(quad|frac|sqrt|cos|sin|tan|log|ln|rightarrow|Rightarrow|left|right|mathbb|pi)\b/.test(label);
+
+  if (looksLikeLatex && !hasMathDelimiters) {
+    return `\\(${label}\\)`;
+  }
+
+  return label;
+}
+
 function formatExamQuestionLabel(
   question: ExamQuestionLike | null | undefined,
   currentIndex: number,
@@ -304,7 +318,12 @@ function MultipleChoiceAnswerCards({
               >
                 {option.key}
               </span>
-              <span className="min-w-0 pt-1 leading-relaxed">{option.label || "Option " + option.key}</span>
+              <span className="min-w-0 flex-1 pt-0.5 text-sm leading-relaxed [&_.katex]:text-[1.02em] [&_.katex-display]:my-0">
+                <MathpixMarkdown
+                  value={renderableMultipleChoiceLabel(option)}
+                  className="space-y-0 leading-6 text-foreground"
+                />
+              </span>
             </button>
           );
         })}
