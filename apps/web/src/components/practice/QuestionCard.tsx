@@ -6,8 +6,12 @@ import MathpixMarkdown from "./MathpixMarkdown";
 
 export default function QuestionCard({
     question,
+    className = "",
+    contentClassName = "",
 }: {
     question: PracticeQuestion;
+    className?: string;
+    contentClassName?: string;
 }) {
     const prompt = String(question.questionText ?? "");
     const questionNumber = String((question as any).questionNumber ?? "").trim();
@@ -15,7 +19,7 @@ export default function QuestionCard({
     const marks = (question as any).marks;
 
     return (
-        <div className="glass p-4 space-y-4">
+        <div className={`glass p-4 space-y-4 ${className}`}>
             <div className="flex items-start justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {(question as any).topicCode && (
@@ -49,7 +53,7 @@ export default function QuestionCard({
                     </div>
                 )}
                 <div className="min-w-0 flex-1">
-                    <MathpixMarkdown value={prompt} />
+                    <MathpixMarkdown value={prompt} className={contentClassName} />
                 </div>
             </div>
         </div>
