@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
-const componentPath = path.join(repoRoot, "src", "components", "exam", "ExamSessionClient.tsx");
+const componentPath = path.join(repoRoot, "apps", "web", "src", "components", "exam", "ExamSessionClient.tsx");
 const source = fs.readFileSync(componentPath, "utf8");
 
 const requiredSnippets = [
