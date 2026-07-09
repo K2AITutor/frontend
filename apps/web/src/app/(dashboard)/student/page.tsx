@@ -13,6 +13,7 @@ import { CourseCard } from "@/components/dashboard/CourseCard";
 import { ActivityItem } from "@/components/dashboard/ActivityItem";
 import { useStudentDashboardData } from "@/lib/api/dashboard";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { FeatureGate } from "@/lib/featureFlags";
 import {
   BookOpen,
   Clock,
@@ -248,37 +249,39 @@ export default function StudentDashboardPage() {
         </div>
 
         {/* Recent Activity */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentActivities.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                No recent activity yet. Start practicing to see your progress here.
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {recentActivities.map((activity, index) => (
-                  <div key={activity.id}>
-                    <ActivityItem
-                      type={activity.type}
-                      title={activity.title}
-                      description={activity.description}
-                      timestamp={activity.timestamp}
-                      href={activity.href}
-                      subjectName={activity.subjectName}
-                      score={activity.score}
-                    />
-                    {index < recentActivities.length - 1 && (
-                      <Separator className="my-1" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <FeatureGate flag="dashboard-activity-feed">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentActivities.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  No recent activity yet. Start practicing to see your progress here.
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {recentActivities.map((activity, index) => (
+                    <div key={activity.id}>
+                      <ActivityItem
+                        type={activity.type}
+                        title={activity.title}
+                        description={activity.description}
+                        timestamp={activity.timestamp}
+                        href={activity.href}
+                        subjectName={activity.subjectName}
+                        score={activity.score}
+                      />
+                      {index < recentActivities.length - 1 && (
+                        <Separator className="my-1" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </FeatureGate>
       </div>
     </div>
   );

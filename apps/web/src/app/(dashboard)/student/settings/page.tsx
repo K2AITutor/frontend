@@ -13,6 +13,7 @@ import { Separator } from "@/components/dashboard/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/dashboard/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/dashboard/ui/tabs";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { useFeatureFlag } from "@/lib/featureFlags";
 import {
   Lock,
   Moon,
@@ -39,6 +40,7 @@ export default function StudentSettingsPage() {
   usePageTitle("Settings");
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
+  const appearanceEnabled = useFeatureFlag("appearance-dark-mode");
 
   const [profile, setProfile] = useState<ProfileData>({
     firstName: "",
@@ -158,7 +160,9 @@ export default function StudentSettingsPage() {
         </div>
 
         <Tabs defaultValue="profile">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList
+            className={`grid w-full ${appearanceEnabled ? "grid-cols-3" : "grid-cols-2"}`}
+          >
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Profile
@@ -167,10 +171,12 @@ export default function StudentSettingsPage() {
               <Lock className="h-4 w-4" />
               Security
             </TabsTrigger>
-            <TabsTrigger value="appearance" className="flex items-center gap-2">
-              <Palette className="h-4 w-4" />
-              Appearance
-            </TabsTrigger>
+            {appearanceEnabled && (
+              <TabsTrigger value="appearance" className="flex items-center gap-2">
+                <Palette className="h-4 w-4" />
+                Appearance
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Profile Tab */}
@@ -336,6 +342,7 @@ export default function StudentSettingsPage() {
           </TabsContent>
 
           {/* Appearance Tab */}
+          {appearanceEnabled && (
           <TabsContent value="appearance">
             <Card>
               <CardHeader>
@@ -391,6 +398,7 @@ export default function StudentSettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

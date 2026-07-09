@@ -59,14 +59,26 @@ set to **Inherit** (clear the override). Overrides persist in SecureStore.
 
 ## Files
 
+The **registry and resolver are shared** across web and mobile (they live in
+`@aitutor/shared`); the files below are the mobile-specific runtime.
+
 | File | Responsibility |
 |---|---|
-| `registry.ts` | Single source of truth: all flag keys + defaults |
-| `resolve.ts` | Pure precedence resolver (override → remote → default) |
-| `overrides.ts` | SecureStore-backed local override store |
+| `@aitutor/shared` · `constants/featureFlags.ts` | Single source of truth: all flag keys + defaults (shared) |
+| `@aitutor/shared` · `lib/featureFlags.ts` | Pure precedence resolver `resolveFlag` (shared) |
+| `registry.ts` / `resolve.ts` | Thin re-exports of the shared registry/resolver (stable local import paths) |
+| `overrides.ts` | SecureStore-backed local override store (mobile only) |
 | `FeatureFlagProvider.tsx` | Context provider + `useFeatureFlag` / `useFeatureFlagAdmin` hooks |
 | `../../components/FeatureGate.tsx` | Declarative gate component |
 | `../../../app/settings/feature-flags.tsx` | Dev debug/override screen |
 
 The provider is mounted in `app/_layout.tsx`. Users are identified to PostHog on
 login (`app/login.tsx`) and reset on logout so per-user targeting works.
+
+## Web
+
+The web app (`apps/web`) consumes the **same shared registry and resolver** via
+`@/lib/featureFlags` (`useFeatureFlag`, `<FeatureGate>`), backed by `posthog-js`.
+There is no local-override layer on web — it resolves remote → default only.
+Identity is kept in sync with the NextAuth session in
+`apps/web/src/components/auth/SessionGuard.tsx`.

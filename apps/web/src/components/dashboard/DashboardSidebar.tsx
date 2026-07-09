@@ -41,13 +41,16 @@ import {
   BarChart3,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
-import type { UserRole } from "@aitutor/shared";
+import type { UserRole, FeatureFlagKey } from "@aitutor/shared";
+import { useFeatureFlags } from "@/lib/featureFlags";
 
 interface NavItem {
   title: string;
   href: string;
   icon: React.ReactNode;
   badge?: string;
+  /** When set, the item is only shown while this feature flag resolves on. */
+  flag?: FeatureFlagKey;
 }
 
 interface NavGroup {
@@ -71,6 +74,7 @@ const studentNavItems: NavItem[] = [
     title: "Practice",
     href: "/student/practice",
     icon: <Sparkles className="h-5 w-5" />,
+    flag: "practice-sessions",
   },
   {
     title: "History",
@@ -90,6 +94,7 @@ const studentBottomNavItems: NavItem[] = [
     href: "/student/subscription",
     icon: <CreditCard className="h-5 w-5" />,
     badge: "Plan",
+    flag: "subscriptions",
   },
 ];
 
@@ -296,10 +301,15 @@ export function DashboardSidebar({
   collapsed = false,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const flags = useFeatureFlags();
+  const isItemVisible = (item: NavItem) => !item.flag || flags[item.flag];
   const navItems = navItemsByRole[role];
-  const navGroups: NavGroup[] =
-    role === "admin" ? adminNavGroups : [{ title: "", items: navItems }];
-  const bottomNavItems = role === "student" ? studentBottomNavItems : [];
+  const navGroups: NavGroup[] = (
+    role === "admin" ? adminNavGroups : [{ title: "", items: navItems }]
+  ).map((group) => ({ ...group, items: group.items.filter(isItemVisible) }));
+  const bottomNavItems = (role === "student" ? studentBottomNavItems : []).filter(
+    isItemVisible,
+  );
   const activeAdminGroupTitle = React.useMemo(() => {
     if (role !== "admin") return null;
     const activeGroup = adminNavGroups.find((group) =>

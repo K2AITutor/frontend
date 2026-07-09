@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
 import { Button } from '@/components/dashboard/ui/button';
+import { FeatureGate } from '@/lib/featureFlags';
 
 export default function MathMethodsPracticeHub() {
     return (
@@ -55,54 +56,56 @@ export default function MathMethodsPracticeHub() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-2xl">Examination 1 — No CAS</CardTitle>
-                    </CardHeader>
+                <FeatureGate flag="exams">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-2xl">Examination 1 — No CAS</CardTitle>
+                        </CardHeader>
 
-                    <CardContent className="space-y-5">
-                        <p className="leading-8 text-muted-foreground">
-                            Practise real VCAA Examination 1 questions under exam conditions, with
-                            exact answers required.
-                        </p>
+                        <CardContent className="space-y-5">
+                            <p className="leading-8 text-muted-foreground">
+                                Practise real VCAA Examination 1 questions under exam conditions, with
+                                exact answers required.
+                            </p>
 
-                        <ul className="space-y-2 text-muted-foreground">
-                            <li>• Past papers (2006–2025)</li>
-                            <li>• Exact values enforced</li>
-                            <li>• Examiner-style marking</li>
-                        </ul>
+                            <ul className="space-y-2 text-muted-foreground">
+                                <li>• Past papers (2006–2025)</li>
+                                <li>• Exact values enforced</li>
+                                <li>• Examiner-style marking</li>
+                            </ul>
 
-                        <Button asChild variant="destructive">
-                            <Link href="/student/practice/math-methods/exam-1">
-                                Exam 1 Practice
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
+                            <Button asChild variant="destructive">
+                                <Link href="/student/practice/math-methods/exam-1">
+                                    Exam 1 Practice
+                                </Link>
+                            </Button>
+                        </CardContent>
+                    </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-2xl">Examination 2 — CAS</CardTitle>
-                    </CardHeader>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-2xl">Examination 2 — CAS</CardTitle>
+                        </CardHeader>
 
-                    <CardContent className="space-y-5">
-                        <p className="leading-8 text-muted-foreground">
-                            Prepare for Examination 2 with CAS-based extended response questions.
-                        </p>
+                        <CardContent className="space-y-5">
+                            <p className="leading-8 text-muted-foreground">
+                                Prepare for Examination 2 with CAS-based extended response questions.
+                            </p>
 
-                        <ul className="space-y-2 text-muted-foreground">
-                            <li>• CAS allowed</li>
-                            <li>• Interpretation & reasoning</li>
-                            <li>• Examiner feedback</li>
-                        </ul>
+                            <ul className="space-y-2 text-muted-foreground">
+                                <li>• CAS allowed</li>
+                                <li>• Interpretation & reasoning</li>
+                                <li>• Examiner feedback</li>
+                            </ul>
 
-                        <Button asChild>
-                            <Link href="/student/practice/math-methods/exam-2">
-                                Exam 2 Practice
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
+                            <Button asChild>
+                                <Link href="/student/practice/math-methods/exam-2">
+                                    Exam 2 Practice
+                                </Link>
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </FeatureGate>
             </section>
         </div>
     );
