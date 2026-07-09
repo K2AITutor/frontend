@@ -210,20 +210,6 @@ function multipleChoiceOptionsForQuestion(question: ExamQuestionLike | null | un
   return ["A", "B", "C", "D"].map((key) => ({ key, label: "Option " + key }));
 }
 
-function renderableMultipleChoiceLabel(option: MultipleChoiceOption) {
-  const label = String(option.label || `Option ${option.key}`).trim();
-  if (!label) return `Option ${option.key}`;
-
-  const hasMathDelimiters = /\\\(|\\\[|\$\$?/.test(label);
-  const looksLikeLatex = /\\(quad|frac|sqrt|cos|sin|tan|log|ln|rightarrow|Rightarrow|left|right|mathbb|pi)\b/.test(label);
-
-  if (looksLikeLatex && !hasMathDelimiters) {
-    return `\\(${label}\\)`;
-  }
-
-  return label;
-}
-
 function formatExamQuestionLabel(
   question: ExamQuestionLike | null | undefined,
   currentIndex: number,
@@ -303,8 +289,9 @@ function MultipleChoiceAnswerCards({
               type="button"
               onClick={() => chooseOption(option.key)}
               aria-pressed={selected}
+              aria-label={`Choose option ${option.key}`}
               className={[
-                "flex min-h-[68px] items-start gap-3 rounded-lg border px-4 py-3 text-left text-sm transition",
+                "flex min-h-[68px] items-center justify-center rounded-lg border px-4 py-3 text-center text-lg font-semibold transition",
                 selected
                   ? "border-emerald-500/80 bg-emerald-500/15 text-foreground shadow-sm"
                   : "border-border bg-background hover:border-emerald-500/50 hover:bg-muted text-foreground",
@@ -317,12 +304,6 @@ function MultipleChoiceAnswerCards({
                 ].join(" ")}
               >
                 {option.key}
-              </span>
-              <span className="min-w-0 flex-1 pt-0.5 text-sm leading-relaxed [&_.katex]:text-[1.02em] [&_.katex-display]:my-0">
-                <MathpixMarkdown
-                  value={renderableMultipleChoiceLabel(option)}
-                  className="space-y-0 leading-6 text-foreground"
-                />
               </span>
             </button>
           );
