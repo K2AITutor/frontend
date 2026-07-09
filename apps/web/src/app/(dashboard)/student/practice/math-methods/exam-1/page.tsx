@@ -86,16 +86,35 @@ function subtopicDisplayName(subtopicCode: string) {
 }
 
 function topicSummary(questions: ExamQuestionDTO[]) {
-    const rows = new Map<string, { topicCode: string; subtopicCode: string; parts: number; marks: number; auto: number }>();
+    const rows = new Map<string, {
+        topicCode: string;
+        subtopicCode: string;
+        parts: number;
+        marks: number;
+        auto: number;
+        manual: number;
+        difficulties: Set<string>;
+    }>();
 
     for (const question of questions) {
         const topicCode = question.topicCode || "UNTAGGED";
         const subtopicCode = question.subtopicCode || "UNTAGGED";
         const key = `${topicCode}:${subtopicCode}`;
-        const current = rows.get(key) ?? { topicCode, subtopicCode, parts: 0, marks: 0, auto: 0 };
+        const current = rows.get(key) ?? {
+            topicCode,
+            subtopicCode,
+            parts: 0,
+            marks: 0,
+            auto: 0,
+            manual: 0,
+            difficulties: new Set<string>(),
+        };
         current.parts += 1;
         current.marks += Number(question.marks || 0);
         current.auto += question.isMarkable === false ? 0 : 1;
+        current.manual += question.isMarkable === false ? 1 : 0;
+        const difficulty = String((question as any).difficultyLevel || "").trim();
+        if (difficulty) current.difficulties.add(readableCode(difficulty));
         rows.set(key, current);
     }
 
@@ -176,6 +195,8 @@ export default function Exam1BriefingPage() {
 
     const tableRows = useMemo(() => topicSummary(questions), [questions]);
     const canStart = !loading && !error && questions.length > 0;
+    const isPreviewDataset = canStart && questions.length < 10;
+    const readinessLabel = loading ? "Loading" : canStart ? (isPreviewDataset ? "Preview dataset" : "Ready to practise") : "Not loaded";
     const startHref = `/student/practice/math-methods/exam-1/session?examKey=${encodeURIComponent(selectedExam.examKey)}&mode=practice`;
     const examModeHref = `/student/practice/math-methods/exam-1/session?examKey=${encodeURIComponent(selectedExam.examKey)}&mode=exam`;
 
@@ -209,50 +230,50 @@ export default function Exam1BriefingPage() {
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg">Notes and guide</CardTitle>
                         <p className="text-sm text-muted-foreground">
-                            These are the core rules students should keep in mind before starting a past Exam 1.
+                            Open the sections you need before starting. The core practice flow is the loaded dataset and start button.
                         </p>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            <div className="rounded-lg border border-border bg-muted/50 p-4">
-                                <h3 className="font-semibold">Exam conditions</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <details className="rounded-lg border border-border bg-muted/40 p-4" open>
+                                <summary className="cursor-pointer font-semibold">Exam conditions</summary>
                                 <ul className="mt-3 space-y-2 text-muted-foreground">
                                     <li>Answer all questions in the spaces provided.</li>
                                     <li>Show appropriate working where more than one mark is available.</li>
                                     <li>Diagrams are not drawn to scale unless stated.</li>
                                     <li>Use exact values unless the question asks for a decimal approximation.</li>
                                 </ul>
-                            </div>
+                            </details>
 
-                            <div className="rounded-lg border border-border bg-muted/50 p-4">
-                                <h3 className="font-semibold">Answer expectations</h3>
+                            <details className="rounded-lg border border-border bg-muted/40 p-4">
+                                <summary className="cursor-pointer font-semibold">Answer expectations</summary>
                                 <ul className="mt-3 space-y-2 text-muted-foreground">
                                     <li>Use correct notation for intervals, coordinates, and functions.</li>
                                     <li>Include endpoints correctly in domain and inequality questions.</li>
                                     <li>For algebra and calculus, simplify enough for the answer to be clear.</li>
                                     <li>For explanation questions, write the reasoning, not only the final result.</li>
                                 </ul>
-                            </div>
+                            </details>
 
-                            <div className="rounded-lg border border-border bg-muted/50 p-4">
-                                <h3 className="font-semibold">Input format in the app</h3>
+                            <details className="rounded-lg border border-border bg-muted/40 p-4">
+                                <summary className="cursor-pointer font-semibold">Input format tips</summary>
                                 <ul className="mt-3 space-y-2 text-muted-foreground">
                                     <li>Use calculator-style typing such as <span className="font-mono">sqrt(2)</span>.</li>
                                     <li>Use <span className="font-mono">pi</span> for π and <span className="font-mono">^</span> for powers.</li>
                                     <li>Use <span className="font-mono">*</span> for multiplication when it avoids ambiguity.</li>
                                     <li>For answer sets, separate values with commas.</li>
                                 </ul>
-                            </div>
+                            </details>
 
-                            <div className="rounded-lg border border-border bg-muted/50 p-4">
-                                <h3 className="font-semibold">Common mark losses</h3>
+                            <details className="rounded-lg border border-border bg-muted/40 p-4">
+                                <summary className="cursor-pointer font-semibold">Common mark losses</summary>
                                 <ul className="mt-3 space-y-2 text-muted-foreground">
                                     <li>Decimal answers where exact form is required.</li>
                                     <li>Missing a solution in a trigonometric or polynomial equation.</li>
                                     <li>Dropping endpoint brackets in intervals.</li>
                                     <li>Correct answer with no method when working is required.</li>
                                 </ul>
-                            </div>
+                            </details>
                         </div>
                     </CardContent>
                 </Card>
@@ -292,9 +313,16 @@ export default function Exam1BriefingPage() {
                                         <p className="mt-1 text-xs text-muted-foreground">{selectedExam.examKey}</p>
                                     </div>
                                     <span className={`rounded-full border px-2 py-1 text-xs font-medium ${canStart ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border bg-muted text-muted-foreground"}`}>
-                                        {loading ? "Loading" : canStart ? "Loaded" : "Not loaded"}
+                                        {readinessLabel}
                                     </span>
                                 </div>
+
+                                {isPreviewDataset && (
+                                    <div className="mt-4 rounded-lg border border-sky-500/25 bg-sky-500/10 p-3 text-sm text-sky-800 dark:text-sky-200">
+                                        <span className="font-semibold">Preview dataset loaded.</span>{" "}
+                                        This exam is still being built, so only selected practice questions are currently available.
+                                    </div>
+                                )}
 
                                 <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
                                     <div className="rounded-md border border-border bg-card px-2 py-3">
@@ -313,18 +341,18 @@ export default function Exam1BriefingPage() {
                             </div>
 
                             {canStart ? (
-                                <Button asChild variant="destructive" className="w-full">
+                                <Button asChild className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
                                     <Link href={startHref}>
                                         Start {selectedExam.year} practice
                                     </Link>
                                 </Button>
                             ) : (
-                                <Button type="button" disabled variant="destructive" className="w-full">
+                                <Button type="button" disabled className="w-full">
                                     Start {selectedExam.year} practice
                                 </Button>
                             )}
                             {canStart && (
-                                <Button asChild variant="outline" className="w-full">
+                                <Button asChild variant="outline" className="w-full border-sky-500/40 text-sky-700 hover:bg-sky-500/10 dark:text-sky-300">
                                     <Link href={examModeHref}>
                                         Try {selectedExam.year} exam mode
                                     </Link>
@@ -341,11 +369,11 @@ export default function Exam1BriefingPage() {
                         <div>
                             <CardTitle className="text-lg">Loaded dataset questions</CardTitle>
                             <p className="text-sm text-muted-foreground">
-                                Topic coverage for the selected past exam.
+                                Student-facing summary of what is currently available for this past exam.
                             </p>
                         </div>
                         {canStart && (
-                            <Button asChild variant="destructive" size="sm">
+                            <Button asChild size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700">
                                 <Link href={startHref}>
                                     Start {selectedExam.year} practice
                                 </Link>
@@ -370,10 +398,11 @@ export default function Exam1BriefingPage() {
                                 <thead className="text-muted-foreground">
                                     <tr className="border-b border-border">
                                         <th className="py-2 pr-4 text-left font-medium">Topic</th>
-                                        <th className="py-2 pr-4 text-left font-medium">Subtopic</th>
-                                        <th className="py-2 pr-4 text-left font-medium">Question parts</th>
+                                        <th className="py-2 pr-4 text-left font-medium">Skill focus</th>
+                                        <th className="py-2 pr-4 text-left font-medium">Loaded</th>
                                         <th className="py-2 pr-4 text-left font-medium">Marks</th>
-                                        <th className="py-2 text-left font-medium">Marking</th>
+                                        <th className="py-2 pr-4 text-left font-medium">Difficulty</th>
+                                        <th className="py-2 text-left font-medium">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -387,10 +416,20 @@ export default function Exam1BriefingPage() {
                                                 <div>{subtopicDisplayName(row.subtopicCode)}</div>
                                                 <div className="mt-0.5 text-xs text-muted-foreground">{row.subtopicCode}</div>
                                             </td>
-                                            <td className="py-3 pr-4 text-muted-foreground">{row.parts}</td>
+                                            <td className="py-3 pr-4 text-muted-foreground">
+                                                {row.parts} question part{row.parts === 1 ? "" : "s"}
+                                            </td>
                                             <td className="py-3 pr-4 text-muted-foreground">{row.marks}</td>
+                                            <td className="py-3 pr-4 text-muted-foreground">
+                                                {row.difficulties.size > 0 ? Array.from(row.difficulties).join(", ") : "Mixed / not labelled"}
+                                            </td>
                                             <td className="py-3 text-muted-foreground">
-                                                {row.auto}/{row.parts} auto-check
+                                                <div>{row.auto}/{row.parts} auto-check</div>
+                                                {row.manual > 0 && (
+                                                    <div className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">
+                                                        {row.manual} manual review
+                                                    </div>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

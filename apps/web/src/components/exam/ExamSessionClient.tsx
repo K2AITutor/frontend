@@ -280,7 +280,7 @@ function MultipleChoiceAnswerCards({
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-4">
         {options.map((option) => {
           const selected = selectedAnswer === option.key;
           return (
@@ -291,9 +291,9 @@ function MultipleChoiceAnswerCards({
               aria-pressed={selected}
               aria-label={`Choose option ${option.key}`}
               className={[
-                "flex min-h-[68px] items-center justify-center rounded-lg border px-4 py-3 text-center text-lg font-semibold transition",
+                "flex min-h-[76px] items-center justify-center rounded-lg border px-4 py-4 text-center text-xl font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400",
                 selected
-                  ? "border-emerald-500/80 bg-emerald-500/15 text-foreground shadow-sm"
+                  ? "border-emerald-500/80 bg-emerald-500/20 text-foreground shadow-sm ring-1 ring-emerald-500/40"
                   : "border-border bg-background hover:border-emerald-500/50 hover:bg-muted text-foreground",
               ].join(" ")}
             >
@@ -312,7 +312,7 @@ function MultipleChoiceAnswerCards({
       <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
         {selectedAnswer ? (
           <span>
-            Selected answer{" "}
+            Your selected answer:{" "}
             <span className="ml-1 inline-flex h-6 min-w-6 items-center justify-center rounded bg-emerald-500/15 px-2 font-semibold text-emerald-700 dark:text-emerald-300">
               {selectedAnswer}
             </span>
@@ -1151,6 +1151,11 @@ export default function ExamSessionClient(props: {
         finish: "End Practice",
       };
 
+  const progressAnswered = isExam2 ? exam2Progress.overall.answered : answeredCount;
+  const progressTotal = isExam2 ? exam2Progress.overall.total : questions.length;
+  const progressPercent = progressTotal > 0 ? Math.min(100, Math.round((progressAnswered / progressTotal) * 100)) : 0;
+  const displaySectionLabel = exam2SectionLabel ?? (isExam2 ? "Section not classified" : null);
+
   const copyPlainExpectedAnswer = (event: React.ClipboardEvent<HTMLElement>) => {
     if (!result?.correctAnswer) return;
 
@@ -1187,16 +1192,16 @@ export default function ExamSessionClient(props: {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        <div className="xl:col-span-7">
-          <div className="space-y-4 sticky top-4">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+        <div className="xl:col-span-8">
+          <div className="space-y-4">
             <div className="glass p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h1 className="text-xl font-semibold">{qLabel}</h1>
-                  {exam2SectionLabel ? (
+                  {displaySectionLabel ? (
                     <div className="mt-2 inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                      {exam2SectionLabel}
+                      {displaySectionLabel}
                     </div>
                   ) : null}
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -1228,7 +1233,7 @@ export default function ExamSessionClient(props: {
 
                   <Button
                     data-testid="exam-next"
-                    variant="outline"
+                    variant={result ? "default" : "outline"}
                     size="sm"
                     onClick={goNext}
                     disabled={currentIndex >= questions.length - 1}
@@ -1239,18 +1244,39 @@ export default function ExamSessionClient(props: {
               </div>
             </div>
 
-            <QuestionCard question={question as any} />
+            <QuestionCard
+              question={question as any}
+              className="p-5"
+              contentClassName="text-lg leading-9 [&_.katex]:text-[1.08em] [&_.katex-display]:my-4"
+            />
           </div>
         </div>
 
-        <div className="xl:col-span-5">
-          <div className="space-y-6">
-            <div className="glass p-6">
+        <div className="xl:col-span-4">
+          <div className="space-y-4 xl:sticky xl:top-4">
+            <div className="glass p-5">
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-xl font-semibold">{examTitle}</h1>
+                <div className="w-full">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Practice progress
+                      </p>
+                      <h1 className="mt-1 text-lg font-semibold">{examTitle}</h1>
+                    </div>
+                    <span className="rounded-full border border-border bg-muted px-3 py-1 text-sm font-semibold">
+                      {currentIndex + 1} / {questions.length}
+                    </span>
+                  </div>
 
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span className="px-2 py-1 rounded border border-border bg-muted">Reading: {readingMins} min</span>
                     <span className="px-2 py-1 rounded border border-border bg-muted">Writing: {writingMins} min</span>
                     <span className="px-2 py-1 rounded border border-border bg-muted">
@@ -1268,7 +1294,7 @@ export default function ExamSessionClient(props: {
                       </span>
                     ) : !isExam2 ? (
                       <span className="px-2 py-1 rounded border border-border bg-muted">
-                        Practice progress: {answeredCount}/{questions.length} • Correct: {correctCount}
+                        Answered: {answeredCount}/{questions.length} • Answered correctly: {correctCount}
                       </span>
                     ) : null}
                   </div>
@@ -1276,25 +1302,25 @@ export default function ExamSessionClient(props: {
                   {isExam2 ? (
                     <div className="mt-4 grid gap-2 rounded-lg border border-border bg-background/40 p-3 text-sm">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground">Section A progress</span>
+                        <span className="text-muted-foreground">Section A</span>
                         <span className="font-semibold text-foreground">
                           {exam2Progress.sectionA.answered} / {exam2Progress.sectionA.total}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground">Section B progress</span>
+                        <span className="text-muted-foreground">Section B</span>
                         <span className="font-semibold text-foreground">
                           {exam2Progress.sectionB.answered} / {exam2Progress.sectionB.total}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3 border-t border-border pt-2">
-                        <span className="text-muted-foreground">Overall progress</span>
+                        <span className="text-muted-foreground">Answered</span>
                         <span className="font-semibold text-foreground">
                           {exam2Progress.overall.answered} / {exam2Progress.overall.total}
                         </span>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Correct so far: {correctCount}
+                        Answered correctly: {correctCount}
                       </div>
                     </div>
                   ) : null}
@@ -1302,14 +1328,14 @@ export default function ExamSessionClient(props: {
               </div>
             </div>
 
-            <div className="glass p-5">
+            <div className="glass p-4">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="font-semibold">{isExamMode ? "PDF reference" : "Source reference"}</h2>
+                  <h2 className="font-semibold">{isExamMode ? "Compare with Original Exam" : "Open Official Source"}</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {isExamMode
-                      ? "Open the original exam PDF only when you need to check the source."
-                      : "Use the original exam PDF to compare wording, diagrams, and source context while practising."}
+                      ? "Open the PDF only if you need to inspect the official source."
+                      : "Check the source PDF when you want to compare wording or diagrams."}
                   </p>
                 </div>
 
@@ -1476,6 +1502,8 @@ export default function ExamSessionClient(props: {
                   disabled={!canSubmitAnswer}
                   title={submitValidationMessage ?? undefined}
                   onClick={handleSubmit}
+                  size="lg"
+                  className={canSubmitAnswer ? "bg-emerald-600 text-white hover:bg-emerald-700" : ""}
                 >
                   {isSubmitting ? answerPanelCopy.submitting : answerPanelCopy.submit}
                 </Button>
@@ -1485,6 +1513,7 @@ export default function ExamSessionClient(props: {
                   variant="outline"
                   size="lg"
                   onClick={finishAndReview}
+                  className="ml-auto"
                 >
                   {answerPanelCopy.finish}
                 </Button>
@@ -1501,16 +1530,16 @@ export default function ExamSessionClient(props: {
             {result && (
               <div
                 data-testid="exam-feedback"
-                className={`glass p-4 ${normalizedCorrect === null
+                className={`glass p-4 border ${normalizedCorrect === null
                     ? ""
                     : normalizedCorrect
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-red-600 dark:text-red-400"
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+                      : "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-300"
                   }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold">
+                    <p className="text-lg font-semibold">
                       {normalizedCorrect === null
                         ? hasRubricNotFound
                           ? "Cannot mark (Rubric not found)"
@@ -1523,12 +1552,29 @@ export default function ExamSessionClient(props: {
                     </p>
 
                     {displayedScore !== null && displayedMaxScore !== null && (
-                      <p className="mt-1 text-muted-foreground">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         Marks:{" "}
                         <span className="font-semibold text-foreground">
                           {displayedScore} / {displayedMaxScore}
                         </span>
                       </p>
+                    )}
+
+                    {isMultipleChoice && result.correctAnswer && (
+                      <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                        <span className="rounded-md border border-border bg-background px-3 py-2 text-muted-foreground">
+                          Your answer:{" "}
+                          <span className="font-semibold text-foreground">
+                            {answer.trim().toUpperCase() || "-"}
+                          </span>
+                        </span>
+                        <span className="rounded-md border border-border bg-background px-3 py-2 text-muted-foreground">
+                          Correct option:{" "}
+                          <span className="font-semibold text-foreground">
+                            {String(result.correctAnswer).trim().toUpperCase()}
+                          </span>
+                        </span>
+                      </div>
                     )}
 
                     {markingConfidenceText && !isMultipleChoice && (
