@@ -101,6 +101,7 @@ type ExamQuestionLike = {
   id: number | string;
   questionNumber?: string | null;
   questionText: string;
+  questionType?: string | null;
   answerType?: string;
   marks?: number;
   skillCode?: string | null;
@@ -162,12 +163,167 @@ const ANSWER_INPUT_COPY: Record<AnswerInputKind, AnswerInputCopy> = {
     helper: "Separate multiple answers with commas. Use braces if the answer is a set.",
     examples: ["-1,2,5", "{-1,2,5}"],
   },
+  multiple_choice: {
+    placeholder: "Choose A, B, C, or D",
+    helper: "Select one multiple-choice option.",
+    examples: ["A", "B", "C"],
+  },
   working: {
     placeholder: "Enter your working or explanation",
     helper: "Write the reasoning or explanation required for manual review.",
     examples: ["State the rule used and show the key working steps."],
   },
 };
+
+
+type MultipleChoiceOption = {
+  key: string;
+  label: string;
+};
+
+function isMultipleChoiceQuestion(question: ExamQuestionLike | null | undefined): boolean {
+  const meta = question?.markingMeta ?? {};
+  const questionType = String(question?.questionType ?? "").toUpperCase();
+  const datasetAnswerType = String(meta?.datasetAnswerType ?? "").toUpperCase();
+  return (
+    questionType === "MULTIPLE_CHOICE" ||
+    datasetAnswerType === "MULTIPLE_CHOICE" ||
+    Boolean(meta?.multipleChoiceOptions && typeof meta.multipleChoiceOptions === "object")
+  );
+}
+
+function multipleChoiceOptionsForQuestion(question: ExamQuestionLike | null | undefined): MultipleChoiceOption[] {
+  const rawOptions = question?.markingMeta?.multipleChoiceOptions;
+
+  if (rawOptions && typeof rawOptions === "object" && !Array.isArray(rawOptions)) {
+    const options = Object.entries(rawOptions)
+      .map(([key, value]) => ({
+        key: key.trim().toUpperCase(),
+        label: String(value ?? "").trim(),
+      }))
+      .filter((option) => /^[A-D]$/.test(option.key))
+      .sort((a, b) => a.key.localeCompare(b.key));
+
+    if (options.length > 0) return options;
+  }
+
+  return ["A", "B", "C", "D"].map((key) => ({ key, label: "Option " + key }));
+}
+
+function formatExamQuestionLabel(
+  question: ExamQuestionLike | null | undefined,
+  currentIndex: number,
+  examKey: string
+): string {
+  if (!question) return "";
+
+  const rawQuestionNumber = question.questionNumber?.trim();
+  if (!rawQuestionNumber) return `Question ${currentIndex + 1}`;
+
+  const isExam2 = examKey.toUpperCase().includes("_EXAM2_");
+  if (!isExam2) return `Question ${rawQuestionNumber}`;
+
+  const compactQuestionNumber = rawQuestionNumber.replace(/\s+/g, "");
+  const sectionAMatch = compactQuestionNumber.match(/^1A0*([1-9]\d*)$/i);
+  if (sectionAMatch) {
+    return `Section A - Question ${Number(sectionAMatch[1])}`;
+  }
+
+  const sectionBMatch = compactQuestionNumber.match(/^([1-9]\d*[a-z])$/i);
+  if (sectionBMatch) {
+    return `Section B - Question ${sectionBMatch[1]}`;
+  }
+
+  const encodedSectionBMatch = compactQuestionNumber.match(/^1B0*([1-9]\d*)([a-z]?)$/i);
+  if (encodedSectionBMatch) {
+    const [, questionNumber, partLabel] = encodedSectionBMatch;
+    return `Section B - Question ${Number(questionNumber)}${partLabel.toLowerCase()}`;
+  }
+
+  return `Question ${rawQuestionNumber}`;
+}
+
+type Exam2Section = "A" | "B" | "unknown";
+
+function getExam2Section(questionNumber: string | null | undefined): Exam2Section {
+  const compactQuestionNumber = questionNumber?.trim().replace(/\s+/g, "") ?? "";
+  if (!compactQuestionNumber) return "unknown";
+
+  if (/^1A0*([1-9]\d*)$/i.test(compactQuestionNumber) || /^A0*([1-9]\d*)$/i.test(compactQuestionNumber)) {
+    return "A";
+  }
+
+  if (
+    /^1B0*([1-9]\d*)([a-z]?)$/i.test(compactQuestionNumber) ||
+    /^B0*([1-9]\d*)([a-z]?)$/i.test(compactQuestionNumber) ||
+    /^([1-9]\d*[a-z])$/i.test(compactQuestionNumber)
+  ) {
+    return "B";
+  }
+
+  return "unknown";
+}
+
+type MultipleChoiceAnswerCardsProps = {
+  answer: string;
+  options: MultipleChoiceOption[];
+  selectedAnswer: string;
+  onAnswerChange: (value: string) => void;
+};
+
+function MultipleChoiceAnswerCards({
+  options,
+  selectedAnswer,
+  onAnswerChange,
+}: MultipleChoiceAnswerCardsProps) {
+  const chooseOption = (value: string) => onAnswerChange(value.toUpperCase().slice(0, 1));
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-2 sm:grid-cols-2">
+        {options.map((option) => {
+          const selected = selectedAnswer === option.key;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => chooseOption(option.key)}
+              aria-pressed={selected}
+              className={[
+                "flex min-h-[68px] items-start gap-3 rounded-lg border px-4 py-3 text-left text-sm transition",
+                selected
+                  ? "border-emerald-500/80 bg-emerald-500/15 text-foreground shadow-sm"
+                  : "border-border bg-background hover:border-emerald-500/50 hover:bg-muted text-foreground",
+              ].join(" ")}
+            >
+              <span
+                className={[
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border font-semibold",
+                  selected ? "border-emerald-500 bg-emerald-500 text-white" : "border-border bg-muted/40",
+                ].join(" ")}
+              >
+                {option.key}
+              </span>
+              <span className="min-w-0 pt-1 leading-relaxed">{option.label || "Option " + option.key}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+        {selectedAnswer ? (
+          <span>
+            Selected answer{" "}
+            <span className="ml-1 inline-flex h-6 min-w-6 items-center justify-center rounded bg-emerald-500/15 px-2 font-semibold text-emerald-700 dark:text-emerald-300">
+              {selectedAnswer}
+            </span>
+          </span>
+        ) : (
+          <span>Choose one option before checking your answer.</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 type StructuredAnswerBuilderProps = {
   answerKind: AnswerInputKind;
@@ -571,6 +727,7 @@ export default function ExamSessionClient(props: {
   } = props;
 
   const isExamMode = sessionMode === "exam";
+  const isExam2 = examKey.toUpperCase().includes("_EXAM2_");
 
   const [questions] = useState<ExamQuestionLike[]>(initialQuestions ?? []);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -588,6 +745,8 @@ export default function ExamSessionClient(props: {
   const [attemptsByQid, setAttemptsByQid] = useState<Record<string, AttemptRecord[]>>({});
 
   const qid = question ? String(question.id) : "";
+  const isMultipleChoice = isMultipleChoiceQuestion(question);
+  const multipleChoiceOptions = useMemo(() => multipleChoiceOptionsForQuestion(question), [question]);
 
   const maxMarks = useMemo(() => {
     const m = (question as any)?.marks;
@@ -636,19 +795,31 @@ export default function ExamSessionClient(props: {
     Number(displayedMaxScore ?? maxMarks) > 1;
 
   const shouldShowRubricGuide =
-    displayedRubric.length > 0 && !shouldShowCriterionFeedback;
+    displayedRubric.length > 0 && !shouldShowCriterionFeedback && !isMultipleChoice;
+
+  const meaningfulWorkedSolution = useMemo(() => {
+    const solution = result?.workedSolution || result?.explanation || "";
+    if (!solution.trim()) return "";
+    if (isMultipleChoice && /^(MCQ|MULTIPLE_CHOICE)$/i.test(solution.trim())) return "";
+    return solution;
+  }, [isMultipleChoice, result]);
 
   const markingConfidence = useMemo(() => normalizeMarkingConfidence(result), [result]);
   const markingConfidenceText = markingConfidence ? markingConfidenceCopy(markingConfidence) : null;
 
   const qLabel = useMemo(() => {
-    if (!question) return "";
-    const qn = question.questionNumber?.trim();
-    return qn ? `Question ${qn}` : `Question ${currentIndex + 1}`;
-  }, [question, currentIndex]);
+    return formatExamQuestionLabel(question, currentIndex, examKey);
+  }, [question, currentIndex, examKey]);
+  const exam2Section = isExam2 ? getExam2Section(question?.questionNumber) : "unknown";
+  const exam2SectionLabel =
+    exam2Section === "A"
+      ? "Section A: Multiple Choice"
+      : exam2Section === "B"
+        ? "Section B: Extended Response"
+        : null;
 
   const isFlagged = Boolean(question && flagged[String(question.id)]);
-  const answerType = String(question?.answerType ?? "").toUpperCase();
+  const answerType = isMultipleChoice ? "MULTIPLE_CHOICE" : String(question?.answerType ?? "").toUpperCase();
   const answerKind = classifyAnswerInputKind(answerType);
   const needsWorkingInput =
     question?.isMarkable === false ||
@@ -728,6 +899,14 @@ export default function ExamSessionClient(props: {
         : { value: "x^()", cursorOffset: 3 },
     };
 
+    if (answerKind === "multiple_choice") {
+      return multipleChoiceOptions.map((option) => ({
+        label: option.key,
+        value: option.key,
+        ariaLabel: "Select option " + option.key,
+      }));
+    }
+
     const expressionShortcuts: AnswerShortcut[] = [
       { label: "x", value: "x", ariaLabel: "Insert x" },
       { label: "*", value: "*", ariaLabel: "Insert multiplication symbol" },
@@ -792,7 +971,7 @@ export default function ExamSessionClient(props: {
     }
 
     return expressionShortcuts;
-  }, [answerKind, needsWorkingInput]);
+  }, [answerKind, needsWorkingInput, multipleChoiceOptions]);
 
   const insertAnswerToken = (shortcut: AnswerShortcut) => {
     const el = answerInputRef.current;
@@ -840,11 +1019,14 @@ export default function ExamSessionClient(props: {
 
     try {
       setIsSubmitting(true);
+      const submittedAnswer = isMultipleChoice
+        ? interpretedAnswer.normalizedAnswer.toUpperCase()
+        : answer;
 
       const res = (await submitExamAnswer({
         examKey,
         questionId: question.id,
-        answer,
+        answer: submittedAnswer,
         normalizedAnswer: interpretedAnswer.normalizedAnswer,
         inputMode: needsWorkingInput ? "working_text" : "calculator_text",
         parserWarnings: interpretedAnswer.warnings,
@@ -859,7 +1041,7 @@ export default function ExamSessionClient(props: {
 
       const record: AttemptRecord = {
         questionId: String(question.id),
-        answer,
+        answer: submittedAnswer,
         result: res,
         ts: Date.now(),
       };
@@ -909,6 +1091,42 @@ export default function ExamSessionClient(props: {
     }
     return c;
   }, [attemptsByQid]);
+
+  const exam2Progress = useMemo(() => {
+    const sectionAIds = new Set<string>();
+    const sectionBIds = new Set<string>();
+
+    for (const item of questions) {
+      const section = getExam2Section(item.questionNumber);
+      if (section === "A") sectionAIds.add(String(item.id));
+      if (section === "B") sectionBIds.add(String(item.id));
+    }
+
+    const countAnswered = (ids: Set<string>) =>
+      Array.from(ids).filter((id) => (attemptsByQid[id] ?? []).length > 0).length;
+
+    const sectionAAnswered = countAnswered(sectionAIds);
+    const sectionBAnswered = countAnswered(sectionBIds);
+    const knownSectionIds = new Set([...Array.from(sectionAIds), ...Array.from(sectionBIds)]);
+    const otherAnswered = Object.keys(attemptsByQid).filter(
+      (id) => !knownSectionIds.has(id) && (attemptsByQid[id] ?? []).length > 0
+    ).length;
+
+    return {
+      sectionA: {
+        answered: sectionAAnswered,
+        total: Math.max(20, sectionAIds.size),
+      },
+      sectionB: {
+        answered: sectionBAnswered,
+        total: Math.max(35, sectionBIds.size),
+      },
+      overall: {
+        answered: sectionAAnswered + sectionBAnswered + otherAnswered,
+        total: Math.max(55, questions.length),
+      },
+    };
+  }, [attemptsByQid, questions]);
 
   const finishAndReview = () => {
     const examPath = examKey.includes("_EXAM2_") ? "exam-2" : "exam-1";
@@ -976,6 +1194,11 @@ export default function ExamSessionClient(props: {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h1 className="text-xl font-semibold">{qLabel}</h1>
+                  {exam2SectionLabel ? (
+                    <div className="mt-2 inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                      {exam2SectionLabel}
+                    </div>
+                  ) : null}
                   <p className="mt-1 text-sm text-muted-foreground">
                     {examTitle} • {isExamMode ? "Exam attempt" : "Practice"} • {currentIndex + 1} of {questions.length}
                     {isFlagged ? " • Flagged" : ""}
@@ -1039,16 +1262,42 @@ export default function ExamSessionClient(props: {
                     <span className="px-2 py-1 rounded border border-border bg-muted">
                       Working: {workingRequired ? "Required" : "Not required"}
                     </span>
-                    {isExamMode ? (
+                    {!isExam2 && isExamMode ? (
                       <span className="px-2 py-1 rounded border border-border bg-muted">
                         Attempted: {answeredCount}/{questions.length}
                       </span>
-                    ) : (
+                    ) : !isExam2 ? (
                       <span className="px-2 py-1 rounded border border-border bg-muted">
                         Practice progress: {answeredCount}/{questions.length} • Correct: {correctCount}
                       </span>
-                    )}
+                    ) : null}
                   </div>
+
+                  {isExam2 ? (
+                    <div className="mt-4 grid gap-2 rounded-lg border border-border bg-background/40 p-3 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Section A progress</span>
+                        <span className="font-semibold text-foreground">
+                          {exam2Progress.sectionA.answered} / {exam2Progress.sectionA.total}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Section B progress</span>
+                        <span className="font-semibold text-foreground">
+                          {exam2Progress.sectionB.answered} / {exam2Progress.sectionB.total}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 border-t border-border pt-2">
+                        <span className="text-muted-foreground">Overall progress</span>
+                        <span className="font-semibold text-foreground">
+                          {exam2Progress.overall.answered} / {exam2Progress.overall.total}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Correct so far: {correctCount}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -1089,7 +1338,14 @@ export default function ExamSessionClient(props: {
               </div>
 
               <div className="space-y-3">
-                {compactAnswerInput ? (
+                {answerKind === "multiple_choice" ? (
+                  <MultipleChoiceAnswerCards
+                    answer={answer}
+                    options={multipleChoiceOptions}
+                    selectedAnswer={interpretedAnswer.normalizedAnswer}
+                    onAnswerChange={setAnswer}
+                  />
+                ) : compactAnswerInput ? (
                   <input
                     data-testid="exam-answer"
                     ref={answerInputRef as any}
@@ -1125,8 +1381,9 @@ export default function ExamSessionClient(props: {
                     />
                   )}
 
-                <div className="flex flex-wrap items-center gap-2">
-                  {answerShortcuts.map((shortcut) => (
+                {answerKind !== "multiple_choice" && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {answerShortcuts.map((shortcut) => (
                     <button
                       key={`${shortcut.label}-${shortcut.value}`}
                       type="button"
@@ -1137,23 +1394,26 @@ export default function ExamSessionClient(props: {
                     >
                       {shortcut.label}
                     </button>
-                  ))}
-                </div>
-
-                <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                  <p>{answerInputCopy.helper}</p>
-                  <p className="mt-1">
-                    Examples:{" "}
-                    {answerInputCopy.examples.map((example, index) => (
-                      <span key={example}>
-                        {index > 0 ? ", " : ""}
-                        <span className="font-mono text-foreground">{example}</span>
-                      </span>
                     ))}
-                  </p>
-                </div>
+                  </div>
+                )}
 
-                {hasTypedAnswer && !needsWorkingInput && (
+                {answerKind !== "multiple_choice" && (
+                  <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                    <p>{answerInputCopy.helper}</p>
+                    <p className="mt-1">
+                      Examples:{" "}
+                      {answerInputCopy.examples.map((example, index) => (
+                        <span key={example}>
+                          {index > 0 ? ", " : ""}
+                          <span className="font-mono text-foreground">{example}</span>
+                        </span>
+                      ))}
+                    </p>
+                  </div>
+                )}
+
+                {answerKind !== "multiple_choice" && hasTypedAnswer && !needsWorkingInput && (
                   <div
                     className={`rounded-lg border p-4 ${
                       interpretedAnswer.canMarkSafely
@@ -1271,7 +1531,7 @@ export default function ExamSessionClient(props: {
                       </p>
                     )}
 
-                    {markingConfidenceText && (
+                    {markingConfidenceText && !isMultipleChoice && (
                       <div className="mt-3">
                         <span
                           className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${markingConfidenceClasses(
@@ -1290,33 +1550,51 @@ export default function ExamSessionClient(props: {
 
                 <div className="mt-3 border-t border-border pt-3">
                   {(result.correctAnswer ||
-                    result.workedSolution ||
-                    result.explanation ||
-                    result.examinerFeedback ||
-                    displayedRubric.length > 0 ||
-                    criterionFeedback.length > 0) && (
+                    meaningfulWorkedSolution ||
+                    (!isMultipleChoice && result.examinerFeedback) ||
+                    shouldShowRubricGuide ||
+                    (!isMultipleChoice && criterionFeedback.length > 0)) && (
                     <div className="mb-4 space-y-4 text-sm text-foreground">
-                      {result.examinerFeedback?.summary && (
+                      {!isMultipleChoice && result.examinerFeedback?.summary && (
                         <div>
                           <div className="text-muted-foreground">Examiner feedback</div>
                           <p className="mt-1">{result.examinerFeedback.summary}</p>
                         </div>
                       )}
 
-                      {result.correctAnswer && (
+                      {isMultipleChoice && (
                         <div>
-                          <div className="text-muted-foreground">Expected answer</div>
-                          <div
-                            className="mt-1"
-                            onCopy={copyPlainExpectedAnswer}
-                            title="Copying this answer uses plain calculator-style text."
-                          >
-                            <MathpixMarkdown value={result.correctAnswer} />
+                          <div className="text-muted-foreground">Your answer</div>
+                          <div className="mt-1 text-lg font-semibold">
+                            {answer.trim().toUpperCase() || "-"}
                           </div>
                         </div>
                       )}
 
-                      {shouldShowCriterionFeedback && (
+                      {result.correctAnswer && (
+                        <div>
+                          <div className="text-muted-foreground">
+                            {isMultipleChoice ? "Correct option" : "Expected answer"}
+                          </div>
+                          <div
+                            className={isMultipleChoice ? "mt-1 text-lg font-semibold" : "mt-1"}
+                            onCopy={copyPlainExpectedAnswer}
+                            title={
+                              isMultipleChoice
+                                ? "Copying this answer uses the option letter."
+                                : "Copying this answer uses plain calculator-style text."
+                            }
+                          >
+                            {isMultipleChoice ? (
+                              <span>{String(result.correctAnswer).trim().toUpperCase()}</span>
+                            ) : (
+                              <MathpixMarkdown value={result.correctAnswer} />
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {!isMultipleChoice && shouldShowCriterionFeedback && (
                         <div>
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div>
@@ -1391,6 +1669,7 @@ export default function ExamSessionClient(props: {
 
                       {Number(displayedMaxScore ?? maxMarks) > 1 &&
                         !shouldShowCriterionFeedback &&
+                        !isMultipleChoice &&
                         displayedRubric.length > 0 && (
                           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">
                             Criterion-level marking was not returned for this attempt yet. Use the marking guide below to review how marks are allocated.
@@ -1418,16 +1697,18 @@ export default function ExamSessionClient(props: {
                         </div>
                       )}
 
-                      {(result.workedSolution || result.explanation) && (
+                      {meaningfulWorkedSolution && (
                         <div>
-                          <div className="text-muted-foreground">Worked solution</div>
+                          <div className="text-muted-foreground">
+                            {isMultipleChoice ? "Answer explanation" : "Worked solution"}
+                          </div>
                           <div className="mt-1">
-                            <MathpixMarkdown value={result.workedSolution || result.explanation || ""} />
+                            <MathpixMarkdown value={meaningfulWorkedSolution} />
                           </div>
                         </div>
                       )}
 
-                      {result.examinerFeedback?.commonMistake && (
+                      {!isMultipleChoice && result.examinerFeedback?.commonMistake && (
                         <div>
                           <div className="text-muted-foreground">Common mistake</div>
                           <p className="mt-1">{result.examinerFeedback.commonMistake}</p>

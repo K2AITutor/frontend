@@ -19,7 +19,7 @@ export type NormalizedAnswerInput = {
   normalizerVersion: string;
 };
 
-export type AnswerInputKind = "numeric" | "expression" | "interval" | "coordinate" | "set_list" | "working";
+export type AnswerInputKind = "numeric" | "expression" | "interval" | "coordinate" | "set_list" | "multiple_choice" | "working";
 
 const FUNCTION_NAMES = ["sin", "cos", "tan", "log", "ln", "sqrt"];
 const NAMED_CONSTANTS = ["pi", "e"];
@@ -27,6 +27,7 @@ const KNOWN_WORDS = [...FUNCTION_NAMES, ...NAMED_CONSTANTS, "infinity", "inf"];
 
 export function classifyAnswerInputKind(answerType?: string | null): AnswerInputKind {
   const upperAnswerType = String(answerType ?? "").toUpperCase();
+  if (upperAnswerType.includes("MULTIPLE_CHOICE") || upperAnswerType.includes("MCQ")) return "multiple_choice";
   if (["WORKING", "PROOF", "GRAPH", "EXPLANATION", "TEXT", "MANUAL"].some((type) => upperAnswerType.includes(type))) {
     return "working";
   }
@@ -345,9 +346,9 @@ export function normalizeAnswerInput(
   const raw = String(rawAnswer ?? "");
   const warnings: AnswerInputWarning[] = [];
   const answerKind = classifyAnswerInputKind(answerType);
-  const typedAnswer = answerKind === "working" ? raw.trim() : normalizeText(raw);
+  const typedAnswer = answerKind === "working" ? raw.trim() : answerKind === "multiple_choice" ? raw.trim().toUpperCase() : normalizeText(raw);
   const normalizedAnswer =
-    answerKind === "working" ? typedAnswer : insertSafeImplicitMultiplication(typedAnswer);
+    answerKind === "working" || answerKind === "multiple_choice" ? typedAnswer : insertSafeImplicitMultiplication(typedAnswer);
 
   if (!typedAnswer) {
     warnings.push({
@@ -357,7 +358,7 @@ export function normalizeAnswerInput(
     });
   }
 
-  if (answerKind !== "working" && !hasBalancedDelimitersForAnswerKind(typedAnswer, answerKind)) {
+  if (answerKind !== "working" && answerKind !== "multiple_choice" && !hasBalancedDelimitersForAnswerKind(typedAnswer, answerKind)) {
     warnings.push({
       code: "UNBALANCED_BRACKETS",
       severity: "blocking",
@@ -366,7 +367,7 @@ export function normalizeAnswerInput(
     });
   }
 
-  if (answerKind !== "working" && /\b[a-z]\d+\b/i.test(typedAnswer)) {
+  if (answerKind !== "working" && answerKind !== "multiple_choice" && /\b[a-z]\d+\b/i.test(typedAnswer)) {
     warnings.push({
       code: "AMBIGUOUS_IMPLICIT_POWER",
       severity: "blocking",
@@ -375,7 +376,7 @@ export function normalizeAnswerInput(
     });
   }
 
-  if (answerKind !== "working" && typedAnswer && normalizedAnswer !== typedAnswer) {
+  if (answerKind !== "working" && answerKind !== "multiple_choice" && typedAnswer && normalizedAnswer !== typedAnswer) {
     warnings.push({
       code: "SAFE_IMPLICIT_MULTIPLICATION_NORMALIZED",
       severity: "info",
@@ -388,7 +389,7 @@ export function normalizeAnswerInput(
     warnings.push(...findImplicitMultiplicationWarnings(normalizedAnswer));
   }
 
-  if (answerKind !== "working" && /\d+\/\d+(?:[a-z]|\()/i.test(typedAnswer)) {
+  if (answerKind !== "working" && answerKind !== "multiple_choice" && /\d+\/\d+(?:[a-z]|\()/i.test(typedAnswer)) {
     warnings.push({
       code: "AMBIGUOUS_FRACTION_MULTIPLICATION",
       severity: "blocking",
@@ -410,6 +411,15 @@ export function normalizeAnswerInput(
         break;
       }
     }
+  }
+
+  if (answerKind === "multiple_choice" && typedAnswer && !/^[A-D]$/.test(typedAnswer)) {
+    warnings.push({
+      code: "MULTIPLE_CHOICE_OPTION_REQUIRED",
+      severity: "blocking",
+      message: "Choose one option from A to D.",
+      suggestion: "Select A, B, C, or D.",
+    });
   }
 
   if (answerKind === "interval" && hasAmbiguousIntervalShape(normalizedAnswer)) {

@@ -6,7 +6,7 @@ import ts from "typescript";
 
 const root = process.cwd();
 const require = createRequire(import.meta.url);
-const sourcePath = path.join(root, "src", "lib", "mathAnswerInput.ts");
+const sourcePath = path.join(root, "apps", "web", "src", "lib", "mathAnswerInput.ts");
 const source = fs.readFileSync(sourcePath, "utf8");
 const compiled = ts.transpileModule(source, {
   compilerOptions: {
@@ -183,6 +183,19 @@ const cases = [
     answerType: "SET/LIST",
     canMarkSafely: false,
     expectedWarning: "UNBALANCED_BRACKETS",
+  },
+  {
+    raw: "c",
+    answerType: "MULTIPLE_CHOICE",
+    normalizedAnswer: "C",
+    canMarkSafely: true,
+  },
+  {
+    raw: "E",
+    answerType: "MULTIPLE_CHOICE",
+    normalizedAnswer: "E",
+    canMarkSafely: false,
+    expectedWarning: "MULTIPLE_CHOICE_OPTION_REQUIRED",
   },
   {
     raw: "Use the tangent rule and show working.",

@@ -222,6 +222,91 @@ function QaVisibilityBadges({
     );
 }
 
+function DataMappingSummary({ question }: { question: DatasetQaQuestion }) {
+    const mapping = question.dataMapping;
+    if (!mapping) {
+        return (
+            <div className="rounded-md border bg-muted/20 p-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium">Data mapping</span>
+                    <Badge variant="outline" className="border-amber-500/40 bg-amber-500/15 text-amber-100">
+                        Check mapping
+                    </Badge>
+                </div>
+                <p className="mt-2 text-muted-foreground">
+                    Mapping summary is not available. Verify options, answer fields, and rubric before approval.
+                </p>
+            </div>
+        );
+    }
+
+    const ready = mapping.status === "ready";
+    const title =
+        mapping.profile === "multiple_choice"
+            ? "Section A multiple-choice"
+            : mapping.profile === "extended_response"
+              ? mapping.section === "B"
+                  ? "Section B extended response"
+                  : "Long-answer mapping"
+              : "Question mapping";
+    const optionText = mapping.optionKeys?.length ? mapping.optionKeys.join(", ") : "Not detected";
+
+    return (
+        <div className="rounded-md border bg-muted/20 p-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <p className="font-medium">{title}</p>
+                    <p className="mt-1 text-muted-foreground">{mapping.summary}</p>
+                </div>
+                <Badge
+                    variant="outline"
+                    className={
+                        ready
+                            ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-100"
+                            : "border-amber-500/40 bg-amber-500/15 text-amber-100"
+                    }
+                >
+                    {ready ? "Mapping ready" : "Needs check"}
+                </Badge>
+            </div>
+
+            {mapping.profile === "multiple_choice" ? (
+                <div className="mt-3 grid gap-2 md:grid-cols-3">
+                    <div className="rounded border bg-background/30 p-2">
+                        <p className="text-muted-foreground">Options</p>
+                        <p className="font-medium">{optionText}</p>
+                    </div>
+                    <div className="rounded border bg-background/30 p-2">
+                        <p className="text-muted-foreground">Correct answer</p>
+                        <p className="font-medium">{mapping.hasCorrectAnswer ? "Present" : "Missing"}</p>
+                    </div>
+                    <div className="rounded border bg-background/30 p-2">
+                        <p className="text-muted-foreground">Answer metadata</p>
+                        <p className="font-medium">
+                            {mapping.hasMultipleChoiceMetadata ? "MULTIPLE_CHOICE" : "Missing"}
+                        </p>
+                    </div>
+                </div>
+            ) : (
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    <div className="rounded border bg-background/30 p-2">
+                        <p className="text-muted-foreground">Answer/rubric fields</p>
+                        <p className="font-medium">{mapping.hasLongAnswerFields ? "Present" : "Needs check"}</p>
+                    </div>
+                    <div className="rounded border bg-background/30 p-2">
+                        <p className="text-muted-foreground">Correct answer or manual flag</p>
+                        <p className="font-medium">{mapping.hasCorrectAnswer ? "Present" : "Check manual flag"}</p>
+                    </div>
+                </div>
+            )}
+
+            {mapping.missing?.length ? (
+                <p className="mt-3 text-amber-100">Missing: {mapping.missing.join(", ")}</p>
+            ) : null}
+        </div>
+    );
+}
+
 const CHECKLIST_ITEMS: Array<{ key: keyof DatasetQaChecklist; label: string }> = [
     { key: "sourceMatched", label: "Source matched" },
     { key: "topicChecked", label: "Topic checked" },
@@ -925,6 +1010,7 @@ function DatasetQaEditor({
                                     Check whether this answer can be auto-marked, then choose whether it is only safe for practice or also ready for future model training.
                                 </p>
                             </div>
+                            <DataMappingSummary question={question} />
                             <Field label="Training readiness">
                                 <Select
                                     value={trainingReadiness}

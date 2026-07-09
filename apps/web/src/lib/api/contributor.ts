@@ -17,6 +17,7 @@ import type {
   DatasetQaMarkingResult,
   DatasetTrainingReadiness,
   DatasetQaChecklist,
+  DatasetQaDataMapping,
 } from "@aitutor/shared";
 
 export type {
@@ -33,8 +34,8 @@ export type {
   DatasetQaMarkingResult,
   DatasetTrainingReadiness,
   DatasetQaChecklist,
+  DatasetQaDataMapping,
 };
-
 export interface PublishDatasetQaResult {
     examKey: string;
     published: number;

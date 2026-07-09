@@ -13,6 +13,8 @@
     "web": "npm run dev -w @aitutor/web",
     "mobile": "npm run start -w @aitutor/mobile",
     "mobile:web": "npm run web -w @aitutor/mobile",
+    "test:answer-input-normalizer": "node scripts/validate-answer-input-normalizer.mjs",
+    "test:exam-mcq-ui": "node scripts/validate-exam-mcq-ui.mjs",
     "clean": "find . -name '.next' -o -name '.expo' -o -name 'dist' | xargs rm -rf"
   },
   "overrides": {
