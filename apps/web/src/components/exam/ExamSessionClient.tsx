@@ -487,7 +487,7 @@ function answerWarningText(
   }
 
   if (warning.code === "SAFE_IMPLICIT_MULTIPLICATION_NORMALIZED" && normalizedAnswer) {
-    return `Did you mean ${normalizedAnswer}? Multiplication signs were added before checking.`;
+    return `Multiplication was added automatically. We will check this as ${normalizedAnswer}.`;
   }
 
   return `${warning.message}${warning.suggestion ? ` ${warning.suggestion}` : ""}`;
