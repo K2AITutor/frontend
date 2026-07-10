@@ -31,6 +31,34 @@ if (typeof normalizeAnswerInput !== "function") {
 
 const cases = [
   {
+    raw: "2x",
+    answerType: "EXPRESSION",
+    normalizedAnswer: "2*x",
+    canMarkSafely: true,
+    expectedWarning: "SAFE_IMPLICIT_MULTIPLICATION_NORMALIZED",
+  },
+  {
+    raw: "3(x+1)",
+    answerType: "EXPRESSION",
+    normalizedAnswer: "3*(x+1)",
+    canMarkSafely: true,
+    expectedWarning: "SAFE_IMPLICIT_MULTIPLICATION_NORMALIZED",
+  },
+  {
+    raw: "(x+1)(x-1)",
+    answerType: "EXPRESSION",
+    normalizedAnswer: "(x+1)*(x-1)",
+    canMarkSafely: true,
+    expectedWarning: "SAFE_IMPLICIT_MULTIPLICATION_NORMALIZED",
+  },
+  {
+    raw: "2x cos(x) - x^2 sin(x)",
+    answerType: "EXPRESSION",
+    normalizedAnswer: "2*x*cos(x)-x^2*sin(x)",
+    canMarkSafely: true,
+    expectedWarning: "SAFE_IMPLICIT_MULTIPLICATION_NORMALIZED",
+  },
+  {
     raw: "2xcos(x)-x^2sin(x)",
     answerType: "EXPRESSION",
     normalizedAnswer: "2*x*cos(x)-x^2*sin(x)",
