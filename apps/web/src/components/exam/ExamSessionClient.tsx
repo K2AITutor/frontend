@@ -139,28 +139,28 @@ type SessionMode = "practice" | "exam";
 
 const ANSWER_INPUT_COPY: Record<AnswerInputKind, AnswerInputCopy> = {
   numeric: {
-    placeholder: "Example: 3/2, sqrt(2), pi/4",
-    helper: "Enter one exact number. Do not include variables unless the question asks for an expression.",
+    placeholder: "Type naturally, e.g. 3/2, sqrt(2), pi/4",
+    helper: "Type your answer naturally. Exact values such as fractions, square roots, and pi are accepted.",
     examples: ["3/2", "sqrt(2)", "pi/4"],
   },
   expression: {
-    placeholder: "Example: 2*x*cos(x)-x^2*sin(x)",
-    helper: "Enter a calculator-style expression. Use * for multiplication and ^ for powers.",
-    examples: ["2*x*cos(x)-x^2*sin(x)", "(x+1)*(x-1)"],
+    placeholder: "Type naturally, e.g. 2x cos(x) - x^2 sin(x)",
+    helper: "Type your answer naturally. Standard maths forms like 2x cos(x), (x+1)(x-1), and x^2 are accepted.",
+    examples: ["2x cos(x) - x^2 sin(x)", "(x+1)(x-1)", "1/(x^2+1)"],
   },
   interval: {
-    placeholder: "Example: [0,1), x<=2",
-    helper: "Use clear endpoint brackets or inequality notation.",
+    placeholder: "Type naturally, e.g. [0,1) or x <= 2",
+    helper: "Use natural interval or inequality notation. Include endpoint brackets when they matter.",
     examples: ["[0,1)", "(1,infinity)", "x<=2"],
   },
   coordinate: {
-    placeholder: "Example: (2,3)",
-    helper: "Enter one ordered pair in the format (x,y).",
+    placeholder: "Type naturally, e.g. (2,3)",
+    helper: "Enter one ordered pair. Fractions, square roots, and pi are accepted inside coordinates.",
     examples: ["(2,3)", "(-1,4)"],
   },
   set_list: {
-    placeholder: "Example: -1,2,5 or {-1,2,5}",
-    helper: "Separate multiple answers with commas. Use braces if the answer is a set.",
+    placeholder: "Type naturally, e.g. -1, 2, 5 or {-1, 2, 5}",
+    helper: "Separate multiple answers with commas. Braces are optional when the question asks for a set.",
     examples: ["-1,2,5", "{-1,2,5}"],
   },
   multiple_choice: {
@@ -170,7 +170,7 @@ const ANSWER_INPUT_COPY: Record<AnswerInputKind, AnswerInputCopy> = {
   },
   working: {
     placeholder: "Enter your working or explanation",
-    helper: "Write the reasoning or explanation required for manual review.",
+    helper: "Write your reasoning naturally. Include the key step or rule you used.",
     examples: ["State the rule used and show the key working steps."],
   },
 };
@@ -850,7 +850,7 @@ export default function ExamSessionClient(props: {
 
   const answerShortcuts = useMemo<AnswerShortcut[]>(() => {
     const fractionShortcut: AnswerShortcut = {
-      label: "a/b",
+      label: "fraction",
       value: "()/()",
       ariaLabel: "Insert fraction template",
       cursorOffset: 1,
@@ -880,7 +880,7 @@ export default function ExamSessionClient(props: {
     });
 
     const squareShortcut: AnswerShortcut = {
-      label: "x^2",
+      label: "x²",
       value: "x^2",
       ariaLabel: "Insert square template",
       cursorOffset: 3,
@@ -890,7 +890,7 @@ export default function ExamSessionClient(props: {
     };
 
     const powerShortcut: AnswerShortcut = {
-      label: "x^n",
+      label: "xⁿ",
       value: "x^()",
       ariaLabel: "Insert power template",
       cursorOffset: 3,
@@ -909,17 +909,16 @@ export default function ExamSessionClient(props: {
 
     const expressionShortcuts: AnswerShortcut[] = [
       { label: "x", value: "x", ariaLabel: "Insert x" },
-      { label: "*", value: "*", ariaLabel: "Insert multiplication symbol" },
       fractionShortcut,
       squareShortcut,
       powerShortcut,
       bracketShortcut("( )", "(", ")", "Insert bracket template"),
       { label: ",", value: ",", ariaLabel: "Insert comma" },
-      functionShortcut("sqrt"),
-      { label: "pi", value: "pi", ariaLabel: "Insert pi" },
-      functionShortcut("sin"),
-      functionShortcut("cos"),
-      functionShortcut("tan"),
+      functionShortcut("sqrt", "√"),
+      { label: "π", value: "pi", ariaLabel: "Insert pi" },
+      functionShortcut("sin", "sin()"),
+      functionShortcut("cos", "cos()"),
+      functionShortcut("tan", "tan()"),
     ];
 
     if (needsWorkingInput) {
@@ -929,8 +928,8 @@ export default function ExamSessionClient(props: {
     if (answerKind === "numeric") {
       return [
         fractionShortcut,
-        functionShortcut("sqrt"),
-        { label: "pi", value: "pi", ariaLabel: "Insert pi" },
+        functionShortcut("sqrt", "√"),
+        { label: "π", value: "pi", ariaLabel: "Insert pi" },
         bracketShortcut("( )", "(", ")", "Insert bracket template"),
       ];
     }
@@ -954,8 +953,8 @@ export default function ExamSessionClient(props: {
       return [
         { label: "(x,y)", value: "(,)", ariaLabel: "Insert coordinate pair template", cursorOffset: 1 },
         fractionShortcut,
-        functionShortcut("sqrt"),
-        { label: "pi", value: "pi", ariaLabel: "Insert pi" },
+        functionShortcut("sqrt", "√"),
+        { label: "π", value: "pi", ariaLabel: "Insert pi" },
         { label: ",", value: ",", ariaLabel: "Insert comma" },
       ];
     }
@@ -965,8 +964,8 @@ export default function ExamSessionClient(props: {
         { label: "{,}", value: "{,}", ariaLabel: "Insert set template", cursorOffset: 1 },
         { label: ",", value: ",", ariaLabel: "Insert comma" },
         fractionShortcut,
-        functionShortcut("sqrt"),
-        { label: "pi", value: "pi", ariaLabel: "Insert pi" },
+        functionShortcut("sqrt", "√"),
+        { label: "π", value: "pi", ariaLabel: "Insert pi" },
       ];
     }
 
@@ -1428,7 +1427,7 @@ export default function ExamSessionClient(props: {
                   <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                     <p>{answerInputCopy.helper}</p>
                     <p className="mt-1">
-                      Examples:{" "}
+                      Natural examples:{" "}
                       {answerInputCopy.examples.map((example, index) => (
                         <span key={example}>
                           {index > 0 ? ", " : ""}
@@ -1451,10 +1450,10 @@ export default function ExamSessionClient(props: {
                       <div>
                         <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                           {isExamMode
-                            ? "Answer format check"
+                            ? "We read your answer as"
                             : interpretedAnswer.normalizedAnswer !== answer.trim()
-                              ? "Did you mean this?"
-                              : "Your input means"}
+                              ? "We interpreted your answer"
+                              : "We read your answer as"}
                         </div>
                         <div className="mt-2 rounded-lg border border-slate-700/80 bg-slate-950/50 px-4 py-3 text-slate-100">
                           {renderedInterpretedAnswer ? (
@@ -1467,12 +1466,18 @@ export default function ExamSessionClient(props: {
 
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <span className="text-slate-400">
-                          {isExamMode ? "Formatted answer" : "Typed form used for checking"}
+                          {isExamMode ? "Checking form" : "Converted automatically for checking"}
                         </span>
                         <code className="rounded bg-slate-950/60 px-2 py-1 text-slate-100">
                           {interpretedAnswer.displayAnswer || "empty"}
                         </code>
                       </div>
+
+                      {interpretedAnswer.canMarkSafely && (
+                        <div className="text-xs font-medium text-emerald-300">
+                          Expression recognized.
+                        </div>
+                      )}
                     </div>
 
                     {interpretedAnswer.warnings.length > 0 && (
