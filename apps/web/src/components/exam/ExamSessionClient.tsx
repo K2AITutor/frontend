@@ -477,7 +477,8 @@ function StructuredAnswerBuilder({ answerKind, answer, onAnswerChange }: Structu
 function answerWarningText(
   warning: NormalizedAnswerInput["warnings"][number],
   normalizedAnswer: string,
-  isExamMode: boolean
+  isExamMode: boolean,
+  showCheckerSyntax = false
 ) {
   if (isExamMode) {
     if (warning.code === "SAFE_IMPLICIT_MULTIPLICATION_NORMALIZED") {
@@ -487,7 +488,10 @@ function answerWarningText(
   }
 
   if (warning.code === "SAFE_IMPLICIT_MULTIPLICATION_NORMALIZED" && normalizedAnswer) {
-    return `Multiplication was added automatically. We will check this as ${normalizedAnswer}.`;
+    if (showCheckerSyntax) {
+      return `Multiplication was added automatically. We will check this as ${normalizedAnswer}.`;
+    }
+    return "Multiplication was added automatically.";
   }
 
   return `${warning.message}${warning.suggestion ? ` ${warning.suggestion}` : ""}`;
@@ -734,6 +738,7 @@ export default function ExamSessionClient(props: {
   const question = questions[currentIndex] ?? null;
 
   const [answer, setAnswer] = useState("");
+  const [answerEntryMode, setAnswerEntryMode] = useState<"easy" | "advanced">("easy");
   const answerInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [result, setResult] = useState<MarkingResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -841,7 +846,12 @@ export default function ExamSessionClient(props: {
   );
   const submitValidationMessage =
     hasTypedAnswer && !needsWorkingInput && blockingInputWarning
-      ? answerWarningText(blockingInputWarning, interpretedAnswer.normalizedAnswer, isExamMode)
+      ? answerWarningText(
+          blockingInputWarning,
+          interpretedAnswer.normalizedAnswer,
+          isExamMode,
+          answerEntryMode === "advanced"
+        )
       : null;
   const canSubmitAnswer =
     !isSubmitting &&
@@ -1353,13 +1363,45 @@ export default function ExamSessionClient(props: {
             </div>
 
             <div className="glass p-5 space-y-4">
-              <div>
-                <h2 className="font-semibold">{answerPanelCopy.title}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {question.isMarkable === false
-                    ? answerPanelCopy.manual
-                    : answerPanelCopy.markable}
-                </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="font-semibold">{answerPanelCopy.title}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {question.isMarkable === false
+                      ? answerPanelCopy.manual
+                      : answerPanelCopy.markable}
+                  </p>
+                </div>
+
+                {answerKind !== "multiple_choice" && !needsWorkingInput && (
+                  <div
+                    className="inline-flex rounded-lg border border-border bg-background p-1 text-xs font-semibold"
+                    aria-label="Answer input mode"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setAnswerEntryMode("easy")}
+                      className={`rounded-md px-3 py-1.5 transition ${
+                        answerEntryMode === "easy"
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Easy input
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAnswerEntryMode("advanced")}
+                      className={`rounded-md px-3 py-1.5 transition ${
+                        answerEntryMode === "advanced"
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Advanced syntax
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -1426,6 +1468,11 @@ export default function ExamSessionClient(props: {
                 {answerKind !== "multiple_choice" && (
                   <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                     <p>{answerInputCopy.helper}</p>
+                    {answerEntryMode === "advanced" && !needsWorkingInput && (
+                      <p className="mt-1">
+                        Advanced mode shows the exact checker syntax that will be sent with your answer.
+                      </p>
+                    )}
                     <p className="mt-1">
                       Natural examples:{" "}
                       {answerInputCopy.examples.map((example, index) => (
@@ -1464,14 +1511,16 @@ export default function ExamSessionClient(props: {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="text-slate-400">
-                          {isExamMode ? "Checking form" : "Converted automatically for checking"}
-                        </span>
-                        <code className="rounded bg-slate-950/60 px-2 py-1 text-slate-100">
-                          {interpretedAnswer.displayAnswer || "empty"}
-                        </code>
-                      </div>
+                      {answerEntryMode === "advanced" && (
+                        <div className="space-y-1 rounded-lg border border-slate-700/80 bg-slate-950/40 px-3 py-2 text-xs">
+                          <div className="font-semibold uppercase tracking-wide text-slate-400">
+                            Normalized checker syntax
+                          </div>
+                          <code className="block break-words rounded bg-slate-950/70 px-2 py-1 text-slate-100">
+                            {interpretedAnswer.normalizedAnswer || "empty"}
+                          </code>
+                        </div>
+                      )}
 
                       {interpretedAnswer.canMarkSafely && (
                         <div className="text-xs font-medium text-emerald-300">
@@ -1485,7 +1534,12 @@ export default function ExamSessionClient(props: {
                         {interpretedAnswer.warnings.map((warning) => (
                           <p key={`${warning.code}-${warning.message}`}>
                             <span className="font-semibold">
-                              {answerWarningText(warning, interpretedAnswer.normalizedAnswer, isExamMode)}
+                              {answerWarningText(
+                                warning,
+                                interpretedAnswer.normalizedAnswer,
+                                isExamMode,
+                                answerEntryMode === "advanced"
+                              )}
                             </span>
                           </p>
                         ))}
