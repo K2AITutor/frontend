@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Lock, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import AuthBanner from '@/components/auth/AuthBanner'
 import { Suspense, useEffect, useState } from 'react'
-import { signIn, useSession } from 'next-auth/react'
+import { getSession, signIn, useSession } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from '@/components/dashboard/ui/sonner'
 import { homeForRole, normalizeRole } from '@/lib/roleRouting'
@@ -59,6 +59,17 @@ function LoginForm() {
     return targetScope === role
   }
 
+  const toSameOriginPath = (url: string) => {
+    if (!url) return ''
+    try {
+      const parsed = new URL(url, window.location.origin)
+      if (parsed.origin !== window.location.origin) return ''
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`
+    } catch {
+      return url.startsWith('/') && !url.startsWith('//') ? url : ''
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -83,22 +94,17 @@ function LoginForm() {
         return
       }
 
-      // Fetch session to get role for redirect
-      const sessionRes = await fetch('/api/auth/session')
-      const session = await sessionRes.json()
-      const role = normalizeRole(session?.user?.role)
+      const nextSession = await getSession()
+      const role = normalizeRole((nextSession?.user as any)?.role)
 
       const roleHome = homeForRole(role)
+      const validCallbackUrl = toSameOriginPath(callbackUrl)
       const redirectTo =
-        callbackUrl && isCallbackForOwnRole(callbackUrl, role)
-          ? callbackUrl
+        validCallbackUrl && isCallbackForOwnRole(validCallbackUrl, role)
+          ? validCallbackUrl
           : roleHome
-      // Keep the loading state on until the dashboard route mounts and this
-      // page unmounts — resetting it here would leave a frozen-looking page
-      // while Next.js loads the destination.
       setIsRedirecting(true)
-      router.push(redirectTo)
-      router.refresh()
+      window.location.assign(redirectTo)
     } catch (error) {
       console.error('Login error:', error)
       toast.error('An error occurred. Please try again.')
