@@ -11,7 +11,7 @@ export const emptyMathMethodsTopicPracticeConfig: TopicPracticeStartDTO = {
   subjectSlug: "math-methods",
   subjectName: "VCE Mathematical Methods",
   intro:
-    "Build confidence topic by topic with guided hints, explanations, and targeted follow-up practice.",
+    "Build confidence topic by topic with reviewed questions, worked solutions, and progress tracking.",
   startTitle: "Start Topic Practice",
   startDescription:
     "Master Mathematical Methods through curriculum-aligned topic practice before moving into Exam 1 and Exam 2 style revision.",

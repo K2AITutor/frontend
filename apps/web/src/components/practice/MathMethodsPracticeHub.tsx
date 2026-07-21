@@ -4,8 +4,13 @@
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/dashboard/ui/card';
 import { Button } from '@/components/dashboard/ui/button';
+import { releaseFeatureFlags } from '@/lib/featureFlags';
 
 export default function MathMethodsPracticeHub() {
+    const exam1Enabled = releaseFeatureFlags.mathMethodsExam1Enabled;
+    const exam2Enabled = releaseFeatureFlags.mathMethodsExam2Enabled;
+    const aiLearningEnabled = releaseFeatureFlags.aiLearningSupportEnabled;
+
     return (
         <div className="space-y-8">
             <section className="space-y-3">
@@ -13,8 +18,8 @@ export default function MathMethodsPracticeHub() {
                     VCE Mathematical Methods
                 </h1>
                 <p className="max-w-3xl text-lg text-muted-foreground">
-                    Practise by topic, sit full past examinations, and receive examiner-style
-                    feedback.
+                    Practise by topic, sit approved Exam 1 questions, and review worked solutions
+                    with progress tracking.
                 </p>
             </section>
 
@@ -33,17 +38,18 @@ export default function MathMethodsPracticeHub() {
                     <CardContent className="space-y-6">
                         <p className="leading-8 text-muted-foreground">
                             Build confidence through guided topic-based questions designed for
-                            learning. Get AI hints, explanations, and follow-up support when you
-                            make mistakes.
+                            learning. Release 1 focuses on reviewed questions, automatic checking
+                            where safe, worked solutions, and basic progress.
                         </p>
 
                         <div className="rounded-lg border border-border bg-muted/50 p-4">
                             <h3 className="mb-3 text-lg font-semibold">What you get</h3>
                             <ul className="space-y-2 text-muted-foreground">
-                                <li>• AI hints and explanations</li>
+                                <li>• Reviewed Math Methods questions</li>
                                 <li>• Topic-by-topic preparation</li>
-                                <li>• Similar question support</li>
+                                <li>• Worked solutions after checking</li>
                                 <li>• Focus on weak areas</li>
+                                {!aiLearningEnabled && <li>• AI hints are paused for Release 1</li>}
                             </ul>
                         </div>
 
@@ -72,11 +78,15 @@ export default function MathMethodsPracticeHub() {
                             <li>• Examiner-style marking</li>
                         </ul>
 
-                        <Button asChild variant="destructive">
-                            <Link href="/student/practice/math-methods/exam-1">
-                                Exam 1 Practice
-                            </Link>
-                        </Button>
+                        {exam1Enabled ? (
+                            <Button asChild>
+                                <Link href="/student/practice/math-methods/exam-1">
+                                    Exam 1 Practice
+                                </Link>
+                            </Button>
+                        ) : (
+                            <Button disabled>Exam 1 paused</Button>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -96,11 +106,18 @@ export default function MathMethodsPracticeHub() {
                             <li>• Examiner feedback</li>
                         </ul>
 
-                        <Button asChild>
-                            <Link href="/student/practice/math-methods/exam-2">
-                                Exam 2 Practice
-                            </Link>
-                        </Button>
+                        {exam2Enabled ? (
+                            <Button asChild>
+                                <Link href="/student/practice/math-methods/exam-2">
+                                    Exam 2 Practice
+                                </Link>
+                            </Button>
+                        ) : (
+                            <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                                Exam 2 is being validated and will open after the Release 1 question
+                                bank is stable.
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </section>

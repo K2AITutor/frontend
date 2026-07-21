@@ -51,8 +51,9 @@ export default async function StudentMathMethodsTopicPracticeSessionPage({
                             <p className="text-sm font-medium text-primary">VCE Mathematical Methods</p>
                             <h1 className="mt-2 text-2xl font-bold tracking-tight">Topic practice session</h1>
                             <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-                                Work through questions for the selected topic. Use hints and explanations in
-                                practice mode, then return to the topic selector when you want a different focus.
+                                Work through approved questions for the selected topic. Check your answer,
+                                review the worked solution, then return to the topic selector when you want
+                                a different focus.
                             </p>
                         </div>
                         <Button asChild variant="outline">
