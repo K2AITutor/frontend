@@ -13,6 +13,7 @@ import {
 } from '@/lib/apiClient';
 import { fetchTopicCatalogue } from '@/lib/api/topics';
 import { PracticeQuestion } from '@/types/question';
+import { releaseFeatureFlags } from '@/lib/featureFlags';
 
 export default async function StudentMathMethodsTopicPracticePage({
     searchParams,
@@ -26,6 +27,10 @@ export default async function StudentMathMethodsTopicPracticePage({
     const currentUserId = Number((session?.user as any)?.id);
     if (!session || !Number.isFinite(currentUserId) || currentUserId <= 0) {
         redirect('/auth/login?callbackUrl=/student/practice/math-methods/topic');
+    }
+
+    if (!releaseFeatureFlags.subjectMathMethodsEnabled || !releaseFeatureFlags.mathMethodsTopicPracticeEnabled) {
+        redirect('/student/practice');
     }
 
     const catalogue = await fetchTopicCatalogue(subject);
@@ -111,7 +116,7 @@ export default async function StudentMathMethodsTopicPracticePage({
                             <h3 className="font-semibold">Practice expectations</h3>
                             <ul className="mt-3 space-y-2 text-muted-foreground">
                                 <li>Submit an answer, review marks, then read the worked solution.</li>
-                                <li>Try a similar question when the method is still uncertain.</li>
+                                <li>Continue through approved questions until the topic feels fluent.</li>
                             </ul>
                         </div>
 
@@ -124,14 +129,24 @@ export default async function StudentMathMethodsTopicPracticePage({
                         </div>
 
                         <div className="rounded-lg border border-border bg-muted/50 p-4">
+                            <h3 className="font-semibold">Release 1 support</h3>
+                            <p className="mt-3 text-muted-foreground">
+                                This free version uses approved questions, automatic marking where safe,
+                                worked solutions, and basic progress tracking. AI hints are reserved for a later release.
+                            </p>
+                        </div>
+
+                        <div className="rounded-lg border border-border bg-muted/50 p-4">
                             <h3 className="font-semibold">Other practice modes</h3>
                             <div className="mt-3 flex flex-wrap gap-3">
                                 <Button asChild size="sm" variant="outline">
                                     <Link href="/student/practice/math-methods/weak-area">Weak Area</Link>
                                 </Button>
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href="/student/practice/math-methods/exam-1">Exam 1</Link>
-                                </Button>
+                                {releaseFeatureFlags.mathMethodsExam1Enabled && (
+                                    <Button asChild size="sm" variant="outline">
+                                        <Link href="/student/practice/math-methods/exam-1">Exam 1</Link>
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </div>

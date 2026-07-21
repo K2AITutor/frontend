@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { fetchExam, fetchExamQuestionsByExamKey, type ExamDTO, type ExamQuestionDTO } from "@/lib/apiClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/ui/card";
 import { Button } from "@/components/dashboard/ui/button";
+import { releaseFeatureFlags } from "@/lib/featureFlags";
 
 const EXAM_OPTIONS = [
     { year: 2025, examKey: "VCE_MM_EXAM2_2025" },
@@ -131,8 +132,13 @@ export default function Exam2BriefingPage() {
     const [questions, setQuestions] = useState<ExamQuestionDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const featureEnabled = releaseFeatureFlags.subjectMathMethodsEnabled && releaseFeatureFlags.mathMethodsExam2Enabled;
 
     useEffect(() => {
+        if (!featureEnabled) {
+            setLoading(false);
+            return;
+        }
         if (status === "loading") return;
         if (status === "unauthenticated") {
             setError("Please log in again to load past exam datasets.");
@@ -180,7 +186,7 @@ export default function Exam2BriefingPage() {
         return () => {
             cancelled = true;
         };
-    }, [selectedExam.examKey, selectedExam.year, session, status]);
+    }, [featureEnabled, selectedExam.examKey, selectedExam.year, session, status]);
 
     const totalMarks = useMemo(
         () => questions.reduce((sum, question) => sum + Number(question.marks || 0), 0),
@@ -206,6 +212,22 @@ export default function Exam2BriefingPage() {
     const canStart = !loading && !error && questions.length > 0;
     const startHref = `/student/practice/math-methods/exam-2/session?examKey=${encodeURIComponent(selectedExam.examKey)}&mode=practice`;
     const examModeHref = `/student/practice/math-methods/exam-2/session?examKey=${encodeURIComponent(selectedExam.examKey)}&mode=exam`;
+
+    if (!featureEnabled) {
+        return (
+            <div className="p-6">
+                <Card>
+                    <CardContent className="p-6">
+                        <p className="text-sm font-medium text-primary">VCE Mathematical Methods</p>
+                        <h1 className="mt-2 text-2xl font-bold tracking-tight">Examination 2 practice</h1>
+                        <p className="mt-3 text-sm text-muted-foreground">
+                            Exam 2 practice is still being validated and is not enabled for this release.
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 p-6">
