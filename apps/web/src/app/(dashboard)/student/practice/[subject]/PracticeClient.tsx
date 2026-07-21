@@ -18,6 +18,7 @@ import { ConfidenceMeter } from '@/components/marking/ConfidenceMeter';
 import { ErrorTagPicker } from '@/components/marking/ErrorTagPicker';
 import { MarkingSourceTimeline } from '@/components/marking/MarkingSourceTimeline';
 import type { HybridMarkingResult } from '@/lib/types/marking';
+import { releaseFeatureFlags } from '@/lib/featureFlags';
 
 type TopicStatus = 'Not started' | 'Early signal' | 'Weak' | 'Monitor' | 'Medium' | 'Strong';
 
@@ -185,6 +186,9 @@ export default function PracticeClient({
 
     const currentQuestion = questions[currentIndex] ?? null;
     const hasResolvedCurrent = Boolean(submissionResult);
+    const aiLearningEnabled = releaseFeatureFlags.aiLearningSupportEnabled;
+    const staticLearningSupportEnabled = releaseFeatureFlags.staticLearningSupportEnabled;
+    const studentDiagnosticsEnabled = releaseFeatureFlags.studentMarkingDiagnosticsEnabled;
 
     const groupedTopics = useMemo(() => {
         const allowed = new Set([
@@ -657,6 +661,7 @@ export default function PracticeClient({
     };
 
     const handleHint = async (level: 1 | 2) => {
+        if (!aiLearningEnabled) return;
         if (!currentQuestion) return;
 
         const setLoading = level === 1 ? setLoadingHint1 : setLoadingHint2;
@@ -691,6 +696,7 @@ export default function PracticeClient({
     };
 
     const handleExplain = async () => {
+        if (!aiLearningEnabled) return;
         if (!currentQuestion || loadingExplain) return;
 
         try {
@@ -778,7 +784,7 @@ export default function PracticeClient({
                 console.warn('DB similar question failed', dbError);
             }
 
-            if (!loaded) {
+            if (!loaded && aiLearningEnabled) {
                 const aiRes = await aiSimilarQuestion({
                     subject,
                     skillCode: (currentQuestion as any).skillCode || selectedTopicCode,
@@ -867,10 +873,14 @@ export default function PracticeClient({
             return 'You skipped this question. Retry it now or move to the next question.';
         }
         if (submissionResult.correct) {
-            return 'Move to the next question or try a similar one for reinforcement.';
+            return aiLearningEnabled
+                ? 'Move to the next question or try a similar one for reinforcement.'
+                : 'Move to the next approved question for reinforcement.';
         }
-        return 'Review the worked solution, then retry this question or try a similar one.';
-    }, [submissionResult]);
+        return aiLearningEnabled
+            ? 'Review the worked solution, then retry this question or try a similar one.'
+            : 'Review the worked solution, then retry this question or continue to the next approved question.';
+    }, [aiLearningEnabled, submissionResult]);
 
     return (
         <div className={showSelector ? 'grid gap-6 xl:grid-cols-[460px_minmax(0,1fr)]' : 'space-y-6'}>
@@ -1202,12 +1212,9 @@ export default function PracticeClient({
                                 No student-ready questions yet
                             </div>
                             <div className="mt-3 text-sm leading-6 text-muted-foreground">
-                                This topic has {activeTopicMeta.available} active question
-                                {activeTopicMeta.available === 1 ? '' : 's'} available for students
-                                {activeTopicMeta.target > 0
-                                    ? `, with a target set of ${activeTopicMeta.target}.`
-                                    : '.'}{' '}
-                                Draft and QA questions stay hidden until approved.
+                                This topic is in the Math Methods catalogue, but its practice questions
+                                are still being prepared for students. Choose another topic with available
+                                questions or check back after the next content update.
                             </div>
                             <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
                                 <button
@@ -1271,7 +1278,7 @@ export default function PracticeClient({
                                             Skip
                                         </button>
 
-                                        {!submissionResult && (
+                                        {aiLearningEnabled && !submissionResult && (
                                             <button
                                                 type="button"
                                                 onClick={() => handleHint(1)}
@@ -1283,14 +1290,14 @@ export default function PracticeClient({
                                         )}
                                     </div>
 
-                                    {hint1Text && (
+                                    {aiLearningEnabled && hint1Text && (
                                         <div data-testid="ai-hint-1" className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-foreground">
                                             <div className="mb-2 font-semibold text-amber-700 dark:text-amber-300">Hint 1</div>
                                             <div className="whitespace-pre-line">{hint1Text}</div>
                                         </div>
                                     )}
 
-                                    {hint2Text && (
+                                    {aiLearningEnabled && hint2Text && (
                                         <div data-testid="ai-hint-2" className="rounded-lg border border-orange-500/20 bg-orange-500/10 p-4 text-foreground">
                                             <div className="mb-2 font-semibold text-orange-700 dark:text-orange-300">Hint 2</div>
                                             <div className="whitespace-pre-line">{hint2Text}</div>
@@ -1336,6 +1343,7 @@ export default function PracticeClient({
                                                 </div>
                                             )}
 
+                                            {staticLearningSupportEnabled && (
                                             <div className="mt-5">
                                                 <div className="mb-2 text-lg font-semibold text-foreground">
                                                     Accepted answer
@@ -1346,7 +1354,9 @@ export default function PracticeClient({
                                                         'No model answer available.'}
                                                 </div>
                                             </div>
+                                            )}
 
+                                            {staticLearningSupportEnabled && (
                                             <div className="mt-5">
                                                 <div className="mb-2 text-lg font-semibold text-foreground">
                                                     Worked solution
@@ -1358,7 +1368,9 @@ export default function PracticeClient({
                                                         'No worked solution available yet.'}
                                                 </div>
                                             </div>
+                                            )}
 
+                                            {staticLearningSupportEnabled && (
                                             <div className="mt-5">
                                                 <div className="mb-2 text-lg font-semibold text-foreground">
                                                     Common mistake note
@@ -1370,9 +1382,10 @@ export default function PracticeClient({
                                                             : 'Check your substitution and arithmetic carefully.')}
                                                 </div>
                                             </div>
+                                            )}
 
                                             {/* Hybrid marking enrichment */}
-                                            {submissionResult.aiMarking && (() => {
+                                            {studentDiagnosticsEnabled && submissionResult.aiMarking && (() => {
                                                 const am = submissionResult.aiMarking as HybridMarkingResult;
                                                 return (
                                                     <div className="mt-5 space-y-4 rounded-lg border border-border bg-muted/50 p-4">
@@ -1466,7 +1479,7 @@ export default function PracticeClient({
                                                 </button>
                                             </div>
 
-                                            {(submissionResult.errorTags?.length ||
+                                            {studentDiagnosticsEnabled && (submissionResult.errorTags?.length ||
                                                 submissionResult.skillGaps?.length ||
                                                 submissionResult.diagnostics) && (
                                                     <div className="mt-4">
@@ -1513,7 +1526,7 @@ export default function PracticeClient({
                                         </div>
                                     )}
 
-                                    {explainText && (
+                                    {aiLearningEnabled && explainText && (
                                         <div data-testid="ai-explanation" className="rounded-lg border border-violet-500/20 bg-violet-500/10 p-4 text-foreground">
                                             <div className="mb-2 font-semibold text-violet-700 dark:text-violet-300">
                                                 Worked explanation
@@ -1522,7 +1535,7 @@ export default function PracticeClient({
                                         </div>
                                     )}
 
-                                    {similarQuestionText && (
+                                    {aiLearningEnabled && similarQuestionText && (
                                         <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-foreground">
                                             <div className="mb-2 font-semibold text-emerald-700 dark:text-emerald-300">
                                                 Similar Question
@@ -1538,43 +1551,56 @@ export default function PracticeClient({
                                             Learning support
                                         </div>
 
-                                        <div className="flex flex-wrap gap-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleHint(1)}
-                                                disabled={loadingHint1 || !currentQuestion}
-                                                className="rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-amber-400 disabled:opacity-50"
-                                            >
-                                                {loadingHint1 ? 'Loading...' : 'Hint 1'}
-                                            </button>
+                                        {aiLearningEnabled ? (
+                                            <div className="flex flex-wrap gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleHint(1)}
+                                                    disabled={loadingHint1 || !currentQuestion}
+                                                    className="rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-amber-400 disabled:opacity-50"
+                                                >
+                                                    {loadingHint1 ? 'Loading...' : 'Hint 1'}
+                                                </button>
 
-                                            <button
-                                                type="button"
-                                                onClick={() => handleHint(2)}
-                                                disabled={loadingHint2 || !currentQuestion}
-                                                className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-orange-400 disabled:opacity-50"
-                                            >
-                                                {loadingHint2 ? 'Loading...' : 'Hint 2'}
-                                            </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleHint(2)}
+                                                    disabled={loadingHint2 || !currentQuestion}
+                                                    className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-orange-400 disabled:opacity-50"
+                                                >
+                                                    {loadingHint2 ? 'Loading...' : 'Hint 2'}
+                                                </button>
 
-                                            <button
-                                                type="button"
-                                                onClick={handleExplain}
-                                                disabled={loadingExplain || !currentQuestion}
-                                                className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-violet-500 disabled:opacity-50"
-                                            >
-                                                {loadingExplain ? 'Loading...' : 'Explain'}
-                                            </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleExplain}
+                                                    disabled={loadingExplain || !currentQuestion}
+                                                    className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-violet-500 disabled:opacity-50"
+                                                >
+                                                    {loadingExplain ? 'Loading...' : 'Explain'}
+                                                </button>
 
-                                            <button
-                                                type="button"
-                                                onClick={handleSimilarQuestion}
-                                                disabled={loadingSimilar || !currentQuestion}
-                                                className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-primary/90 disabled:opacity-50"
-                                            >
-                                                {loadingSimilar ? 'Loading...' : 'Try Similar'}
-                                            </button>
-                                        </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSimilarQuestion}
+                                                    disabled={loadingSimilar || !currentQuestion}
+                                                    className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-primary/90 disabled:opacity-50"
+                                                >
+                                                    {loadingSimilar ? 'Loading...' : 'Try Similar'}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3 text-sm text-muted-foreground">
+                                                <p>
+                                                    Release 1 uses approved questions, automatic marking where safe,
+                                                    worked solutions, and progress tracking.
+                                                </p>
+                                                <p>
+                                                    AI hints and generated explanations are disabled for this free release
+                                                    while the question bank is being reviewed.
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

@@ -10,6 +10,7 @@ import {
   ExamDTO,
   ExamQuestionDTO,
 } from "@/lib/apiClient";
+import { releaseFeatureFlags } from "@/lib/featureFlags";
 
 export default function Exam2SessionPage() {
   const searchParams = useSearchParams();
@@ -21,8 +22,13 @@ export default function Exam2SessionPage() {
   const [questions, setQuestions] = useState<ExamQuestionDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const featureEnabled = releaseFeatureFlags.subjectMathMethodsEnabled && releaseFeatureFlags.mathMethodsExam2Enabled;
 
   useEffect(() => {
+    if (!featureEnabled) {
+      setLoading(false);
+      return;
+    }
     if (status === "loading") return;
     if (status === "unauthenticated") {
       setError("Please log in again to start this examination.");
@@ -57,7 +63,15 @@ export default function Exam2SessionPage() {
     return () => {
       cancelled = true;
     };
-  }, [examKey, session, status]);
+  }, [examKey, featureEnabled, session, status]);
+
+  if (!featureEnabled) {
+    return (
+      <div className="max-w-5xl mx-auto px-6 py-10 text-muted-foreground">
+        Exam 2 practice is still being validated and is not enabled for this release.
+      </div>
+    );
+  }
 
   if (loading) {
     return (
