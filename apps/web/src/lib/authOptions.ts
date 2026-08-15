@@ -59,6 +59,23 @@ async function refreshAccessToken(token: any): Promise<any> {
     }
 }
 
+async function safeResponseText(res: Response): Promise<string> {
+    try {
+        return (await res.text()).slice(0, 500);
+    } catch {
+        return "";
+    }
+}
+
+function describeAuthBackend(base: string) {
+    try {
+        const parsed = new URL(base);
+        return `${parsed.origin}${parsed.pathname}`;
+    } catch {
+        return base;
+    }
+}
+
 export const authOptions: NextAuthOptions = {
     providers: [
         GoogleProvider({
@@ -120,6 +137,11 @@ export const authOptions: NextAuthOptions = {
         async signIn({ user, account }) {
             if (account?.provider === "google") {
                 try {
+                    if (!account.id_token) {
+                        console.error("[next-auth][google] Missing Google id_token");
+                        return false;
+                    }
+
                     const base = getApiBase();
 
                     const res = await fetch(`${base}/auth/google`, {
@@ -130,7 +152,15 @@ export const authOptions: NextAuthOptions = {
                         }),
                     });
 
-                    if (!res.ok) return false;
+                    if (!res.ok) {
+                        console.error("[next-auth][google] Backend auth rejected sign-in", {
+                            status: res.status,
+                            statusText: res.statusText,
+                            apiBase: describeAuthBackend(base),
+                            body: await safeResponseText(res),
+                        });
+                        return false;
+                    }
 
                     const data = await res.json();
 
@@ -141,7 +171,11 @@ export const authOptions: NextAuthOptions = {
                     (user as any).profileCompleted = data.profileCompleted;
 
                     return true;
-                } catch {
+                } catch (error) {
+                    console.error("[next-auth][google] Backend auth request failed", {
+                        apiBase: describeAuthBackend(getApiBase()),
+                        error: error instanceof Error ? error.message : String(error),
+                    });
                     return false;
                 }
             }
