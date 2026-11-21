@@ -1,14 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { homeForRole, normalizeRole } from "@/lib/roleRouting";
-
-const routeAccessMap: Record<string, string[]> = {
-  admin: ["admin"],
-  contributor: ["admin", "contributor", "teacher"],
-  student: ["student"],
-  teacher: ["teacher"],
-  parent: ["parent"],
-};
+import { homeForRole, isRoleAllowedForPath, normalizeRole } from "@/lib/roleRouting";
 
 export default withAuth(
   function middleware(req) {
@@ -41,15 +33,10 @@ export default withAuth(
       return NextResponse.redirect(new URL(homeForRole(role), req.url));
     }
 
-    for (const [routeRole, allowedRoles] of Object.entries(routeAccessMap)) {
-      if (
-        pathname.startsWith(`/${routeRole}`) &&
-        !allowedRoles.includes(String(role))
-      ) {
-        return NextResponse.redirect(
-          new URL(homeForRole(role, "/auth/login"), req.url)
-        );
-      }
+    if (!isRoleAllowedForPath(pathname, role)) {
+      return NextResponse.redirect(
+        new URL(homeForRole(role, "/auth/login"), req.url)
+      );
     }
 
     return NextResponse.next();
@@ -68,6 +55,8 @@ export default withAuth(
   }
 );
 
+// Keep in sync with `routeAccessMap` in lib/roleRouting.ts: a protected prefix that
+// is missing here is never checked. Must stay a static literal (Next.js reads it at build time).
 export const config = {
   matcher: [
     "/admin/:path*",
@@ -75,6 +64,8 @@ export const config = {
     "/student/:path*",
     "/parent/:path*",
     "/teacher/:path*",
+    "/exam/:path*",
+    "/tools/:path*",
     "/auth/:path*",
   ],
 };

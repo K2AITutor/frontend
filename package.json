@@ -15,6 +15,7 @@
     "mobile:web": "npm run web -w @aitutor/mobile",
     "test:answer-input-normalizer": "node scripts/validate-answer-input-normalizer.mjs",
     "test:exam-mcq-ui": "node scripts/validate-exam-mcq-ui.mjs",
+    "test:route-access": "node scripts/validate-route-access.mjs",
     "clean": "find . -name '.next' -o -name '.expo' -o -name 'dist' | xargs rm -rf"
   },
   "overrides": {
